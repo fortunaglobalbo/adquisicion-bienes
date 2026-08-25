@@ -77,54 +77,58 @@ export async function extractTdrFromDocumentOrImageWithAI(
   categoria_detectada?: string;
   secciones_14_puntos?: Array<{ numero: number; titulo: string; contenido: string }>;
 }> {
-  const systemPrompt = `${TDR_SYSTEM_INSTRUCTION}
+  const systemPrompt = `Eres el Especialista Principal en Contrataciones y Adquisiciones de la DISTRIBUIDORA DE ELECTRICIDAD ENDE DEORURO S.A.
+Tu tarea es analizar con máxima precisión y fidelidad el documento o imagen adjunto para redactar las Especificaciones Técnicas Oficiales (TDR).
 
-${GOLD_STANDARD_EXAMPLES}
+REGLAS DE ORO OBLIGATORIAS (PROHIBIDO ALUCINAR):
+1. FIDELIDAD TOTAL AL OBJETO DEL DOCUMENTO:
+   - Debes extraer EXACTAMENTE los bienes o servicios que aparecen en el documento o imagen (por ejemplo: si son Botas de Seguridad, EPP, Indumentaria, Papelería, Vehículos, etc., habla ÚNICAMENTE de ese producto).
+   - PROHIBIDO inventar herramientas eléctricas, cables o líneas de tensión si el documento trata de calzado, indumentaria, insumos médicos o cualquier otro bien.
+2. TÍTULO DEL PROCESO:
+   - Usa el título indicado por el usuario o el que figure explícitamente en el documento subido (en mayúsculas).
+3. ANTECEDENTES Y JUSTIFICACIÓN (Adaptados 100% al producto real):
+   - Antecedentes: 3 párrafos formales de ENDE DEORURO S.A. explicando el contexto institucional para la adquisición de dicho producto específico.
+   - Justificación: 4 párrafos formales explicando la necesidad técnica, ergonomía, prevención de riesgos laborales y cumplimiento de normas de seguridad industrial acordes al producto real.
+4. ESPECIFICACIONES TÉCNICAS:
+   - Extrae cada ítem con su descripción exacta, cantidad, unidad (PZA, PAR, JGO, etc.), precio estimado y sus características técnicas reales (material, normas, dimensiones, color, requisitos mínimos).
 
-INSTRUCCIÓN TÉCNICA:
-Analiza la imagen o texto suministrado. Detecta si corresponde a:
-- SALUD OCUPACIONAL (Exámenes médicos, laboratorio, oftalmología, audiometría, medicina del trabajo).
-- BIENES Y HERRAMIENTAS (Herramientas manuales, hidráulicas, cables, transformadores, ferretería, EPP).
-- SERVICIOS GENERALES U OBRAS.
-
-Genera los 14 PUNTOS COMPLETOS adaptados al rubro detectado.
 DEBES DEVOLVER ESTRICTAMENTE UN OBJETO JSON VÁLIDO con la siguiente estructura:
 {
-  "categoria_detectada": "Salud Ocupacional" | "Bienes y Herramientas" | "Servicios Generales",
-  "titulo_proceso": "ADQUISICIÓN DE ... (en mayúsculas)",
-  "antecedentes_texto": "Texto formal de antecedentes institucionales específico del rubro...",
-  "justificacion_texto": "Texto formal de justificación técnica y de prevención específico del rubro...",
-  "ambito_aplicacion": "Detalle de beneficiarios/ciudades (ej. 140 trabajadores Oruro, 20 Uyuni, etc.)...",
-  "tiempo_entrega": "Plazo de entrega formal (ej. Máximo 5 días hábiles o 30 días calendario)...",
+  "categoria_detectada": "Bienes de Protección Personal (EPP)" | "Herramientas" | "Salud Ocupacional" | "Servicios Generales",
+  "titulo_proceso": "TÍTULO EXACTO DEL PROCESO EN MAYÚSCULAS",
+  "antecedentes_texto": "3 párrafos formales adaptados al bien real...",
+  "justificacion_texto": "4 párrafos formales adaptados al bien real...",
   "items": [
     {
       "item": 1,
-      "descripcion": "Nombre del ítem, herramienta o examen clínico",
+      "descripcion": "NOMBRE EXACTO DEL ÍTEM O PRODUCTO",
       "cantidad": 1,
-      "unidad": "PZA" | "ESTUDIO" | "EXAMEN" | "JGO",
-      "precioUnitarioEstimado": 150,
+      "unidad": "PAR" | "PZA" | "JGO",
+      "precioUnitarioEstimado": 450,
       "fichaTecnica": {
-        "uso": "Medicina del Trabajo / Personal Operativo",
-        "normaCertificacion": "Acreditación de laboratorio / Normas ISO / ASTM",
-        "material": "Reactivos certificados / Acero forjado",
-        "color": "Estándar",
-        "dimensiones": "Estándar clínico / dimensional",
+        "uso": "Personal de la institución",
+        "normaCertificacion": "Norma técnica aplicable según el producto",
+        "material": "Material exacto indicado en el documento",
+        "color": "Color indicado",
+        "dimensiones": "Tallas o dimensiones",
         "capacidadCorte": "",
-        "categoriaItem": "Exámenes Ocupacionales / Herramientas",
+        "categoriaItem": "Categoría real del ítem",
         "caracteristicasDetalle": [
-          "Requisito mínimo 1",
-          "Requisito mínimo 2",
-          "Metodología analítica validada"
+          "Requisito técnico específico 1 del documento",
+          "Requisito técnico específico 2 del documento",
+          "Requisito técnico específico 3 del documento"
         ]
       }
     }
   ]
 }`;
 
-  let userContent: any = `Analiza con visión OCR esta imagen o documento para el proceso ${adquisicion.codigo} ("${adquisicion.titulo_proceso}") y extrae todos los ítems de la lista:\n`;
-  if (input.nombreArchivo) userContent += `Nombre del archivo: ${input.nombreArchivo}\n`;
+  let userContent: any = `Analiza con visión OCR esta imagen o documento para el proceso ${adquisicion.codigo} (Título actual: "${adquisicion.titulo_proceso}").
+Extrae los datos reales con estricta fidelidad al producto mostrado:\n`;
+  if (input.nombreArchivo) userContent += `Archivo: ${input.nombreArchivo}\n`;
   if (input.documentText) userContent += `Texto del documento:\n${input.documentText}\n`;
-  if (input.insumoTexto) userContent += `Instrucciones adicionales del usuario:\n${input.insumoTexto}\n`;
+  if (input.insumoTexto) userContent += `Requerimiento o especificaciones del usuario:\n${input.insumoTexto}\n`;
+
 
   const messages: ChatMessage[] = [{ role: "system", content: systemPrompt }];
 
@@ -314,6 +318,47 @@ DEBES DEVOLVER ESTRICTAMENTE UN OBJETO JSON VÁLIDO con la siguiente estructura:
 
   const inputStr = `${input.insumoTexto || ""} ${input.nombreArchivo || ""} ${input.documentText || ""} ${adquisicion.titulo_proceso || ""}`.toLowerCase();
   const isSalud = inputStr.includes("oftalmo") || inputStr.includes("laboratorio") || inputStr.includes("medic") || inputStr.includes("salud") || inputStr.includes("examen") || inputStr.includes("orina") || inputStr.includes("sangre");
+  const isCalzado = inputStr.includes("bota") || inputStr.includes("botin") || inputStr.includes("calzado") || inputStr.includes("zapato") || inputStr.includes("epp") || inputStr.includes("indumentaria");
+
+  if (isCalzado) {
+    const eppItems: ItemAdquisicion[] = [
+      {
+        id: `item-epp-1`,
+        item: 1,
+        descripcion: adquisicion.titulo_proceso && !adquisicion.titulo_proceso.includes("HERRAMIENTA") ? adquisicion.titulo_proceso.toUpperCase() : "BOTAS DE SEGURIDAD INDUSTRIAL CON PUNTERA DE PROTECCIÓN",
+        unidad: "PAR",
+        cantidad: 50,
+        precioUnitarioEstimado: 480,
+        precioTotalEstimado: 24000,
+        fichaTecnica: {
+          uso: "Personal Operativo y Administrativo de ENDE DEORURO S.A.",
+          normaCertificacion: "Norma ASTM F2413 / EN ISO 20345 / IRAM",
+          material: "Cuero vacuno flor hidrofugado de alta resistencia al agua y aceites",
+          color: "Negro / Café industrial",
+          dimensiones: "Tallas del 38 al 44 según requerimiento de personal",
+          capacidadCorte: "Resistencia al impacto de 200 Joules y compresión de 15 kN",
+          categoriaItem: "Equipo de Protección Personal (EPP)",
+          aceptacionLote: "El personal técnico de ENDE DEORURO realizará una evaluación preliminar de calidad el día de la entrega.",
+          caracteristicasDetalle: [
+            "Puntera de protección ergonómica resistente a impactos y aplastamiento",
+            "Suela de poliuretano doble densidad bidensidad con grabado antideslizante",
+            "Plantilla interior antimicótica, acolchada y ergonómica de alto confort",
+            "Forro interior respirable con absorción y evaporación rápida de humedad",
+            "Costuras reforzadas con hilo de nylon de alta tenacidad"
+          ],
+        },
+      },
+    ];
+
+    const titCalzado = (adquisicion.titulo_proceso && !adquisicion.titulo_proceso.includes("HERRAMIENTA") ? adquisicion.titulo_proceso : "ADQUISICIÓN DE BOTAS DE SEGURIDAD INDUSTRIAL").toUpperCase();
+
+    return {
+      titulo_proceso: titCalzado,
+      antecedentes_texto: `En el marco de las actividades de Seguridad Industrial y Salud Ocupacional, la Distribuidora de Electricidad ENDE DEORURO S.A. requiere la dotación periódica de Calzado de Seguridad y Equipos de Protección Personal (EPP) homologados para los trabajadores de la institución.\n\nEl cumplimiento de los planes de prevención de riesgos y la dotación oportuna de calzado adecuado permite resguardar la salud integral de los trabajadores, evitar lesiones en miembros inferiores y garantizar condiciones seguras de trabajo de acuerdo a la matriz de riesgos laborales de la empresa.\n\nDe acuerdo a la legislación vigente, la Ley General de Higiene, Seguridad Ocupacional y Bienestar, y el Reglamento de Adquisición de Bienes (3ra Versión) de ENDE Corporación, se inicia el presente proceso de adquisición para el personal de ENDE DEORURO S.A.`,
+      justificacion_texto: `La dotación de calzado de seguridad tiene la finalidad fundamental de proteger al personal contra riesgos mecánicos, caídas de objetos pesados, resbalones y condiciones adversas en las diferentes áreas de trabajo de la empresa.\n\nEl uso de calzado ergonómico y certificado contribuye significativamente a reducir la fatiga en jornadas laborales continuas, previniendo lesiones osteomusculares y accidentes incapacitantes.\n\nAsimismo, contar con equipamiento de protección personal adecuado asegura el estricto cumplimiento de las normativas de seguridad ocupacional y políticas institucionales de ENDE Corporación.\n\nPor lo expuesto, la adquisición de este lote de calzado se considera indispensable y prioritaria para salvaguardar la integridad física y bienestar de los trabajadores de ENDE DEORURO S.A.`,
+      items: eppItems,
+    };
+  }
 
   if (isSalud) {
     const saludItems: ItemAdquisicion[] = [
