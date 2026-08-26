@@ -80,10 +80,6 @@ export interface Adquisicion {
   plazo_entrega_dias: number;
   multa_diaria_porcentaje: number; // 0.25
   lugar_entrega: string;
-  calidad_texto?: string;
-  forma_pago_texto?: string;
-  antecedentes_texto?: string;
-  justificacion_texto?: string;
 
   // Campos específicos de la Plantilla Institucional (PDF ENDE Deoruro)
   revision?: string; // ej. "Rev. N° 1"
