@@ -159,6 +159,60 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
 
   const handleDocumentUpdate = (updated: Adquisicion) => {
     DataStore.updateAdquisicion(updated.id, updated);
+
+    // Auto-crear o actualizar registro de Documento oficial en la Carpeta
+    const tipo = getDocType();
+    const docName =
+      tipo === "TDR"
+        ? `TDR_${updated.codigo || "PROCESO"}_Especificaciones_Oficial.docx`
+        : tipo === "SOLICITUD_INICIO"
+        ? `SOLICITUD_INICIO_${updated.codigo || "PROCESO"}_Oficial.docx`
+        : `FORM_S2_N014_${updated.codigo || "PROCESO"}_Cotizacion_Oficial.docx`;
+
+    const allCarpetas = DataStore.getAllCarpetas();
+    const targetFolder = allCarpetas.find((c) => c.id === carpeta.id) || carpeta;
+
+    if (!Array.isArray(targetFolder.documentos)) {
+      targetFolder.documentos = [];
+    }
+
+    const existingDocIndex = targetFolder.documentos.findIndex(
+      (d) => d.nombre_original?.includes(tipo) || d.tipo === "GENERADO_DOCX"
+    );
+
+    if (existingDocIndex >= 0) {
+      const existing = targetFolder.documentos[existingDocIndex];
+      existing.nombre_original = docName;
+      existing.fecha_creacion = new Date().toISOString();
+      existing.contenido_texto = `${tipo} oficial guardado con ${updated.items?.length || 0} ítems y especificaciones vigentes.`;
+      existing.tamano = 48000 + (updated.items?.length || 0) * 1024;
+      existing.version = (existing.version || 1) + 1;
+      targetFolder.estado = "Completado";
+      targetFolder.fecha_proceso = new Date().toISOString();
+      DataStore.saveAllCarpetas(allCarpetas);
+    } else {
+      const newDoc: Documento = {
+        id: `doc-${Date.now()}`,
+        carpeta_id: carpeta.id,
+        adquisicion_id: updated.id,
+        tipo: "GENERADO_DOCX",
+        nombre_original: docName,
+        mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        tamano: 48000 + (updated.items?.length || 0) * 1024,
+        estado: "Borrador",
+        version: 1,
+        creado_por: "Usuario Autenticado",
+        fecha_creacion: new Date().toISOString(),
+        contenido_texto: `${tipo} oficial guardado con ${updated.items?.length || 0} ítems y especificaciones vigentes.`,
+        metadata: {
+          generadoPorIA: true,
+          itemsCount: updated.items?.length || 0,
+        },
+      };
+      DataStore.addDocumentToCarpeta(carpeta.id, newDoc);
+      onDocumentGenerated(newDoc);
+    }
+
     onAdquisicionUpdated?.(updated);
   };
 

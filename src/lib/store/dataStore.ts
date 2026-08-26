@@ -329,6 +329,9 @@ export class DataStore {
         action: "INSERT",
         table: "documentos",
         data: {
+          id: doc.id.startsWith("doc-") ? undefined : doc.id,
+          adquisicion_id: doc.adquisicion_id,
+          carpeta_id: folder.id,
           tipo: doc.tipo,
           nombre_original: doc.nombre_original,
           mime: doc.mime,
