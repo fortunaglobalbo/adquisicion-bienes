@@ -382,7 +382,7 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
             const tipoTabla =
               adquisicion.tipo_tabla_tdr ||
               templateData?.tipoTabla ||
-              (adquisicion.categoria === "Salud Ocupacional" ||
+              ((adquisicion.categoria as any) === "Salud Ocupacional" ||
               adquisicion.titulo_proceso.toLowerCase().includes("oftalmo") ||
               adquisicion.titulo_proceso.toLowerCase().includes("laboratorio")
                 ? "SALUD_OCUPACIONAL"
