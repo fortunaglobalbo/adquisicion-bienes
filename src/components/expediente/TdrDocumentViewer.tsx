@@ -24,12 +24,8 @@ import { Adquisicion, ItemAdquisicion, Plantilla, CampoMoldeLibre, TipoTablaTDR 
 import { Modal } from "@/components/ui/Modal";
 import { InstitutionalLogo } from "../layout/InstitutionalLogo";
 import { DataStore } from "@/lib/store/dataStore";
-import {
-  GOLD_STANDARD_HEALTH_ANTECEDENTES,
-  GOLD_STANDARD_HEALTH_JUSTIFICACION,
-  GOLD_STANDARD_TOOLS_ANTECEDENTES,
-  GOLD_STANDARD_TOOLS_JUSTIFICACION,
-} from "@/lib/ai/prompts/tdrGoldStandards";
+import { parseMarkdownTdrLiteral } from "@/lib/ai/markdownTdrParser";
+
 
 interface TdrDocumentViewerProps {
   adquisicion: Adquisicion;
@@ -162,8 +158,11 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
         nombreArchivo: uploadedAiFile?.name,
       };
 
+      // 1. Si es modo Markdown, realizar parseo literal determinista inmediato
+      let directParsed = null;
       if (aiInputMode === "markdown" && markdownTdrText.trim()) {
         payload.documentText = markdownTdrText;
+        directParsed = parseMarkdownTdrLiteral(markdownTdrText);
       } else if (uploadedAiFile?.base64) {
         if (uploadedAiFile.type.startsWith("image/")) {
           payload.imageBase64 = uploadedAiFile.base64;
@@ -179,18 +178,23 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
       });
 
       const result = await res.json();
-      if (!res.ok) throw new Error(result.error || "Error al procesar con IA");
+      if (!res.ok && !directParsed) throw new Error(result.error || "Error al procesar el documento");
 
-      if (result.data) {
-        const detectedTabla = result.data.tipo_tabla_sugerido || tipoTablaTdr;
+      const parsedData = result.data || directParsed;
+      if (parsedData) {
+        const detectedTabla = directParsed?.tipo_tabla_sugerido || parsedData.tipo_tabla_sugerido || tipoTablaTdr;
         const updated: Adquisicion = {
           ...docData,
           tipo_tabla_tdr: detectedTabla,
-          titulo_proceso: result.data.titulo_proceso || docData.titulo_proceso,
-          antecedentes_texto: result.data.antecedentes_texto || docData.antecedentes_texto,
-          justificacion_texto: result.data.justificacion_texto || docData.justificacion_texto,
-          categoria: (result.data.categoria_detectada as any) || docData.categoria,
-          items: result.data.items && result.data.items.length > 0 ? result.data.items : docData.items,
+          titulo_proceso: directParsed?.titulo_proceso || parsedData.titulo_proceso || docData.titulo_proceso,
+          antecedentes_texto: directParsed?.antecedentes_texto || parsedData.antecedentes_texto || docData.antecedentes_texto,
+          justificacion_texto: directParsed?.justificacion_texto || parsedData.justificacion_texto || docData.justificacion_texto,
+          categoria: (parsedData.categoria_detectada as any) || docData.categoria,
+          items: directParsed?.items && directParsed.items.length > 0
+            ? directParsed.items
+            : parsedData.items && parsedData.items.length > 0
+            ? parsedData.items
+            : docData.items,
         };
 
         setTipoTablaTdr(detectedTabla);
@@ -295,32 +299,43 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
   const incluirFoto = incluirFotoEnItems;
 
   // 14 Puntos Oficiales de ENDE Deoruro S.A.
-  const isSaludDomain = (docData.categoria as string) === "Salud Ocupacional" || docData.titulo_proceso.toLowerCase().includes("oftalmo") || docData.titulo_proceso.toLowerCase().includes("laboratorio");
+  const isSaludDomain = ((docData.categoria as any) === "Salud Ocupacional") || docData.titulo_proceso.toLowerCase().includes("oftalmo") || docData.titulo_proceso.toLowerCase().includes("laboratorio");
 
   const [puntosOficiales, setPuntosOficiales] = useState([
     {
       num: 1,
       titulo: "ANTECEDENTES",
-      contenido: docData.antecedentes_texto || (isSaludDomain ? GOLD_STANDARD_HEALTH_ANTECEDENTES : GOLD_STANDARD_TOOLS_ANTECEDENTES),
+      contenido: docData.antecedentes_texto || "De acuerdo a la legislación vigente, normas y políticas internas se inicia el presente proceso de adquisición/contratación para el cumplimiento de los objetivos operativos e institucionales de la Distribuidora de Electricidad ENDE DEORURO S.A.",
     },
     {
       num: 2,
       titulo: "JUSTIFICACIÓN / NECESIDAD",
-      contenido: docData.justificacion_texto || (isSaludDomain ? GOLD_STANDARD_HEALTH_JUSTIFICACION : GOLD_STANDARD_TOOLS_JUSTIFICACION),
+      contenido: docData.justificacion_texto || "La presente contratación se justifica en la necesidad operativa de contar oportunamente con los bienes y servicios requeridos para el adecuado funcionamiento de las áreas de ENDE DEORURO S.A.",
     },
-    { num: 3, titulo: "ESPECIFICACION TECNICA", contenido: "Detalle técnico y fichas de los requerimientos:" },
-    { num: 4, titulo: "CALIDAD", contenido: isSaludDomain ? "El consultorio o laboratorio debe cumplir con los estándares de calidad. El profesional médico debe tener sus credenciales vigentes ante las autoridades sanitarias (SEDES/Ministerio de Salud). Los equipos y reactivos deberán encontrarse en condiciones adecuadas de calibración durante todo el periodo de prestación del servicio." : "Los bienes deberán ser nuevos, de primer uso y fabricados bajo normas internacionales de calidad ISO 9001 / ASTM / IEC, con certificado de garantía del fabricante." },
-    { num: 5, titulo: "ÁMBITO DE APLICACIÓN", contenido: isSaludDomain ? "El examen médico se realizará a trabajadores de ENDE de Oruro de la ciudad de Oruro 140 trabajadores y de Uyuni 20 trabajadores / Camargo 35 trabajadores." : "Personal operativo de cuadrillas de mantenimiento de Media y Baja Tensión de ENDE DEORURO S.A." },
-    { num: 6, titulo: "MÉTODO DE SELECCIÓN", contenido: "Calificación menor costo (Menor Precio - Art. 31 del Reglamento SBC)." },
+    { num: 3, titulo: "ESPECIFICACION TECNICA", contenido: "Detalle técnico y especificaciones de los requerimientos:" },
+    { num: 4, titulo: "CALIDAD", contenido: isSaludDomain ? "El proponente o laboratorio debe cumplir con los estándares de calidad y credenciales sanitarias vigentes ante las autoridades competentes." : "Los bienes deberán ser nuevos, de primer uso y fabricados bajo normas de calidad aplicables, con garantía oficial." },
+    { num: 5, titulo: "ÁMBITO DE APLICACIÓN", contenido: "Personal institucional y áreas operativas/administrativas de la Distribuidora de Electricidad ENDE DEORURO S.A." },
+    { num: 6, titulo: "MÉTODO DE SELECCIÓN", contenido: "Menor Precio (Art. 31 del Reglamento SBC)." },
     { num: 7, titulo: "VIGENCIA DE LA PROPUESTA", contenido: "Tendrá una validez mínima de 30 días calendario computables a partir de la fecha de presentación de la propuesta." },
-    { num: 8, titulo: "CATEGORÍA", contenido: isSaludDomain ? "Salud Ocupacional y Medicina del Trabajo." : "Adquisición de Bienes y Herramientas (Categoría I / II)." },
-    { num: 9, titulo: "LUGAR DE ENTREGA", contenido: isSaludDomain ? "Unidad de Seguridad Industrial ENDE DEORURO S.A., Oruro - Bolivia." : "Almacén Central de ENDE DEORURO S.A., ubicado en la ciudad de Oruro - Bolivia." },
-    { num: 10, titulo: "TIEMPO DE ENTREGA", contenido: isSaludDomain ? "Máximo 5 días hábiles tras concluir la evaluación médica o toma de muestras." : `Máximo ${docData.plazo_entrega_dias || 30} días calendario computables a partir del día siguiente hábil de la recepción de la Orden de Compra.` },
+    { num: 8, titulo: "CATEGORÍA", contenido: isSaludDomain ? "Salud Ocupacional y Medicina del Trabajo." : "Bienes y Suministros Oficiales." },
+    { num: 9, titulo: "LUGAR DE ENTREGA", contenido: "Instalaciones / Almacén de ENDE DEORURO S.A., Oruro - Bolivia." },
+    { num: 10, titulo: "TIEMPO DE ENTREGA", contenido: `Máximo ${docData.plazo_entrega_dias || 30} días calendario computables a partir del día siguiente hábil de la recepción de la Orden de Compra.` },
     { num: 11, titulo: "FORMA DE ADJUDICACIÓN", contenido: "Por Ítem requerido, formalizada por Orden de Compra (Art. 31 SBC)." },
-    { num: 12, titulo: "PARA LA ACEPTACIÓN DEL LOTE / SERVICIO", contenido: "El personal técnico de ENDE DEORURO realizará una evaluación preliminar el día de la entrega; en caso de existir observaciones, se hará conocer inmediatamente." },
-    { num: 13, titulo: "FORMA DE PAGO", contenido: "El pago se realizará contra entrega satisfactoria del producto o servicio, conformidad emitida por ENDE DEORURO S.A. y entrega de la siguiente documentación: Acta de Entrega / Nota de Recepción, Solicitud de Pago y Factura oficial." },
-    { num: 14, titulo: "APLICACIÓN DE MULTAS", contenido: `Ante el incumplimiento de los plazos y otras condiciones establecidas en la Orden de Compra y Especificaciones Técnicas, se aplicará la multa del ${docData.multa_diaria_porcentaje || 0.25}% por cada día de retraso.` },
+    { num: 12, titulo: "PARA LA ACEPTACIÓN DEL LOTE / SERVICIO", contenido: "El personal técnico de ENDE DEORURO realizará una evaluación técnica de conformidad el día de la entrega." },
+    { num: 13, titulo: "FORMA DE PAGO", contenido: "El pago se realizará contra entrega satisfactoria del producto o servicio, conformidad emitida por ENDE DEORURO S.A. y entrega de la siguiente documentación: Nota de Entrega / Conformidad, Solicitud de Pago y Factura oficial." },
+    { num: 14, titulo: "APLICACIÓN DE MULTAS", contenido: `Ante el incumplimiento de los plazos y otras condiciones establecidas en la Orden de Compra y Especificaciones Técnicas, se aplicará la multa del ${docData.multa_diaria_porcentaje || 0.25}% por cada día de retraso injustificado.` },
   ]);
+
+  // Mantener sincronizados los puntos con el documento
+  useEffect(() => {
+    setPuntosOficiales((prev) =>
+      prev.map((p) => {
+        if (p.num === 1 && docData.antecedentes_texto) return { ...p, contenido: docData.antecedentes_texto };
+        if (p.num === 2 && docData.justificacion_texto) return { ...p, contenido: docData.justificacion_texto };
+        return p;
+      })
+    );
+  }, [docData.antecedentes_texto, docData.justificacion_texto]);
 
   // Actualizar contenido de un punto
   const handlePuntoChange = (num: number, field: "titulo" | "contenido", val: string) => {
