@@ -395,8 +395,8 @@ export const SolicitudInicioViewer: React.FC<SolicitudInicioViewerProps> = ({
               {/* Clean signature line */}
               <div className="text-center font-sans text-xs text-gray-800">
                 <div className="w-48 border-t border-gray-900 mb-1"></div>
-                <div className="font-bold">{remitenteNombre}</div>
-                <div className="text-[10px] text-gray-600 uppercase">{remitenteCargo}</div>
+                <div className="font-bold">{deNombre}</div>
+                <div className="text-[10px] text-gray-600 uppercase">{deCargo}</div>
               </div>
             </div>
           </div>
