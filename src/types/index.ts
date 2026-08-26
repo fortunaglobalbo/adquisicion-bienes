@@ -258,5 +258,7 @@ export interface Plantilla {
   firma_cargo?: string;
   firma_entidad?: string;
   firma_empresa?: string;
+  tipo_tabla_tdr?: TipoTablaTDR;
 }
+
 
