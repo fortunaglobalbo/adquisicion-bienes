@@ -10,6 +10,7 @@ import {
   Plantilla,
 } from "@/types";
 import { INITIAL_ADQUISICIONES, createInitialFolders, INITIAL_PLANTILLAS } from "./initialData";
+import { supabase, isSupabaseConfigured } from "../supabase/client";
 
 const STORAGE_KEYS = {
   ADQUISICIONES: "ende_adquisiciones_v2026",
@@ -23,6 +24,52 @@ const STORAGE_KEYS = {
 export class DataStore {
   private static isClient(): boolean {
     return typeof window !== "undefined";
+  }
+
+  // --- SINCRONIZACIÓN CON SUPABASE ---
+  static async syncWithSupabase(): Promise<void> {
+    if (!this.isClient() || !isSupabaseConfigured()) return;
+    try {
+      // 1. Sincronizar Adquisiciones
+      const { data: remoteAdqs, error: errAdq } = await supabase
+        .from("adquisiciones")
+        .select("*")
+        .order("fecha_creacion", { ascending: false });
+
+      if (!errAdq && remoteAdqs && remoteAdqs.length > 0) {
+        const localList = this.getAdquisiciones();
+        // Combinar datos locales con remotos respetando los más recientes
+        const mergedMap = new Map<string, Adquisicion>();
+        localList.forEach((a) => mergedMap.set(a.codigo, a));
+        remoteAdqs.forEach((r: any) => {
+          const existing = mergedMap.get(r.codigo);
+          mergedMap.set(r.codigo, {
+            id: r.id,
+            codigo: r.codigo,
+            titulo_proceso: r.titulo_proceso,
+            categoria: r.categoria,
+            modalidad: r.modalidad,
+            partida_presupuestaria: r.partida_presupuestaria || "39500",
+            estado: r.estado,
+            prevision_presupuesto: Number(r.prevision_presupuesto) || 0,
+            moneda: r.moneda || "BOB",
+            fecha_inicio: r.fecha_inicio || new Date().toISOString().split("T")[0],
+            fecha_limite: r.fecha_limite,
+            unidad_solicitante: r.unidad_solicitante || "Departamento Técnico de Mantenimiento",
+            responsable_proceso: r.responsable_proceso,
+            creado_por: r.creado_por || "admin@ende-deoruro.bo",
+            fecha_creacion: r.fecha_creacion,
+            fecha_actualizacion: r.fecha_actualizacion,
+            antecedentes_texto: existing?.antecedentes_texto,
+            justificacion_texto: existing?.justificacion_texto,
+            items: existing?.items || [],
+          });
+        });
+        this.saveAdquisiciones(Array.from(mergedMap.values()));
+      }
+    } catch (e) {
+      console.warn("Error en syncWithSupabase:", e);
+    }
   }
 
   // --- ADQUISICIONES ---
@@ -74,43 +121,51 @@ export class DataStore {
     // Initial log
     this.addLog(id, `Expediente creado con código ${newAdq.codigo}: "${newAdq.titulo_proceso}".`, newAdq.creado_por, "CREAR");
 
-    // Initialize Default Signatures
-    this.saveFirmasForAdquisicion(id, [
-      {
-        id: `sig-1-${id}`,
-        adquisicion_id: id,
-        cargo: "Responsable de Unidad Solicitante",
-        nombre: newAdq.responsable_proceso || "Ing. Encargado",
-        rol: "Solicitante",
-        orden: 1,
-        firmado: false,
-      },
-      {
-        id: `sig-2-${id}`,
-        adquisicion_id: id,
-        cargo: "Supervisor de Adquisiciones",
-        nombre: "Lic. Supervisor de Contrataciones",
-        rol: "Supervisor",
-        orden: 2,
-        firmado: false,
-      },
-      {
-        id: `sig-3-${id}`,
-        adquisicion_id: id,
-        cargo: "Gerente Administrativo y Financiero",
-        nombre: "Ing. Gerente de Área",
-        rol: "Gerente",
-        orden: 3,
-        firmado: false,
-      },
-    ]);
+    // Guardar en Supabase en segundo plano
+    if (this.isClient() && isSupabaseConfigured()) {
+      supabase
+        .from("adquisiciones")
+        .insert([
+          {
+            codigo: newAdq.codigo,
+            titulo_proceso: newAdq.titulo_proceso,
+            categoria: newAdq.categoria || "Bienes",
+            modalidad: newAdq.modalidad,
+            partida_presupuestaria: newAdq.partida_presupuestaria,
+            estado: newAdq.estado,
+            prevision_presupuesto: newAdq.prevision_presupuesto,
+            moneda: newAdq.moneda || "BOB",
+            unidad_solicitante: newAdq.unidad_solicitante,
+            responsable_proceso: newAdq.responsable_proceso,
+            creado_por: newAdq.creado_por,
+          },
+        ])
+        .select()
+        .then(({ data: created, error }) => {
+          if (error) {
+            console.error("Error guardando adquisición en Supabase:", error);
+          } else if (created && created[0]) {
+            // Guardar carpetas en Supabase
+            const dbCarpetas = initialFolders.map((c) => ({
+              adquisicion_id: created[0].id,
+              numero: c.numero,
+              nombre: c.nombre,
+              tipo_generacion: c.tipo_generacion,
+              estado: c.estado,
+              descripcion: c.descripcion,
+            }));
+            supabase.from("carpetas").insert(dbCarpetas).then();
+          }
+        })
+        .catch(console.error);
+    }
 
     return newAdq;
   }
 
   static updateAdquisicion(id: string, updates: Partial<Adquisicion>): Adquisicion | undefined {
     const list = this.getAdquisiciones();
-    const idx = list.findIndex((a) => a.id === id);
+    const idx = list.findIndex((a) => a.id === id || a.codigo === id);
     if (idx === -1) return undefined;
 
     list[idx] = {
@@ -119,44 +174,53 @@ export class DataStore {
       fecha_actualizacion: new Date().toISOString(),
     };
     this.saveAdquisiciones(list);
+
+    // Actualizar en Supabase en segundo plano
+    if (this.isClient() && isSupabaseConfigured()) {
+      const target = list[idx];
+      const payload: any = {
+        fecha_actualizacion: new Date().toISOString(),
+      };
+      if (updates.titulo_proceso) payload.titulo_proceso = updates.titulo_proceso;
+      if (updates.categoria) payload.categoria = updates.categoria;
+      if (updates.estado) payload.estado = updates.estado;
+      if (updates.prevision_presupuesto !== undefined) payload.prevision_presupuesto = updates.prevision_presupuesto;
+      if (updates.responsable_proceso) payload.responsable_proceso = updates.responsable_proceso;
+
+      supabase
+        .from("adquisiciones")
+        .update(payload)
+        .or(`id.eq.${target.id},codigo.eq.${target.codigo}`)
+        .then(({ error }) => {
+          if (error) console.error("Error actualizando en Supabase:", error);
+        })
+        .catch(console.error);
+    }
+
     return list[idx];
   }
 
   static deleteAdquisicion(id: string): boolean {
     if (!this.isClient()) return false;
     const list = this.getAdquisiciones();
-    const filtered = list.filter((a) => a.id !== id);
+    const target = list.find((a) => a.id === id || a.codigo === id);
+    const filtered = list.filter((a) => a.id !== id && a.codigo !== id);
     this.saveAdquisiciones(filtered);
 
     // Remove associated folders
     const allCarpetas = this.getAllCarpetas().filter((c) => c.adquisicion_id !== id);
     this.saveAllCarpetas(allCarpetas);
 
-    // Remove associated firmas
-    const rawFirmas = localStorage.getItem(STORAGE_KEYS.FIRMAS);
-    if (rawFirmas) {
-      try {
-        const allFirmas: Firma[] = JSON.parse(rawFirmas);
-        localStorage.setItem(STORAGE_KEYS.FIRMAS, JSON.stringify(allFirmas.filter((f) => f.adquisicion_id !== id)));
-      } catch {}
-    }
-
-    // Remove associated OCR extractions
-    const rawCampos = localStorage.getItem(STORAGE_KEYS.CAMPOS_EXTRAIDOS);
-    if (rawCampos) {
-      try {
-        const allCampos: CampoExtraido[] = JSON.parse(rawCampos);
-        localStorage.setItem(STORAGE_KEYS.CAMPOS_EXTRAIDOS, JSON.stringify(allCampos.filter((c) => c.adquisicion_id !== id)));
-      } catch {}
-    }
-
-    // Remove associated logs
-    const rawLogs = localStorage.getItem(STORAGE_KEYS.LOGS);
-    if (rawLogs) {
-      try {
-        const allLogs: LogProceso[] = JSON.parse(rawLogs);
-        localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(allLogs.filter((l) => l.adquisicion_id !== id)));
-      } catch {}
+    // Eliminar en Supabase en segundo plano
+    if (isSupabaseConfigured() && target) {
+      supabase
+        .from("adquisiciones")
+        .delete()
+        .or(`id.eq.${target.id},codigo.eq.${target.codigo}`)
+        .then(({ error }) => {
+          if (error) console.error("Error eliminando de Supabase:", error);
+        })
+        .catch(console.error);
     }
 
     return true;
@@ -167,35 +231,10 @@ export class DataStore {
     if (!this.isClient()) return [];
     const raw = localStorage.getItem(STORAGE_KEYS.CARPETAS);
     if (!raw) {
-      // populate for default acquisitions
       const initial: Carpeta[] = [];
       INITIAL_ADQUISICIONES.forEach((a) => {
         initial.push(...createInitialFolders(a.id));
       });
-      // add a mock document to folder 1 of acq-1
-      const f1 = initial.find((c) => c.adquisicion_id === "acq-1" && c.numero === 1);
-      if (f1) {
-        f1.estado = "Completado";
-        f1.documentos = [
-          {
-            id: "doc-init-tdr",
-            carpeta_id: f1.id,
-            adquisicion_id: "acq-1",
-            tipo: "GENERADO_DOCX",
-            nombre_original: "TDR_Herramientas_Mantenimiento_v1.docx",
-            mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            tamano: 45200,
-            estado: "Borrador",
-            version: 1,
-            creado_por: "Sistema IA (OpenCode Go)",
-            fecha_creacion: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
-            metadata: {
-              idDoc: "DOC-TDR-001-A",
-              generadoPorIA: true,
-            },
-          },
-        ];
-      }
       this.saveAllCarpetas(initial);
       return initial;
     }
@@ -259,7 +298,6 @@ export class DataStore {
     if (!this.isClient()) return;
     const raw = localStorage.getItem(STORAGE_KEYS.CAMPOS_EXTRAIDOS);
     let all: CampoExtraido[] = raw ? JSON.parse(raw) : [];
-    // remove previous with same key for this adq
     const keys = new Set(nuevosCampos.map((c) => c.clave));
     all = all.filter((c) => !(c.adquisicion_id === adquisicionId && keys.has(c.clave)));
     all.push(...nuevosCampos);
@@ -334,6 +372,20 @@ export class DataStore {
     };
     all.unshift(newLog);
     localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(all));
+
+    // Guardar en Supabase
+    if (isSupabaseConfigured()) {
+      supabase
+        .from("logs_proceso")
+        .insert([
+          {
+            descripcion,
+            usuario,
+            accion,
+          },
+        ])
+        .then();
+    }
   }
 
   // --- PLANTILLAS ---
@@ -362,6 +414,23 @@ export class DataStore {
     if (idx === -1) return undefined;
     list[idx] = { ...list[idx], ...updates };
     this.saveAllPlantillas(list);
+
+    // Guardar en Supabase
+    if (this.isClient() && isSupabaseConfigured()) {
+      const target = list[idx];
+      supabase
+        .from("plantillas")
+        .update({
+          contenido_plantilla: target.datos_completos || updates,
+          version: target.version || "1.0",
+        })
+        .eq("fk_carpeta", target.fk_carpeta)
+        .then(({ error }) => {
+          if (error) console.error("Error actualizando plantilla en Supabase:", error);
+        })
+        .catch(console.error);
+    }
+
     return list[idx];
   }
 }

@@ -19,7 +19,12 @@ export default function DashboardPage() {
     const list = DataStore.getAdquisiciones();
     setAdquisiciones(list);
     setLoaded(true);
+
+    DataStore.syncWithSupabase().then(() => {
+      setAdquisiciones(DataStore.getAdquisiciones());
+    });
   }, []);
+
 
   const handleCreateAdquisicion = (newAdqData: Adquisicion) => {
     const created = DataStore.createAdquisicion(newAdqData);
