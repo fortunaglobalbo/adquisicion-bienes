@@ -62,9 +62,13 @@ export class DataStore {
             fecha_actualizacion: r.fecha_actualizacion,
             antecedentes_texto: existing?.antecedentes_texto,
             justificacion_texto: existing?.justificacion_texto,
+            plazo_entrega_dias: existing?.plazo_entrega_dias || 30,
+            multa_diaria_porcentaje: existing?.multa_diaria_porcentaje || 0.25,
+            lugar_entrega: existing?.lugar_entrega || "Almacén Central ENDE DEORURO S.A., Oruro - Bolivia",
             items: existing?.items || [],
           });
         });
+
         this.saveAdquisiciones(Array.from(mergedMap.values()));
       }
     } catch (e) {
