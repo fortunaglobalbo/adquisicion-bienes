@@ -127,29 +127,30 @@ export class DataStore {
 
     // Guardar en Supabase en segundo plano
     if (this.isClient() && isSupabaseConfigured()) {
-      supabase
-        .from("adquisiciones")
-        .insert([
-          {
-            codigo: newAdq.codigo,
-            titulo_proceso: newAdq.titulo_proceso,
-            categoria: newAdq.categoria || "Bienes",
-            modalidad: newAdq.modalidad,
-            partida_presupuestaria: newAdq.partida_presupuestaria,
-            estado: newAdq.estado,
-            prevision_presupuesto: newAdq.prevision_presupuesto,
-            moneda: newAdq.moneda || "BOB",
-            unidad_solicitante: newAdq.unidad_solicitante,
-            responsable_proceso: newAdq.responsable_proceso,
-            creado_por: newAdq.creado_por,
-          },
-        ])
-        .select()
-        .then(({ data: created, error }) => {
+      (async () => {
+        try {
+          const { data: created, error } = await supabase
+            .from("adquisiciones")
+            .insert([
+              {
+                codigo: newAdq.codigo,
+                titulo_proceso: newAdq.titulo_proceso,
+                categoria: newAdq.categoria || "Bienes",
+                modalidad: newAdq.modalidad,
+                partida_presupuestaria: newAdq.partida_presupuestaria,
+                estado: newAdq.estado,
+                prevision_presupuesto: newAdq.prevision_presupuesto,
+                moneda: newAdq.moneda || "BOB",
+                unidad_solicitante: newAdq.unidad_solicitante,
+                responsable_proceso: newAdq.responsable_proceso,
+                creado_por: newAdq.creado_por,
+              },
+            ])
+            .select();
+
           if (error) {
             console.error("Error guardando adquisición en Supabase:", error);
           } else if (created && created[0]) {
-            // Guardar carpetas en Supabase
             const dbCarpetas = initialFolders.map((c) => ({
               adquisicion_id: created[0].id,
               numero: c.numero,
@@ -158,10 +159,12 @@ export class DataStore {
               estado: c.estado,
               descripcion: c.descripcion,
             }));
-            supabase.from("carpetas").insert(dbCarpetas).then();
+            await supabase.from("carpetas").insert(dbCarpetas);
           }
-        })
-        .catch(console.error);
+        } catch (err) {
+          console.error("Error async en Supabase createAdquisicion:", err);
+        }
+      })();
     }
 
     return newAdq;
@@ -191,14 +194,17 @@ export class DataStore {
       if (updates.prevision_presupuesto !== undefined) payload.prevision_presupuesto = updates.prevision_presupuesto;
       if (updates.responsable_proceso) payload.responsable_proceso = updates.responsable_proceso;
 
-      supabase
-        .from("adquisiciones")
-        .update(payload)
-        .or(`id.eq.${target.id},codigo.eq.${target.codigo}`)
-        .then(({ error }) => {
+      (async () => {
+        try {
+          const { error } = await supabase
+            .from("adquisiciones")
+            .update(payload)
+            .or(`id.eq.${target.id},codigo.eq.${target.codigo}`);
           if (error) console.error("Error actualizando en Supabase:", error);
-        })
-        .catch(console.error);
+        } catch (err) {
+          console.error("Error async en Supabase updateAdquisicion:", err);
+        }
+      })();
     }
 
     return list[idx];
@@ -217,18 +223,22 @@ export class DataStore {
 
     // Eliminar en Supabase en segundo plano
     if (isSupabaseConfigured() && target) {
-      supabase
-        .from("adquisiciones")
-        .delete()
-        .or(`id.eq.${target.id},codigo.eq.${target.codigo}`)
-        .then(({ error }) => {
+      (async () => {
+        try {
+          const { error } = await supabase
+            .from("adquisiciones")
+            .delete()
+            .or(`id.eq.${target.id},codigo.eq.${target.codigo}`);
           if (error) console.error("Error eliminando de Supabase:", error);
-        })
-        .catch(console.error);
+        } catch (err) {
+          console.error("Error async en Supabase deleteAdquisicion:", err);
+        }
+      })();
     }
 
     return true;
   }
+
 
   // --- CARPETAS ---
   static getAllCarpetas(): Carpeta[] {
