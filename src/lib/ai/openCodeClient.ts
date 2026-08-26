@@ -76,6 +76,7 @@ export async function extractTdrFromDocumentOrImageWithAI(
   resumen_ia?: string;
   categoria_detectada?: string;
   tipo_tabla_sugerido?: TipoTablaTDR;
+  puntos_detectados?: { [num: number]: string };
   secciones_14_puntos?: Array<{ numero: number; titulo: string; contenido: string }>;
 }> {
   // Si el usuario provee texto o Markdown, ejecutamos primero la extracción literal exacta
