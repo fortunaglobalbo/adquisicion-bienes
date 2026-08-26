@@ -83,7 +83,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
   const [docData, setDocData] = useState<Adquisicion>({ ...adquisicion });
   const [tipoTablaTdr, setTipoTablaTdr] = useState<TipoTablaTDR>(
     adquisicion.tipo_tabla_tdr ||
-    (adquisicion.categoria === "Salud Ocupacional" ||
+    ((adquisicion.categoria as any) === "Salud Ocupacional" ||
     adquisicion.titulo_proceso.toLowerCase().includes("oftalmo") ||
     adquisicion.titulo_proceso.toLowerCase().includes("laboratorio")
       ? "SALUD_OCUPACIONAL"
