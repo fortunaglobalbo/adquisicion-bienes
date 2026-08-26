@@ -12,9 +12,9 @@ export interface ParsedTdrResult {
 }
 
 /**
- * Limpia etiquetas HTML y formato Markdown excesivo manteniendo estructura limpia
+ * Limpia tags HTML <br> reemplazándolos por saltos de línea reales y remueve asteriscos de markdown
  */
-function cleanMdText(text: string): string {
+function cleanFormatting(text: string): string {
   if (!text) return "";
   return text
     .replace(/<br\s*\/?>/gi, "\n")
@@ -26,8 +26,8 @@ function cleanMdText(text: string): string {
 }
 
 /**
- * Parser de fidelidad 100% literal para TDR en Markdown.
- * Soporta tablas multilínea con <br>, todas las 14 secciones oficiales, y cualquier orden de columnas.
+ * Parser de ultra-fidelidad literal para documentos TDR y Markdown.
+ * Extrae fielmente los 14 puntos y preserva el 100% de las viñetas y características técnicas multilínea.
  */
 export function parseMarkdownTdrLiteral(rawMarkdown: string): ParsedTdrResult {
   if (!rawMarkdown || typeof rawMarkdown !== "string") {
@@ -39,264 +39,262 @@ export function parseMarkdownTdrLiteral(rawMarkdown: string): ParsedTdrResult {
     puntos_detectados: {},
   };
 
-  // Normalizar saltos de línea
   const rawText = rawMarkdown.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const lines = rawText.split("\n");
 
   // =========================================================================
-  // 1. EXTRAER TÍTULO PRINCIPAL
+  // 1. EXTRAER TÍTULO PRINCIPAL DEL PROCESO
   // =========================================================================
-  const lines = rawText.split("\n");
   for (let i = 0; i < Math.min(lines.length, 15); i++) {
-    const l = cleanMdText(lines[i]).toUpperCase();
+    const cleanL = cleanFormatting(lines[i]).toUpperCase();
     if (
-      l.startsWith("ESPECIFICACIONES TÉCNICAS") ||
-      l.startsWith("TÉRMINOS DE REFERENCIA") ||
-      l.startsWith("ADQUISICIÓN") ||
-      l.startsWith("CONTRATACIÓN") ||
-      l.startsWith("COMPRA DE") ||
-      l.startsWith("PROVISIÓN")
+      cleanL.startsWith("ESPECIFICACIONES TÉCNICAS") ||
+      cleanL.startsWith("TÉRMINOS DE REFERENCIA") ||
+      cleanL.startsWith("ADQUISICIÓN") ||
+      cleanL.startsWith("CONTRATACIÓN") ||
+      cleanL.startsWith("COMPRA DE") ||
+      cleanL.startsWith("PROVISIÓN")
     ) {
-      result.titulo_proceso = l.replace(/^["'“]|["'”]$/g, "").trim();
+      result.titulo_proceso = cleanL.replace(/^["'“]|["'”]$/g, "").trim();
       break;
     }
   }
 
   // =========================================================================
-  // 2. EXTRAER LOS 14 PUNTOS OFICIALES SEGÚN ENCABEZADOS
+  // 2. SEGMENTAR EL DOCUMENTO EN LAS 14 SECCIONES OFICIALES
   // =========================================================================
-  // Nombres y números oficiales
-  const puntosKeywords: { [num: number]: string[] } = {
-    1: ["ANTECEDENTE"],
-    2: ["JUSTIFICACI", "NECESIDAD"],
-    3: ["ESPECIFICACI", "CARACTERISTICA"],
+  // Mapa de palabras clave para detectar cada sección del 1 al 14
+  const sectionKeywords: { [num: number]: string[] } = {
+    1: ["ANTECEDENTES"],
+    2: ["JUSTIFICACIÓN", "JUSTIFICACION", "NECESIDAD"],
+    3: ["ESPECIFICACIÓN", "ESPECIFICACION", "ESPECIFICACIONES", "ITEMS", "ÍTEMS", "CUADRO TÉCNICO"],
     4: ["CALIDAD"],
-    5: ["ÁMBITO", "AMBITO", "APLICACI"],
-    6: ["MÉTODO", "METODO", "SELECCI"],
+    5: ["ÁMBITO", "AMBITO", "APLICACIÓN", "APLICACION"],
+    6: ["MÉTODO", "METODO", "SELECCIÓN", "SELECCION"],
     7: ["VIGENCIA", "VALIDEZ"],
-    8: ["CATEGOR"],
+    8: ["CATEGORÍA", "CATEGORIA"],
     9: ["LUGAR DE ENTREGA", "LUGAR"],
     10: ["TIEMPO DE ENTREGA", "PLAZO DE ENTREGA", "PLAZO"],
-    11: ["FORMA DE ADJUDICACI", "ADJUDICACI"],
-    12: ["ACEPTACI", "RECEPCI", "CONFORMIDAD"],
+    11: ["FORMA DE ADJUDICACIÓN", "FORMA DE ADJUDICACION", "ADJUDICACIÓN"],
+    12: ["ACEPTACIÓN", "ACEPTACION", "RECEPCIÓN", "CONFORMIDAD"],
     13: ["FORMA DE PAGO", "PAGO"],
-    14: ["MULTA", "SANCION", "PENALIDAD"],
+    14: ["APLICACIÓN DE MULTAS", "APLICACION DE MULTAS", "MULTAS", "MULTA"],
   };
 
-  // Regex para identificar inicio de sección numerada:
-  // e.g. "### 1. ANTECEDENTES", "1. ANTECEDENTES", "**1. ANTECEDENTES**", "1.- ANTECEDENTES", "1) ANTECEDENTES", "4. CALIDAD"
-  const sectionHeaderRegex = /^(?:#+\s*)?(?:\*{1,3})?(?:(\d+)[\.\-\)]\s*)?([A-ZÁÉÍÓÚÑ\s\/\-_]{3,})(?:\*{1,3})?:?$/i;
-
-  let currentPuntoNum: number | null = null;
-  const puntoBuffers: { [num: number]: string[] } = {};
+  // Identificar los límites (línea de inicio) de cada punto encontrado
+  interface SectionPos {
+    num: number;
+    title: string;
+    lineIdx: number;
+  }
+  const detectedSections: SectionPos[] = [];
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const cleanLine = cleanMdText(line);
-    const upper = cleanLine.toUpperCase();
+    const line = lines[i].trim();
+    const cleanL = cleanFormatting(line).toUpperCase();
+    if (!cleanL || cleanL.length > 90) continue;
+    // Ignorar filas de tablas
+    if (line.startsWith("|")) continue;
 
-    // Comprobar si la línea es encabezado de un punto oficial (1..14)
-    let detectedNum: number | null = null;
-
-    // A) Si tiene número explícito (e.g. "4. CALIDAD", "### 4. CALIDAD")
-    const matchNum = cleanLine.match(/^(?:#+\s*)?(\d+)[\.\-\)]\s*([A-ZÁÉÍÓÚÑ\s\/\-_]+)/i);
+    // Buscar si es un encabezado numerado como "### 4. CALIDAD" o "4. CALIDAD" o "**4. CALIDAD**"
+    const matchNum = cleanL.match(/^(?:#+\s*)?(\d+)[\.\-\)]\s*([A-ZÁÉÍÓÚÑ\s\/\-_]+)/i);
     if (matchNum) {
-      const n = parseInt(matchNum[1], 10);
-      if (n >= 1 && n <= 14 && cleanLine.length < 80) {
-        detectedNum = n;
+      const num = parseInt(matchNum[1], 10);
+      if (num >= 1 && num <= 14) {
+        detectedSections.push({ num, title: matchNum[2].trim(), lineIdx: i });
+        continue;
       }
     }
 
-    // B) Si no tiene número, buscar por palabras clave
-    if (!detectedNum && cleanLine.length < 80) {
-      for (const [numStr, keywords] of Object.entries(puntosKeywords)) {
-        const n = parseInt(numStr, 10);
-        if (keywords.some((k) => upper.startsWith(k) || upper.includes(k))) {
-          // Asegurarse de que no sea parte de un párrafo largo
-          if (cleanLine.split(" ").length <= 8) {
-            detectedNum = n;
-            break;
-          }
+    // Si no tiene número, buscar por palabras clave
+    for (const [numStr, kwList] of Object.entries(sectionKeywords)) {
+      const num = parseInt(numStr, 10);
+      if (kwList.some((kw) => cleanL === kw || cleanL.startsWith(kw + ":") || cleanL.startsWith(kw + " -") || cleanL.endsWith(kw))) {
+        if (!detectedSections.some((s) => s.num === num)) {
+          detectedSections.push({ num, title: cleanL, lineIdx: i });
+          break;
         }
-      }
-    }
-
-    if (detectedNum !== null) {
-      currentPuntoNum = detectedNum;
-      if (!puntoBuffers[currentPuntoNum]) {
-        puntoBuffers[currentPuntoNum] = [];
-      }
-      continue;
-    }
-
-    // Si estamos dentro de un punto y no es la sección 3 (que contiene la tabla), acumular texto
-    if (currentPuntoNum !== null && currentPuntoNum !== 3) {
-      // Ignorar líneas divisorias o cabeceras de tabla
-      if (!line.trim().startsWith("|") && !line.trim().startsWith("---")) {
-        puntoBuffers[currentPuntoNum].push(cleanLine);
       }
     }
   }
 
-  // Guardar puntos acumulados
-  for (let n = 1; n <= 14; n++) {
-    if (puntoBuffers[n] && puntoBuffers[n].length > 0) {
-      const textBlock = puntoBuffers[n]
-        .map((l) => l.trim())
-        .filter((l) => l.length > 0)
-        .join("\n\n")
-        .trim();
+  // Ordenar secciones por su posición en el documento
+  detectedSections.sort((a, b) => a.lineIdx - b.lineIdx);
 
-      if (textBlock) {
-        result.puntos_detectados[n] = textBlock;
-        if (n === 1) result.antecedentes_texto = textBlock;
-        if (n === 2) result.justificacion_texto = textBlock;
-      }
+  // Extraer el texto de cada sección entre su línea y la siguiente sección
+  const sectionTexts: { [num: number]: string } = {};
+
+  for (let i = 0; i < detectedSections.length; i++) {
+    const current = detectedSections[i];
+    const nextLineIdx = i < detectedSections.length - 1 ? detectedSections[i + 1].lineIdx : lines.length;
+    const bodyLines = lines.slice(current.lineIdx + 1, nextLineIdx);
+
+    const bodyText = bodyLines
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0 && !l.startsWith("---"))
+      .join("\n");
+
+    sectionTexts[current.num] = bodyText;
+    if (current.num !== 3) {
+      result.puntos_detectados[current.num] = cleanFormatting(bodyText);
     }
   }
 
+  if (result.puntos_detectados[1]) result.antecedentes_texto = result.puntos_detectados[1];
+  if (result.puntos_detectados[2]) result.justificacion_texto = result.puntos_detectados[2];
+
   // =========================================================================
-  // 3. EXTRAER TABLAS MULTILÍNEA CON <BR> Y BULLETS
+  // 3. EXTRAER Y RECONSTRUIR LA TABLA DE ÍTEMS Y CARACTERÍSTICAS TÉCNICAS
   // =========================================================================
-  // Extraer el bloque de la tabla
-  const tableBlockMatch = rawText.match(/\|[\s\S]*?\|[\s\S]*?\|[\s\S]*?\n(?=\n[#A-Z0-9]|\n\n[#A-Z0-9]|$)/i);
+  // Usar el bloque de la sección 3 o buscar la tabla en todo el documento
+  const section3Raw = sectionTexts[3] || rawText;
 
-  if (tableBlockMatch) {
-    const tableRaw = tableBlockMatch[0];
-    const rawLines = tableRaw.split("\n").map((l) => l.trim()).filter(Boolean);
+  // Buscar todas las líneas que pertenecen a la tabla
+  const s3Lines = section3Raw.split("\n");
+  let tableHeaderIdx = -1;
+  let tableSeparatorIdx = -1;
 
-    // Identificar cabecera (primera fila)
-    let headerLine = "";
-    let separatorIndex = -1;
+  for (let i = 0; i < s3Lines.length; i++) {
+    const l = s3Lines[i].trim();
+    if (l.startsWith("|") && l.includes("---")) {
+      tableSeparatorIdx = i;
+      if (i > 0 && s3Lines[i - 1].trim().startsWith("|")) {
+        tableHeaderIdx = i - 1;
+      }
+      break;
+    }
+  }
 
-    for (let i = 0; i < rawLines.length; i++) {
-      if (rawLines[i].includes("---")) {
-        separatorIndex = i;
-        if (i > 0) headerLine = rawLines[i - 1];
-        break;
+  if (tableSeparatorIdx !== -1) {
+    const headerLine = tableHeaderIdx !== -1 ? s3Lines[tableHeaderIdx] : "";
+    const headerLower = headerLine.toLowerCase();
+    const isSalud =
+      headerLower.includes("examen") ||
+      headerLower.includes("estudio") ||
+      headerLower.includes("metodologia") ||
+      headerLower.includes("propuesto");
+
+    // Recolectar todas las líneas que corresponden a los datos de la tabla
+    const tableDataLines = s3Lines.slice(tableSeparatorIdx + 1);
+
+    // Reagrupar líneas multilínea en bloques por cada fila de la tabla
+    // Una nueva fila comienza con '|' seguido de un número de ítem (e.g. '| 1 |', '| 1.- |', '| 2 |')
+    const itemChunks: string[] = [];
+    let currentItemChunk = "";
+
+    for (let i = 0; i < tableDataLines.length; i++) {
+      const line = tableDataLines[i];
+      const trimmed = line.trim();
+
+      // Si la línea inicia con un nuevo ítem (e.g. "| 1 |", "| 2 |", "| 3 |")
+      if (/^\|\s*\d+[\.\-\)]?\s*\|/.test(trimmed)) {
+        if (currentItemChunk) {
+          itemChunks.push(currentItemChunk);
+        }
+        currentItemChunk = trimmed;
+      } else if (currentItemChunk) {
+        // Continuación de las características multilínea del ítem actual
+        currentItemChunk += "\n" + line;
       }
     }
+    if (currentItemChunk) {
+      itemChunks.push(currentItemChunk);
+    }
 
-    if (separatorIndex !== -1 && headerLine) {
-      // Parsear nombres de columnas de cabecera
-      const headerCols = headerLine
-        .split("|")
-        .map((c) => cleanMdText(c).toLowerCase())
-        .filter((c, idx, arr) => (idx > 0 && idx < arr.length - 1) || arr.length <= 2);
+    const parsedItems: ItemAdquisicion[] = [];
 
-      // Reconstruir filas de datos que pueden estar divididas en múltiples líneas
-      const rawDataLines = rawLines.slice(separatorIndex + 1);
-      const dataRowChunks: string[] = [];
-      let currentChunk = "";
+    itemChunks.forEach((chunk, chunkIdx) => {
+      // Reemplazar <br> por saltos de línea reales
+      const normalizedChunk = chunk
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<\/?[^>]+(>|$)/g, "");
 
-      for (const line of rawDataLines) {
-        // Una nueva fila de tabla comienza si tiene | seguido de número o texto y tiene múltiples |
-        if (line.startsWith("|") && line.split("|").length >= 3 && /^\s*\|\s*(?:\d+|[A-ZÁÉÍÓÚÑa-z])/i.test(line)) {
-          if (currentChunk) dataRowChunks.push(currentChunk);
-          currentChunk = line;
-        } else {
-          // Es continuación de la celda de la fila actual (con <br> o viñetas)
-          currentChunk += (currentChunk ? "\n" : "") + line;
-        }
-      }
-      if (currentChunk) dataRowChunks.push(currentChunk);
+      // Separar las columnas principales por el delimitador '|' al inicio y final
+      // Formato típico: | Item | Descripción | Características (Multilínea) | Cantidad |
+      const pipeParts = normalizedChunk.split("|");
+      // pipeParts[0] = "" (antes del primer pipe)
+      // pipeParts[1] = Item
+      // pipeParts[2] = Descripción
+      // pipeParts[3 ... (length - 2)] = Características Técnicas
+      // pipeParts[length - 2] = Cantidad / Requerimiento (o características si solo hay 3 cols)
 
-      // Detectar tipo de tabla
-      const headerLower = headerLine.toLowerCase();
-      const isSalud =
-        headerLower.includes("examen") ||
-        headerLower.includes("estudio") ||
-        headerLower.includes("metodologia") ||
-        headerLower.includes("propuesto");
+      if (pipeParts.length >= 4) {
+        const itemNumStr = pipeParts[1].trim();
+        const itemNum = parseInt(itemNumStr.replace(/[^\d]/g, ""), 10) || chunkIdx + 1;
+        const descripcion = cleanFormatting(pipeParts[2]).trim().toUpperCase();
 
-      const is3Cols = !isSalud && headerCols.length === 3;
-      result.tipo_tabla_sugerido = isSalud ? "SALUD_OCUPACIONAL" : is3Cols ? "BIENES_3_COLS" : "BIENES_SIMPLE";
-
-      // Parsear cada fila reconstruida
-      const parsedItems: ItemAdquisicion[] = [];
-
-      dataRowChunks.forEach((chunk, rowIdx) => {
-        // Dividir por | al nivel superior
-        const rawCells = chunk
-          .split("|")
-          .map((c) => cleanMdText(c))
-          .filter((_, idx, arr) => (idx > 0 && idx < arr.length - 1) || arr.length <= 2);
-
-        if (rawCells.length < 2) return;
-
-        // Mapear celdas:
-        // Caso A: 4 Columnas [No., Descripción, Características Técnicas, Cant.]
-        // Caso B: 3 Columnas [No., Descripción, Características Técnicas]
-        // Caso C: 5 Columnas [No., Descripción, Unidad, Cantidad, Características]
-        // Caso D: Salud [No., Examen, Especificación Mínima, Propuesto]
-
-        let itemNum = rowIdx + 1;
-        const numParsed = parseInt(rawCells[0].replace(/[^\d]/g, ""), 10);
-        if (!isNaN(numParsed) && numParsed > 0) itemNum = numParsed;
-
-        const descripcion = rawCells[1] || "";
-        if (!descripcion || descripcion.startsWith("---")) return;
-
-        let caracteristicas = "";
+        let caracteristicasRaw = "";
+        let cantidadStr = "";
         let unidad = "PZA";
         let cantidad = 1;
-        let propuesto = "Cumple con las especificaciones técnicas requeridas";
 
-        if (isSalud) {
-          unidad = "ESTUDIO";
-          caracteristicas = rawCells[2] || descripcion;
-          propuesto = rawCells[3] || "A informar por el proponente";
-        } else if (rawCells.length === 3) {
-          // [No., Descripción, Características]
-          caracteristicas = rawCells[2] || descripcion;
-          unidad = "PZA";
-          cantidad = 1;
-        } else if (rawCells.length === 4) {
-          // [No., Descripción, Características, Cant.]
-          caracteristicas = rawCells[2] || descripcion;
-          const cantRaw = rawCells[3] || "";
-          const cantNum = parseInt(cantRaw.replace(/[^\d]/g, ""), 10);
-          cantidad = !isNaN(cantNum) && cantNum > 0 ? cantNum : 1;
-          unidad = cantRaw.toLowerCase().includes("lote") ? "LOTE" : cantRaw.toLowerCase().includes("par") ? "PAR" : "PZA";
-        } else if (rawCells.length >= 5) {
-          // [No., Descripción, Unidad, Cantidad, Características]
-          unidad = rawCells[2] || "PZA";
-          const cantNum = parseInt(rawCells[3].replace(/[^\d]/g, ""), 10);
-          cantidad = !isNaN(cantNum) && cantNum > 0 ? cantNum : 1;
-          caracteristicas = rawCells[4] || descripcion;
+        if (pipeParts.length === 4) {
+          // 3 columnas: | Item | Descripción | Características |
+          caracteristicasRaw = pipeParts[3].trim();
+        } else if (pipeParts.length >= 5) {
+          // 4 columnas: | Item | Descripción | Características | Cantidad |
+          // o más columnas
+          cantidadStr = pipeParts[pipeParts.length - 2].trim();
+          caracteristicasRaw = pipeParts.slice(3, pipeParts.length - 2).join("|").trim();
+
+          // Analizar cantidad y unidad
+          const cantParsed = parseInt(cantidadStr.replace(/[^\d]/g, ""), 10);
+          if (!isNaN(cantParsed) && cantParsed > 0) cantidad = cantParsed;
+
+          const cantLower = cantidadStr.toLowerCase();
+          if (cantLower.includes("lote")) unidad = "LOTE";
+          else if (cantLower.includes("par")) unidad = "PAR";
+          else if (cantLower.includes("jgo") || cantLower.includes("juego")) unidad = "JGO";
+          else if (cantLower.includes("global")) unidad = "GLB";
+          else if (cantLower.includes("servicio")) unidad = "SRV";
+          else if (isSalud) unidad = "ESTUDIO";
         }
 
-        // Formatear bullets limpios si tiene viñetas
-        const caracFormatted = caracteristicas
-          .replace(/\n\s*•/g, "\n•")
-          .replace(/<br\s*\/?>/gi, "\n")
-          .trim();
+        // Limpiar y estructurar las características técnicas con viñetas limpias
+        const cleanLines = caracteristicasRaw
+          .split("\n")
+          .map((l) => l.trim())
+          .filter((l) => l.length > 0 && l !== "<br>");
+
+        const formattedCaracs = cleanLines
+          .map((l) => {
+            const noMd = l.replace(/\*\*/g, "").replace(/__/g, "").trim();
+            if (noMd.startsWith("•") || noMd.startsWith("-") || noMd.startsWith("*")) {
+              return `• ${noMd.replace(/^[\•\-\*]\s*/, "")}`;
+            }
+            return `• ${noMd}`;
+          })
+          .join("\n\n");
+
+        const finalCaracs = formattedCaracs || descripcion;
 
         parsedItems.push({
-          id: `item-md-${Date.now()}-${rowIdx}`,
+          id: `item-tdr-${Date.now()}-${chunkIdx}`,
           item: itemNum,
-          descripcion: descripcion.toUpperCase(),
+          descripcion: descripcion || `ÍTEM #${itemNum}`,
           unidad: unidad.toUpperCase(),
           cantidad,
           precioUnitarioEstimado: 0,
           precioTotalEstimado: 0,
-          caracteristicasTecnicas: caracFormatted || descripcion,
-          especificacionMinima: caracFormatted || descripcion,
-          propuestoOferente: propuesto,
+          caracteristicasTecnicas: finalCaracs,
+          especificacionMinima: finalCaracs,
+          propuestoOferente: "Cumple con la totalidad de especificaciones técnicas",
           fichaTecnica: {
             uso: isSalud ? "Salud Ocupacional" : "Personal Técnico Operativo de Campo",
-            normaCertificacion: isSalud ? "Acreditación Sanitaria" : "Norma ASTM F2413-18 / ISO 20345",
-            material: "Material homologado de alta calidad",
-            color: "Estándar institucional",
-            dimensiones: "Según requerimiento y lote",
+            normaCertificacion: isSalud ? "Acreditación Sanitaria" : "Normas ASTM F2413-18 / UNE EN ISO 20345",
+            material: "Material homologado de alta resistencia",
+            color: "Estándar",
+            dimensiones: "Según requerimiento de lote",
             categoriaItem: isSalud ? "Salud Ocupacional" : "Equipos de Protección Personal (EPP)",
-            caracteristicasDetalle: caracFormatted.split("\n").map((l) => l.replace(/^•\s*/, "").trim()).filter(Boolean),
+            caracteristicasDetalle: cleanLines.map((l) => l.replace(/^[\•\-\*]\s*/, "").replace(/\*\*/g, "").trim()),
           },
         });
-      });
-
-      if (parsedItems.length > 0) {
-        result.items = parsedItems;
       }
+    });
+
+    if (parsedItems.length > 0) {
+      result.items = parsedItems;
+      result.tipo_tabla_sugerido = isSalud ? "SALUD_OCUPACIONAL" : "BIENES_3_COLS";
     }
   }
 
