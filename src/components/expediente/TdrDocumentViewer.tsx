@@ -477,7 +477,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
         {/* PÁGINA 1: PORTADA OFICIAL (FORMATO EXACTO ENDE DEORURO)      */}
         {/* ============================================================ */}
         {(viewMode === "continuo" || currentPage === 1) && (
-          <div className="w-full max-w-[850px] bg-white border border-outline-variant shadow-xl rounded-sm p-8 md:p-14 text-on-surface font-sans min-h-[1050px] flex flex-col justify-between relative group">
+          <div className="w-full max-w-full lg:max-w-[1050px] bg-white border border-outline-variant shadow-xl rounded-sm p-5 sm:p-10 md:p-14 text-on-surface font-sans min-h-[1050px] flex flex-col justify-between relative group">
             <div className="flex justify-between items-center text-xs text-gray-500 font-mono border-b border-gray-200 pb-1 font-bold">
               <span>{tituloEntidad}</span>
               <span>PÁGINA 1 DE {totalPages} (PORTADA)</span>
@@ -581,7 +581,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
         {/* PÁGINA 2: ÍNDICE GENERAL (14 PUNTOS OFICIALES)               */}
         {/* ============================================================ */}
         {(viewMode === "continuo" || currentPage === 2) && (
-          <div className="w-full max-w-[850px] bg-white border border-outline-variant shadow-xl rounded-sm p-8 md:p-14 text-on-surface font-sans min-h-[1050px] flex flex-col justify-between relative">
+          <div className="w-full max-w-full lg:max-w-[1050px] bg-white border border-outline-variant shadow-xl rounded-sm p-5 sm:p-10 md:p-14 text-on-surface font-sans min-h-[1050px] flex flex-col justify-between relative">
             <div className="flex justify-between items-center text-xs text-gray-500 font-mono border-b border-gray-200 pb-1 font-bold">
               <span>{docData.titulo_proceso}</span>
               <span>PÁGINA 2 DE {totalPages}</span>
@@ -620,7 +620,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
         {/* PÁGINA 3: ANTECEDENTES Y JUSTIFICACIÓN (PÁRRAFOS COMPLETOS)  */}
         {/* ============================================================ */}
         {(viewMode === "continuo" || currentPage === 3) && (
-          <div className="w-full max-w-[850px] bg-white border border-outline-variant shadow-xl rounded-sm p-8 md:p-14 text-on-surface font-sans min-h-[1050px] flex flex-col justify-between relative space-y-6">
+          <div className="w-full max-w-full lg:max-w-[1050px] bg-white border border-outline-variant shadow-xl rounded-sm p-5 sm:p-10 md:p-14 text-on-surface font-sans min-h-[1050px] flex flex-col justify-between relative space-y-6">
             <div className="flex justify-between items-center text-xs text-gray-500 font-mono border-b border-gray-200 pb-1 font-bold">
               <span>{docData.titulo_proceso}</span>
               <span>PÁGINA 3 DE {totalPages}</span>
@@ -677,7 +677,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
         {/* PÁGINA 4: ESPECIFICACIÓN TÉCNICA (RESPETA PLANTILLA OFICIAL) */}
         {/* ============================================================ */}
         {(viewMode === "continuo" || currentPage === 4) && (
-          <div className="w-full max-w-[850px] bg-white border border-outline-variant shadow-xl rounded-sm p-8 md:p-14 text-on-surface font-sans min-h-[1050px] flex flex-col justify-between relative space-y-6">
+          <div className="w-full max-w-full lg:max-w-[1050px] bg-white border border-outline-variant shadow-xl rounded-sm p-5 sm:p-10 md:p-14 text-on-surface font-sans min-h-[1050px] flex flex-col justify-between relative space-y-6">
             <div className="flex justify-between items-center text-xs text-gray-500 font-mono border-b border-gray-200 pb-1 font-bold">
               <span>{docData.titulo_proceso}</span>
               <span>PÁGINA 4 DE {totalPages} (ESPECIFICACIÓN TÉCNICA)</span>
@@ -1035,7 +1035,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
         {/* PÁGINAS 5 Y 6: PUNTOS 5 AL 14 (CONDICIONES, PLAZOS, MULTAS)  */}
         {/* ============================================================ */}
         {(viewMode === "continuo" || currentPage >= 5) && (
-          <div className="w-full max-w-[850px] bg-white border border-outline-variant shadow-xl rounded-sm p-8 md:p-14 text-on-surface font-sans min-h-[1050px] flex flex-col justify-between relative space-y-6">
+          <div className="w-full max-w-full lg:max-w-[1050px] bg-white border border-outline-variant shadow-xl rounded-sm p-5 sm:p-10 md:p-14 text-on-surface font-sans min-h-[1050px] flex flex-col justify-between relative space-y-6">
             <div className="flex justify-between items-center text-xs text-gray-500 font-mono border-b border-gray-200 pb-1 font-bold">
               <span>{docData.titulo_proceso}</span>
               <span>PÁGINA 5 DE {totalPages} (CONDICIONES ADMINISTRATIVAS)</span>

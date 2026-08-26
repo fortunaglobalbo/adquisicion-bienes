@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { InstitutionalLogo } from "./InstitutionalLogo";
 
-export const Sidebar: React.FC = () => {
+export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   const pathname = usePathname();
 
   const navItems = [
@@ -35,7 +35,7 @@ export const Sidebar: React.FC = () => {
   ];
 
   return (
-    <nav className="bg-surface-container-low dark:bg-tertiary-container text-primary dark:text-primary-fixed-dim w-64 border-r border-outline-variant dark:border-outline fixed left-0 top-0 h-screen flex flex-col p-4 z-40 select-none">
+    <nav className="bg-surface-container-low dark:bg-tertiary-container text-primary dark:text-primary-fixed-dim w-64 border-r border-outline-variant dark:border-outline h-screen flex flex-col p-4 select-none">
       {/* Header with Institutional Branding */}
       <div className="mb-6 px-2 mt-2">
         <Link href="/" className="flex items-center gap-2">
