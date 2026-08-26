@@ -432,19 +432,23 @@ export class DataStore {
     // Guardar en Supabase
     if (this.isClient() && isSupabaseConfigured()) {
       const target = list[idx];
-      supabase
-        .from("plantillas")
-        .update({
-          contenido_plantilla: target.datos_completos || updates,
-          version: target.version || "1.0",
-        })
-        .eq("fk_carpeta", target.fk_carpeta)
-        .then(({ error }) => {
+      (async () => {
+        try {
+          const { error } = await supabase
+            .from("plantillas")
+            .update({
+              contenido_plantilla: target.datos_completos || updates,
+              version: target.version || "1.0",
+            })
+            .eq("fk_carpeta", target.fk_carpeta);
           if (error) console.error("Error actualizando plantilla en Supabase:", error);
-        })
-        .catch(console.error);
+        } catch (err) {
+          console.error("Error async en Supabase updatePlantilla:", err);
+        }
+      })();
     }
 
     return list[idx];
   }
 }
+
