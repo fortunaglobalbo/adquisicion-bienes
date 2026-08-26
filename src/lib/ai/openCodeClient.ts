@@ -1,5 +1,5 @@
 // Cliente para el proveedor de IA OpenCode Go (OpenAI-Compatible)
-import { Adquisicion, ItemAdquisicion } from "@/types";
+import { Adquisicion, ItemAdquisicion, TipoTablaTDR } from "@/types";
 import { formatCurrencyBs } from "../docx/formatters";
 
 interface ChatMessage {
@@ -21,7 +21,7 @@ export async function callOpenCodeGo(
   }
 
   try {
-    const response = await fetch(`${baseUrl}/chat/completions`, {
+    const res = await fetch(`${baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -31,20 +31,20 @@ export async function callOpenCodeGo(
         model,
         messages,
         temperature,
-        max_tokens: 3500,
+        max_tokens: 4096,
       }),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Error en OpenCode Go API (${response.status}):`, errorText);
+    if (!res.ok) {
+      const errText = await res.text();
+      console.warn(`OpenCode Go API Error [${res.status}]: ${errText}`);
       return "";
     }
 
-    const data = await response.json();
+    const data = await res.json();
     return data.choices?.[0]?.message?.content || "";
-  } catch (err) {
-    console.error("Error conectando con OpenCode Go:", err);
+  } catch (error) {
+    console.error("Error llamando a OpenCode Go:", error);
     return "";
   }
 }
@@ -75,6 +75,7 @@ export async function extractTdrFromDocumentOrImageWithAI(
   justificacion_texto?: string;
   resumen_ia?: string;
   categoria_detectada?: string;
+  tipo_tabla_sugerido?: TipoTablaTDR;
   secciones_14_puntos?: Array<{ numero: number; titulo: string; contenido: string }>;
 }> {
   // Si el usuario provee texto o Markdown, ejecutamos primero la extracción literal exacta
