@@ -48,8 +48,14 @@ export interface ItemAdquisicion {
   cantidad: number;
   precioUnitarioEstimado: number;
   precioTotalEstimado: number;
+  // Campos adaptables para diferentes tipos de tablas (Bienes simples o Salud)
+  especificacionMinima?: string;
+  propuestoOferente?: string;
+  caracteristicasTecnicas?: string;
   fichaTecnica?: FichaTecnicaItem;
 }
+
+export type TipoTablaTDR = "BIENES_SIMPLE" | "SALUD_OCUPACIONAL" | "FICHAS_DINAMICAS";
 
 export interface Adquisicion {
   id: string;
@@ -59,6 +65,7 @@ export interface Adquisicion {
   modalidad: string; // 'Menor Precio (Art. 31)' o 'SBC'
   partida_presupuestaria: string;
   estado: EstadoAdquisicion;
+  tipo_tabla_tdr?: TipoTablaTDR;
   prevision_presupuesto: number; // en Bs
   moneda: string; // 'BOB'
   fecha_inicio: string;

@@ -377,142 +377,264 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
             ],
           }),
 
-          // TABLAS DE ESPECIFICACIONES TÉCNICAS POR ÍTEM (Páginas 3 a 6) - 12 pt
-          ...adquisicion.items.flatMap((it) => {
-            const ft = it.fichaTecnica || {};
+          // TABLAS DE ESPECIFICACIONES TÉCNICAS (Páginas 3 a 6) - 12 pt
+          ...(() => {
+            const tipoTabla =
+              adquisicion.tipo_tabla_tdr ||
+              templateData?.tipoTabla ||
+              (adquisicion.categoria === "Salud Ocupacional" ||
+              adquisicion.titulo_proceso.toLowerCase().includes("oftalmo") ||
+              adquisicion.titulo_proceso.toLowerCase().includes("laboratorio")
+                ? "SALUD_OCUPACIONAL"
+                : "BIENES_SIMPLE");
 
-            let itemImageRun: ImageRun | null = null;
-            if (ft.imagenUrl && ft.imagenUrl.startsWith("data:image")) {
-              try {
-                const base64Data = ft.imagenUrl.split(",")[1];
-                const imageBuf = Buffer.from(base64Data, "base64");
-                itemImageRun = new ImageRun({
-                  type: "png",
-                  data: imageBuf,
-                  transformation: { width: 180, height: 130 },
-                });
-              } catch (err) {
-                console.warn("Could not process item image base64:", err);
-              }
+            if (tipoTabla === "SALUD_OCUPACIONAL") {
+              const tablaSalud = new Table({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                borders: defaultTableBorders,
+                rows: [
+                  new TableRow({
+                    tableHeader: true,
+                    children: [
+                      new TableCell({
+                        width: { size: 8, type: WidthType.PERCENTAGE },
+                        shading: { type: ShadingType.CLEAR, fill: "ECEEF0" },
+                        margins: { top: 80, bottom: 80, left: 60, right: 60 },
+                        children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "ÍTEM", bold: true, size: FONT_BODY, font: "Inter" })] })],
+                      }),
+                      new TableCell({
+                        width: { size: 32, type: WidthType.PERCENTAGE },
+                        shading: { type: ShadingType.CLEAR, fill: "ECEEF0" },
+                        margins: { top: 80, bottom: 80, left: 80, right: 80 },
+                        children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "EXAMEN / ESTUDIO REQUERIDO", bold: true, size: FONT_BODY, font: "Inter" })] })],
+                      }),
+                      new TableCell({
+                        width: { size: 36, type: WidthType.PERCENTAGE },
+                        shading: { type: ShadingType.CLEAR, fill: "ECEEF0" },
+                        margins: { top: 80, bottom: 80, left: 80, right: 80 },
+                        children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "ESPECIFICACIÓN MÍNIMA / METODOLOGÍA", bold: true, size: FONT_BODY, font: "Inter" })] })],
+                      }),
+                      new TableCell({
+                        width: { size: 24, type: WidthType.PERCENTAGE },
+                        shading: { type: ShadingType.CLEAR, fill: "ECEEF0" },
+                        margins: { top: 80, bottom: 80, left: 80, right: 80 },
+                        children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "PROPUESTO / A INFORMAR", bold: true, size: FONT_BODY, font: "Inter" })] })],
+                      }),
+                    ],
+                  }),
+                  ...adquisicion.items.map((it) => {
+                    const ft = it.fichaTecnica || {};
+                    const espMin = it.especificacionMinima || ft.normaCertificacion || ft.material || "Examen médico / análisis de laboratorio con metodología certificada y acreditación sanitaria";
+                    const propuesto = it.propuestoOferente || "Cumple / A informar según metodología";
+                    return new TableRow({
+                      children: [
+                        new TableCell({ margins: { top: 80, bottom: 80, left: 60, right: 60 }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: String(it.item), bold: true, size: FONT_BODY, font: "Inter" })] })] }),
+                        new TableCell({ margins: { top: 80, bottom: 80, left: 80, right: 80 }, children: [new Paragraph({ children: [new TextRun({ text: it.descripcion, bold: true, size: FONT_BODY, font: "Inter" }), new Paragraph({ children: [new TextRun({ text: `Cantidad: ${it.cantidad} ${it.unidad || "ESTUDIO"}`, size: FONT_SMALL, color: ENDE_COLORS.grayText, font: "Inter" })] })] })] }),
+                        new TableCell({ margins: { top: 80, bottom: 80, left: 80, right: 80 }, children: [new Paragraph({ children: [new TextRun({ text: espMin, size: FONT_BODY, font: "Inter" })] })] }),
+                        new TableCell({ margins: { top: 80, bottom: 80, left: 80, right: 80 }, children: [new Paragraph({ children: [new TextRun({ text: propuesto, size: FONT_BODY, font: "Inter" })] })] }),
+                      ],
+                    });
+                  }),
+                ],
+              });
+              return [tablaSalud, new Paragraph({ spacing: { after: 200 } })];
             }
 
-            const itemTable = new Table({
-              width: { size: 100, type: WidthType.PERCENTAGE },
-              borders: defaultTableBorders,
-              rows: [
-                new TableRow({
-                  children: [
-                    new TableCell({
-                      columnSpan: 2,
-                      shading: { type: ShadingType.CLEAR, fill: "ECEEF0" },
-                      margins: { top: 100, bottom: 100, left: 100, right: 100 },
+            if (tipoTabla === "BIENES_SIMPLE") {
+              const tablaBienes = new Table({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                borders: defaultTableBorders,
+                rows: [
+                  new TableRow({
+                    tableHeader: true,
+                    children: [
+                      new TableCell({
+                        width: { size: 8, type: WidthType.PERCENTAGE },
+                        shading: { type: ShadingType.CLEAR, fill: "ECEEF0" },
+                        margins: { top: 80, bottom: 80, left: 60, right: 60 },
+                        children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "ÍTEM", bold: true, size: FONT_BODY, font: "Inter" })] })],
+                      }),
+                      new TableCell({
+                        width: { size: 34, type: WidthType.PERCENTAGE },
+                        shading: { type: ShadingType.CLEAR, fill: "ECEEF0" },
+                        margins: { top: 80, bottom: 80, left: 80, right: 80 },
+                        children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "DESCRIPCIÓN DEL BIEN", bold: true, size: FONT_BODY, font: "Inter" })] })],
+                      }),
+                      new TableCell({
+                        width: { size: 10, type: WidthType.PERCENTAGE },
+                        shading: { type: ShadingType.CLEAR, fill: "ECEEF0" },
+                        margins: { top: 80, bottom: 80, left: 60, right: 60 },
+                        children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "UNIDAD", bold: true, size: FONT_BODY, font: "Inter" })] })],
+                      }),
+                      new TableCell({
+                        width: { size: 10, type: WidthType.PERCENTAGE },
+                        shading: { type: ShadingType.CLEAR, fill: "ECEEF0" },
+                        margins: { top: 80, bottom: 80, left: 60, right: 60 },
+                        children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "CANTIDAD", bold: true, size: FONT_BODY, font: "Inter" })] })],
+                      }),
+                      new TableCell({
+                        width: { size: 38, type: WidthType.PERCENTAGE },
+                        shading: { type: ShadingType.CLEAR, fill: "ECEEF0" },
+                        margins: { top: 80, bottom: 80, left: 80, right: 80 },
+                        children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "CARACTERÍSTICAS TÉCNICAS REQUERIDAS", bold: true, size: FONT_BODY, font: "Inter" })] })],
+                      }),
+                    ],
+                  }),
+                  ...adquisicion.items.map((it) => {
+                    const ft = it.fichaTecnica || {};
+                    const carac =
+                      it.caracteristicasTecnicas ||
+                      (ft.caracteristicasDetalle && ft.caracteristicasDetalle.length > 0
+                        ? ft.caracteristicasDetalle.join("\n• ")
+                        : "") ||
+                      `${ft.material ? `Material: ${ft.material}. ` : ""}${ft.normaCertificacion ? `Norma: ${ft.normaCertificacion}. ` : ""}${ft.dimensiones ? `Dimensiones: ${ft.dimensiones}` : ""}`.trim() ||
+                      "Cumplimiento obligatorio de normas de calidad y especificaciones solicitadas";
+                    return new TableRow({
                       children: [
-                        new Paragraph({
-                          alignment: AlignmentType.CENTER,
-                          children: [new TextRun({ text: `ESPECIFICACIONES TÉCNICAS - ÍTEM #${it.item}: ${it.descripcion.toUpperCase()}`, bold: true, size: FONT_BODY, font: "Inter" })],
-                        }),
+                        new TableCell({ margins: { top: 80, bottom: 80, left: 60, right: 60 }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: String(it.item), bold: true, size: FONT_BODY, font: "Inter" })] })] }),
+                        new TableCell({ margins: { top: 80, bottom: 80, left: 80, right: 80 }, children: [new Paragraph({ children: [new TextRun({ text: it.descripcion, bold: true, size: FONT_BODY, font: "Inter" })] })] }),
+                        new TableCell({ margins: { top: 80, bottom: 80, left: 60, right: 60 }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: it.unidad || "PZA", size: FONT_BODY, font: "Inter" })] })] }),
+                        new TableCell({ margins: { top: 80, bottom: 80, left: 60, right: 60 }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: String(it.cantidad || 1), size: FONT_BODY, font: "Inter" })] })] }),
+                        new TableCell({ margins: { top: 80, bottom: 80, left: 80, right: 80 }, children: [new Paragraph({ children: [new TextRun({ text: carac, size: FONT_BODY, font: "Inter" })] })] }),
                       ],
-                    }),
-                  ],
-                }),
-                new TableRow({
-                  children: [
-                    // Columna Izquierda: Descripción, Uso, Norma, Imagen (12 pt)
-                    new TableCell({
-                      width: { size: 45, type: WidthType.PERCENTAGE },
-                      margins: { top: 100, bottom: 100, left: 100, right: 100 },
-                      children: [
-                        new Paragraph({ children: [new TextRun({ text: "Descripción:", bold: true, size: FONT_BODY, font: "Inter" })] }),
-                        new Paragraph({ spacing: { after: 100 }, children: [new TextRun({ text: `${it.descripcion} (${it.cantidad} ${it.unidad || "PZA"})`, size: FONT_BODY, font: "Inter" })] }),
+                    });
+                  }),
+                ],
+              });
+              return [tablaBienes, new Paragraph({ spacing: { after: 200 } })];
+            }
 
-                        new Paragraph({ children: [new TextRun({ text: "Uso:", bold: true, size: FONT_BODY, font: "Inter" })] }),
-                        new Paragraph({ spacing: { after: 100 }, children: [new TextRun({ text: ft.uso || "Personal Operativo", size: FONT_BODY, font: "Inter" })] }),
+            // FICHAS_DINAMICAS por defecto
+            return adquisicion.items.flatMap((it) => {
+              const ft = it.fichaTecnica || {};
 
-                        new Paragraph({ children: [new TextRun({ text: "Norma / Certificación:", bold: true, size: FONT_BODY, font: "Inter" })] }),
-                        new Paragraph({
-                          spacing: { after: 140 },
-                          children: [
-                            new TextRun({
-                              text: ft.normaCertificacion && ft.normaCertificacion !== "N/A"
-                                ? ft.normaCertificacion
-                                : "Conforme a estándares internacionales de calidad y seguridad industrial (ISO 9001 / IEC / ASTM)",
-                              size: FONT_BODY,
-                              font: "Inter",
-                            }),
-                          ],
-                        }),
+              let itemImageRun: ImageRun | null = null;
+              if (ft.imagenUrl && ft.imagenUrl.startsWith("data:image")) {
+                try {
+                  const base64Data = ft.imagenUrl.split(",")[1];
+                  const imageBuf = Buffer.from(base64Data, "base64");
+                  itemImageRun = new ImageRun({
+                    type: "png",
+                    data: imageBuf,
+                    transformation: { width: 180, height: 130 },
+                  });
+                } catch (err) {
+                  console.warn("Could not process item image base64:", err);
+                }
+              }
 
-                        new Paragraph({ children: [new TextRun({ text: "3. Imagen / Fotografía:", bold: true, size: FONT_BODY, font: "Inter" })] }),
-                        new Paragraph({
-                          alignment: AlignmentType.CENTER,
-                          spacing: { before: 100, after: 100 },
-                          children: itemImageRun
-                            ? [itemImageRun]
-                            : [
-                                new TextRun({
-                                  text: `[ FOTOGRAFÍA DE ${it.descripcion.toUpperCase()} ]`,
-                                  size: FONT_SMALL,
-                                  color: ENDE_COLORS.primary,
-                                  font: "JetBrains Mono",
-                                }),
-                              ],
-                        }),
-                        new Paragraph({
-                          children: [
-                            new TextRun({ text: ft.dimensiones ? `• ${ft.dimensiones}` : "", size: FONT_BODY, font: "Inter" }),
-                          ],
-                        }),
-                      ],
-                    }),
+              const itemTable = new Table({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                borders: defaultTableBorders,
+                rows: [
+                  new TableRow({
+                    children: [
+                      new TableCell({
+                        columnSpan: 2,
+                        shading: { type: ShadingType.CLEAR, fill: "ECEEF0" },
+                        margins: { top: 100, bottom: 100, left: 100, right: 100 },
+                        children: [
+                          new Paragraph({
+                            alignment: AlignmentType.CENTER,
+                            children: [new TextRun({ text: `ESPECIFICACIONES TÉCNICAS - ÍTEM #${it.item}: ${it.descripcion.toUpperCase()}`, bold: true, size: FONT_BODY, font: "Inter" })],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                  new TableRow({
+                    children: [
+                      new TableCell({
+                        width: { size: 45, type: WidthType.PERCENTAGE },
+                        margins: { top: 100, bottom: 100, left: 100, right: 100 },
+                        children: [
+                          new Paragraph({ children: [new TextRun({ text: "Descripción:", bold: true, size: FONT_BODY, font: "Inter" })] }),
+                          new Paragraph({ spacing: { after: 100 }, children: [new TextRun({ text: `${it.descripcion} (${it.cantidad} ${it.unidad || "PZA"})`, size: FONT_BODY, font: "Inter" })] }),
+                          new Paragraph({ children: [new TextRun({ text: "Uso:", bold: true, size: FONT_BODY, font: "Inter" })] }),
+                          new Paragraph({ spacing: { after: 100 }, children: [new TextRun({ text: ft.uso || "Personal Operativo", size: FONT_BODY, font: "Inter" })] }),
+                          new Paragraph({ children: [new TextRun({ text: "Norma / Certificación:", bold: true, size: FONT_BODY, font: "Inter" })] }),
+                          new Paragraph({
+                            spacing: { after: 140 },
+                            children: [
+                              new TextRun({
+                                text: ft.normaCertificacion && ft.normaCertificacion !== "N/A"
+                                  ? ft.normaCertificacion
+                                  : "Conforme a estándares internacionales de calidad y seguridad industrial (ISO 9001 / IEC / ASTM)",
+                                size: FONT_BODY,
+                                font: "Inter",
+                              }),
+                            ],
+                          }),
+                          new Paragraph({ children: [new TextRun({ text: "3. Imagen / Fotografía:", bold: true, size: FONT_BODY, font: "Inter" })] }),
+                          new Paragraph({
+                            alignment: AlignmentType.CENTER,
+                            spacing: { before: 100, after: 100 },
+                            children: itemImageRun
+                              ? [itemImageRun]
+                              : [
+                                  new TextRun({
+                                    text: `[ FOTOGRAFÍA DE ${it.descripcion.toUpperCase()} ]`,
+                                    size: FONT_SMALL,
+                                    color: ENDE_COLORS.primary,
+                                    font: "JetBrains Mono",
+                                  }),
+                                ],
+                          }),
+                          new Paragraph({
+                            children: [
+                              new TextRun({ text: ft.dimensiones ? `• ${ft.dimensiones}` : "", size: FONT_BODY, font: "Inter" }),
+                            ],
+                          }),
+                        ],
+                      }),
+                      new TableCell({
+                        width: { size: 55, type: WidthType.PERCENTAGE },
+                        margins: { top: 100, bottom: 100, left: 100, right: 100 },
+                        children: [
+                          new Paragraph({
+                            shading: { type: ShadingType.CLEAR, fill: "F2F4F6" },
+                            children: [new TextRun({ text: "CARACTERÍSTICAS TÉCNICAS", bold: true, size: FONT_BODY, font: "Inter" })],
+                          }),
+                          new Paragraph({
+                            spacing: { before: 80 },
+                            children: [
+                              new TextRun({ text: "1. Material:", bold: true, size: FONT_BODY, font: "Inter" }),
+                              new TextRun({ text: ` ${ft.material || "Acero de alta resistencia"}`, size: FONT_BODY, font: "Inter" }),
+                            ],
+                          }),
+                          new Paragraph({
+                            children: [
+                              new TextRun({ text: "2. Color:", bold: true, size: FONT_BODY, font: "Inter" }),
+                              new TextRun({
+                                text: ` ${ft.color && ft.color !== "N/A" ? ft.color : "Acabado industrial estándar / Pavonado de alta durabilidad"}`,
+                                size: FONT_BODY,
+                                font: "Inter",
+                              }),
+                            ],
+                          }),
+                          new Paragraph({ spacing: { before: 60 }, children: [new TextRun({ text: "4. Para la aceptación del lote:", bold: true, size: FONT_BODY, font: "Inter" })] }),
+                          new Paragraph({ spacing: { after: 60 }, children: [new TextRun({ text: ft.aceptacionLote || "El personal de ENDE DEORURO, realizara una evaluación preliminar el día de la entrega, en caso de existir observaciones.", size: FONT_BODY, font: "Inter" })] }),
+                          new Paragraph({ children: [new TextRun({ text: "5. Categoría:", bold: true, size: FONT_BODY, font: "Inter" }), new TextRun({ text: ` ${ft.categoriaItem || "Herramientas manuales"}`, size: FONT_BODY, font: "Inter" })] }),
+                          new Paragraph({ spacing: { before: 60 }, children: [new TextRun({ text: "6. Características:", bold: true, size: FONT_BODY, font: "Inter" })] }),
+                          ...(ft.caracteristicasDetalle || [
+                            "Cumplimiento con estándares de seguridad industrial para redes de distribución",
+                            "Materiales de alta durabilidad y resistencia al desgaste operativo"
+                          ]).map(c => new Paragraph({
+                            spacing: { after: 40 },
+                            children: [new TextRun({ text: `• ${c}`, size: FONT_BODY, font: "Inter" })],
+                          })),
+                          ft.capacidadCorte ? new Paragraph({ children: [new TextRun({ text: `• ${ft.capacidadCorte}`, size: FONT_BODY, font: "Inter" })] }) : new Paragraph({}),
+                          ft.pesoAprox ? new Paragraph({ children: [new TextRun({ text: `• Peso aproximado: ${ft.pesoAprox}`, size: FONT_BODY, font: "Inter" })] }) : new Paragraph({}),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              });
 
-                    // Columna Derecha: Características Técnicas (12 pt)
-                    new TableCell({
-                      width: { size: 55, type: WidthType.PERCENTAGE },
-                      margins: { top: 100, bottom: 100, left: 100, right: 100 },
-                      children: [
-                        new Paragraph({
-                          shading: { type: ShadingType.CLEAR, fill: "F2F4F6" },
-                          children: [new TextRun({ text: "CARACTERÍSTICAS TÉCNICAS", bold: true, size: FONT_BODY, font: "Inter" })],
-                        }),
-                        new Paragraph({
-                          spacing: { before: 80 },
-                          children: [
-                            new TextRun({ text: "1. Material:", bold: true, size: FONT_BODY, font: "Inter" }),
-                            new TextRun({ text: ` ${ft.material || "Acero de alta resistencia"}`, size: FONT_BODY, font: "Inter" }),
-                          ],
-                        }),
-                        new Paragraph({
-                          children: [
-                            new TextRun({ text: "2. Color:", bold: true, size: FONT_BODY, font: "Inter" }),
-                            new TextRun({
-                              text: ` ${ft.color && ft.color !== "N/A" ? ft.color : "Acabado industrial estándar / Pavonado de alta durabilidad"}`,
-                              size: FONT_BODY,
-                              font: "Inter",
-                            }),
-                          ],
-                        }),
-                        new Paragraph({ spacing: { before: 60 }, children: [new TextRun({ text: "4. Para la aceptación del lote:", bold: true, size: FONT_BODY, font: "Inter" })] }),
-                        new Paragraph({ spacing: { after: 60 }, children: [new TextRun({ text: ft.aceptacionLote || "El personal de ENDE DEORURO, realizara una evaluación preliminar el día de la entrega, en caso de existir observaciones.", size: FONT_BODY, font: "Inter" })] }),
-                        new Paragraph({ children: [new TextRun({ text: "5. Categoría:", bold: true, size: FONT_BODY, font: "Inter" }), new TextRun({ text: ` ${ft.categoriaItem || "Herramientas manuales"}`, size: FONT_BODY, font: "Inter" })] }),
-                        new Paragraph({ spacing: { before: 60 }, children: [new TextRun({ text: "6. Características:", bold: true, size: FONT_BODY, font: "Inter" })] }),
-                        ...(ft.caracteristicasDetalle || [
-                          "Cumplimiento con estándares de seguridad industrial para redes de distribución",
-                          "Materiales de alta durabilidad y resistencia al desgaste operativo"
-                        ]).map(c => new Paragraph({
-                          spacing: { after: 40 },
-                          children: [new TextRun({ text: `• ${c}`, size: FONT_BODY, font: "Inter" })],
-                        })),
-                        ft.capacidadCorte ? new Paragraph({ children: [new TextRun({ text: `• ${ft.capacidadCorte}`, size: FONT_BODY, font: "Inter" })] }) : new Paragraph({}),
-                        ft.pesoAprox ? new Paragraph({ children: [new TextRun({ text: `• Peso aproximado: ${ft.pesoAprox}`, size: FONT_BODY, font: "Inter" })] }) : new Paragraph({}),
-                      ],
-                    }),
-                  ],
-                }),
-              ],
+              return [itemTable, new Paragraph({ spacing: { after: 200 } })];
             });
-
-            return [itemTable, new Paragraph({ spacing: { after: 200 } })];
-          }),
+          })(),
 
           new Paragraph({ children: [new PageBreak()] }),
 

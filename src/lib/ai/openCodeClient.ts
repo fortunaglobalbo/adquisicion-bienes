@@ -78,45 +78,48 @@ export async function extractTdrFromDocumentOrImageWithAI(
   secciones_14_puntos?: Array<{ numero: number; titulo: string; contenido: string }>;
 }> {
   const systemPrompt = `Eres el Especialista Principal en Contrataciones y Adquisiciones de la DISTRIBUIDORA DE ELECTRICIDAD ENDE DEORURO S.A.
-Tu tarea es analizar con máxima precisión y fidelidad el documento o imagen adjunto para redactar las Especificaciones Técnicas Oficiales (TDR).
+Tu tarea es analizar y estructurar con MÁXIMA PRECISIÓN Y FIDELIDAD LITERAL el documento, texto en Markdown o imagen proporcionada para acomodar la información en las Especificaciones Técnicas Oficiales (TDR).
 
-REGLAS DE ORO OBLIGATORIAS (PROHIBIDO ALUCINAR):
-1. FIDELIDAD TOTAL AL OBJETO DEL DOCUMENTO:
-   - Debes extraer EXACTAMENTE los bienes o servicios que aparecen en el documento o imagen (por ejemplo: si son Botas de Seguridad, EPP, Indumentaria, Papelería, Vehículos, etc., habla ÚNICAMENTE de ese producto).
-   - PROHIBIDO inventar herramientas eléctricas, cables o líneas de tensión si el documento trata de calzado, indumentaria, insumos médicos o cualquier otro bien.
+REGLAS DE ORO OBLIGATORIAS (PROHIBIDO ALUCINAR O MODIFICAR CONTENIDO):
+1. FIDELIDAD TOTAL Y LITERAL:
+   - Si el usuario provee un texto o TDR en Markdown/texto plano, DEBES RESPETAR Y EXTRAER EXACTAMENTE su contenido sin aumentar, inventar o eliminar ningún requisito, tabla o especificación.
+   - PROHIBIDO inventar herramientas o líneas de tensión si el texto trata de indumentaria, salud ocupacional, consultoría o cualquier otro rubro.
 2. TÍTULO DEL PROCESO:
-   - Usa el título indicado por el usuario o el que figure explícitamente en el documento subido (en mayúsculas).
-3. ANTECEDENTES Y JUSTIFICACIÓN (Adaptados 100% al producto real):
-   - Antecedentes: 3 párrafos formales de ENDE DEORURO S.A. explicando el contexto institucional para la adquisición de dicho producto específico.
-   - Justificación: 4 párrafos formales explicando la necesidad técnica, ergonomía, prevención de riesgos laborales y cumplimiento de normas de seguridad industrial acordes al producto real.
-4. ESPECIFICACIONES TÉCNICAS:
-   - Extrae cada ítem con su descripción exacta, cantidad, unidad (PZA, PAR, JGO, etc.), precio estimado y sus características técnicas reales (material, normas, dimensiones, color, requisitos mínimos).
+   - Usa el título indicado por el usuario o el que figure explícitamente en el texto/documento subido (en mayúsculas).
+3. ANTECEDENTES Y JUSTIFICACIÓN:
+   - Si el usuario ya redactó antecedentes o justificación en su texto/markdown, CÓPIALOS EXACTAMENTE sin modificarlos.
+   - Si no están presentes, redacta antecedentes y justificación fundamentados 100% en la necesidad operativa del producto real.
+4. TABLAS DE ESPECIFICACIONES TÉCNICAS:
+   - Para cada ítem, extrae su descripción, cantidad, unidad (PZA, ESTUDIO, PAR, JGO, etc.), precio estimado.
+   - Para tablas de bienes simples: extrae "caracteristicasTecnicas".
+   - Para tablas de salud ocupacional / laboratorio: extrae "especificacionMinima" (metodología requerida) y "propuestoOferente" (lo que debe informar el proveedor).
 
 DEBES DEVOLVER ESTRICTAMENTE UN OBJETO JSON VÁLIDO con la siguiente estructura:
 {
-  "categoria_detectada": "Bienes de Protección Personal (EPP)" | "Herramientas" | "Salud Ocupacional" | "Servicios Generales",
+  "categoria_detectada": "Bienes" | "Servicios" | "Salud Ocupacional" | "Obras",
   "titulo_proceso": "TÍTULO EXACTO DEL PROCESO EN MAYÚSCULAS",
-  "antecedentes_texto": "3 párrafos formales adaptados al bien real...",
-  "justificacion_texto": "4 párrafos formales adaptados al bien real...",
+  "tipo_tabla_sugerido": "BIENES_SIMPLE" | "SALUD_OCUPACIONAL" | "FICHAS_DINAMICAS",
+  "antecedentes_texto": "Texto exacto de antecedentes...",
+  "justificacion_texto": "Texto exacto de justificación de la necesidad...",
   "items": [
     {
       "item": 1,
-      "descripcion": "NOMBRE EXACTO DEL ÍTEM O PRODUCTO",
+      "descripcion": "NOMBRE O EXAMEN EXACTO DEL ÍTEM",
       "cantidad": 1,
-      "unidad": "PAR" | "PZA" | "JGO",
-      "precioUnitarioEstimado": 450,
+      "unidad": "PZA" | "ESTUDIO" | "PAR" | "JGO",
+      "precioUnitarioEstimado": 0,
+      "caracteristicasTecnicas": "Requisitos y características técnicas completas...",
+      "especificacionMinima": "Metodología mínima o requisito técnico para salud/servicio...",
+      "propuestoOferente": "A informar / Cumple según propuesta...",
       "fichaTecnica": {
         "uso": "Personal de la institución",
-        "normaCertificacion": "Norma técnica aplicable según el producto",
-        "material": "Material exacto indicado en el documento",
-        "color": "Color indicado",
-        "dimensiones": "Tallas o dimensiones",
-        "capacidadCorte": "",
-        "categoriaItem": "Categoría real del ítem",
+        "normaCertificacion": "Norma técnica o acreditación",
+        "material": "Material o metodología",
+        "color": "Estándar",
+        "dimensiones": "Tallas o especificaciones",
         "caracteristicasDetalle": [
-          "Requisito técnico específico 1 del documento",
-          "Requisito técnico específico 2 del documento",
-          "Requisito técnico específico 3 del documento"
+          "Requisito 1",
+          "Requisito 2"
         ]
       }
     }

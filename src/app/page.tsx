@@ -75,8 +75,8 @@ export default function DashboardPage() {
     <>
       <Topbar onSearch={setSearchTerm} title="Plan de Adquisiciones" />
 
-      <main className="flex-1 overflow-y-auto p-4 md:p-8">
-        <div className="max-w-container-max mx-auto space-y-6">
+      <main className="flex-1 overflow-y-auto p-3 md:p-6 w-full">
+        <div className="w-full space-y-6">
           {/* Database Error Banner if Supabase connection fails */}
           {dbError && (
             <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-red-400">

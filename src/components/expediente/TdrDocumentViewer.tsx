@@ -72,14 +72,23 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
 
   // AI assistant states
   const [aiPrompt, setAiPrompt] = useState("");
+  const [aiInputMode, setAiInputMode] = useState<"markdown" | "file">("markdown");
+  const [markdownTdrText, setMarkdownTdrText] = useState<string>("");
   const [uploadedAiFile, setUploadedAiFile] = useState<{ name: string; base64: string; type: string } | null>(null);
   const [isAiProcessing, setIsAiProcessing] = useState(false);
   const [incluirFotoEnItems, setIncluirFotoEnItems] = useState<boolean>(false);
   const aiFileInputRef = useRef<HTMLInputElement | null>(null);
 
-
   // Editable Document State
   const [docData, setDocData] = useState<Adquisicion>({ ...adquisicion });
+  const [tipoTablaTdr, setTipoTablaTdr] = useState<TipoTablaTDR>(
+    adquisicion.tipo_tabla_tdr ||
+    (adquisicion.categoria === "Salud Ocupacional" ||
+    adquisicion.titulo_proceso.toLowerCase().includes("oftalmo") ||
+    adquisicion.titulo_proceso.toLowerCase().includes("laboratorio")
+      ? "SALUD_OCUPACIONAL"
+      : "BIENES_SIMPLE")
+  );
 
   // Update field helper
   const handleTextChange = (field: keyof Adquisicion, value: any) => {
@@ -140,17 +149,22 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
     reader.readAsDataURL(file);
   };
 
-  // Process Document or Photo with AI
+  // Process Document, Markdown or Photo with AI
   const handleRunAi = async () => {
     setIsAiProcessing(true);
     try {
       const payload: any = {
-        adquisicion: docData,
+        adquisicion: {
+          ...docData,
+          tipo_tabla_tdr: tipoTablaTdr,
+        },
         insumoTexto: aiPrompt,
         nombreArchivo: uploadedAiFile?.name,
       };
 
-      if (uploadedAiFile?.base64) {
+      if (aiInputMode === "markdown" && markdownTdrText.trim()) {
+        payload.documentText = markdownTdrText;
+      } else if (uploadedAiFile?.base64) {
         if (uploadedAiFile.type.startsWith("image/")) {
           payload.imageBase64 = uploadedAiFile.base64;
         } else {
@@ -168,14 +182,18 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
       if (!res.ok) throw new Error(result.error || "Error al procesar con IA");
 
       if (result.data) {
+        const detectedTabla = result.data.tipo_tabla_sugerido || tipoTablaTdr;
         const updated: Adquisicion = {
           ...docData,
+          tipo_tabla_tdr: detectedTabla,
           titulo_proceso: result.data.titulo_proceso || docData.titulo_proceso,
           antecedentes_texto: result.data.antecedentes_texto || docData.antecedentes_texto,
           justificacion_texto: result.data.justificacion_texto || docData.justificacion_texto,
           categoria: (result.data.categoria_detectada as any) || docData.categoria,
           items: result.data.items && result.data.items.length > 0 ? result.data.items : docData.items,
         };
+
+        setTipoTablaTdr(detectedTabla);
 
         const totalPresupuesto = updated.items.reduce(
           (sum, it) => sum + (Number(it.precioTotalEstimado) || (Number(it.cantidad) || 1) * (Number(it.precioUnitarioEstimado) || 0)),
@@ -668,166 +686,327 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
             <RunningHeader pageNum={4} />
 
             <div className="space-y-6 flex-1 text-sm font-sans">
-              <div className="flex flex-wrap justify-between items-center border-b pb-1 gap-2">
-                <h4 className="font-bold text-gray-900 text-sm">
-                  3. ESPECIFICACIÓN TÉCNICA ({items.length} ÍTEMS)
-                </h4>
-                <div className="flex items-center gap-2">
+              {/* Header de Sección 3 con Selector de Formato de Tabla */}
+              <div className="space-y-2 border-b pb-2">
+                <div className="flex flex-wrap justify-between items-center gap-2">
+                  <h4 className="font-bold text-gray-900 text-sm">
+                    3. ESPECIFICACIÓN TÉCNICA ({items.length} ÍTEMS)
+                  </h4>
+                  <div className="flex items-center gap-2">
+                    {tipoTablaTdr === "FICHAS_DINAMICAS" && (
+                      <button
+                        type="button"
+                        onClick={() => setIncluirFotoEnItems(!incluirFotoEnItems)}
+                        className="flex items-center gap-1.5 px-2.5 py-1 bg-surface-container-high hover:bg-surface-variant text-primary border border-outline-variant rounded text-xs font-bold transition-colors"
+                      >
+                        <Camera className="w-3.5 h-3.5 text-primary" />
+                        <span>{incluirFotoEnItems ? "Ocultar Fotografías" : "Habilitar Fotografías"}</span>
+                      </button>
+                    )}
+                    <button
+                      onClick={handleAddItem}
+                      className="flex items-center gap-1 px-3 py-1 bg-primary text-white rounded text-xs font-bold shadow hover:bg-primary-container"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>+ Añadir Ítem</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Barra de Opciones de Tipo de Tabla */}
+                <div className="flex flex-wrap items-center gap-1.5 p-2 bg-surface-container-low border border-outline-variant rounded-lg">
+                  <span className="text-[11px] font-mono font-bold text-primary mr-1">Formato de Tabla:</span>
                   <button
                     type="button"
-                    onClick={() => setIncluirFotoEnItems(!incluirFotoEnItems)}
-                    className="flex items-center gap-1.5 px-2.5 py-1 bg-surface-container-high hover:bg-surface-variant text-primary border border-outline-variant rounded text-xs font-bold transition-colors"
+                    onClick={() => {
+                      setTipoTablaTdr("BIENES_SIMPLE");
+                      handleTextChange("tipo_tabla_tdr", "BIENES_SIMPLE");
+                    }}
+                    className={`px-2.5 py-1 rounded text-xs font-bold font-mono transition-all ${
+                      tipoTablaTdr === "BIENES_SIMPLE"
+                        ? "bg-primary text-white shadow-sm ring-1 ring-primary"
+                        : "bg-white text-on-surface-variant hover:bg-surface-container-high border border-outline-variant"
+                    }`}
                   >
-                    <Camera className="w-3.5 h-3.5 text-primary" />
-                    <span>{incluirFotoEnItems ? "Ocultar Fotografías" : "Habilitar Fotografías"}</span>
+                    📦 Tabla de Bienes (Descripción y Características)
                   </button>
                   <button
-                    onClick={handleAddItem}
-                    className="flex items-center gap-1 px-3 py-1 bg-primary text-white rounded text-xs font-bold shadow"
+                    type="button"
+                    onClick={() => {
+                      setTipoTablaTdr("SALUD_OCUPACIONAL");
+                      handleTextChange("tipo_tabla_tdr", "SALUD_OCUPACIONAL");
+                    }}
+                    className={`px-2.5 py-1 rounded text-xs font-bold font-mono transition-all ${
+                      tipoTablaTdr === "SALUD_OCUPACIONAL"
+                        ? "bg-primary text-white shadow-sm ring-1 ring-primary"
+                        : "bg-white text-on-surface-variant hover:bg-surface-container-high border border-outline-variant"
+                    }`}
                   >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>+ Añadir Ítem</span>
+                    🩺 Tabla Salud / Laboratorio (Examen, Metodología y Propuesto)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTipoTablaTdr("FICHAS_DINAMICAS");
+                      handleTextChange("tipo_tabla_tdr", "FICHAS_DINAMICAS");
+                    }}
+                    className={`px-2.5 py-1 rounded text-xs font-bold font-mono transition-all ${
+                      tipoTablaTdr === "FICHAS_DINAMICAS"
+                        ? "bg-primary text-white shadow-sm ring-1 ring-primary"
+                        : "bg-white text-on-surface-variant hover:bg-surface-container-high border border-outline-variant"
+                    }`}
+                  >
+                    📑 Fichas Técnicas Individuales
                   </button>
                 </div>
               </div>
 
-              {/* Fichas Técnicas que Respetan el Molde de la Plantilla */}
-              <div className="space-y-6">
-                {items.map((item) => (
-                  <div key={item.id} className="border-2 border-black rounded-lg p-4 bg-white space-y-3 shadow-sm">
-                    <div className="flex justify-between items-center border-b border-gray-300 pb-1">
-                      <span className="font-mono font-bold text-xs bg-primary text-white px-2.5 py-0.5 rounded">
-                        ÍTEM #{item.item}: {item.cantidad} {item.unidad}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveItem(item.id)}
-                        className="text-red-600 hover:text-red-800 p-1 text-xs font-bold flex items-center gap-1"
-                        title="Eliminar este ítem"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Eliminar</span>
-                      </button>
-                    </div>
+              {/* RENDERIZADO SEGÚN EL TIPO DE TABLA SELECCIONADO */}
 
-                    <div
-                      contentEditable
-                      suppressContentEditableWarning
-                      onBlur={(e) => handleItemTextChange(item.id, "descripcion", e.currentTarget.textContent || "")}
-                      className="font-black text-sm text-primary uppercase border-b pb-1 hover:bg-blue-50/50 p-1 rounded focus:outline-none"
-                    >
-                      {item.descripcion}
-                    </div>
-
-                    {/* Contenedor con Foto del Ítem (si la plantilla lo incluye) y Campos del Molde */}
-                    <div className={`grid gap-4 items-start ${incluirFoto ? "grid-cols-1 md:grid-cols-12" : "grid-cols-1"}`}>
-                      {incluirFoto && (
-                        <div className="md:col-span-4 h-44 bg-gray-50 border border-gray-300 rounded flex flex-col items-center justify-center text-gray-500 text-xs font-mono p-2 text-center relative group">
-                          {item.fichaTecnica?.imagenUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={item.fichaTecnica.imagenUrl} alt="Foto" className="h-32 w-auto object-contain" />
-                          ) : (
-                            <>
-                              <Camera className="w-7 h-7 text-gray-400 mb-1" />
-                              <span className="font-bold">Fotografía Oficial del Ítem</span>
-                            </>
-                          )}
-                          <input
-                            type="file"
-                            accept="image/*"
-                            ref={(el) => {
-                              fileInputRefs.current[item.id] = el;
-                            }}
-                            onChange={(e) => {
-                              const f = e.target.files?.[0];
-                              if (f) handleImageUpload(item.id, f);
-                            }}
-                            className="hidden"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => fileInputRefs.current[item.id]?.click()}
-                            className="mt-1 px-2 py-0.5 bg-primary/10 hover:bg-primary/20 text-primary text-[10px] font-bold rounded"
-                          >
-                            Subir Foto
-                          </button>
-                        </div>
-                      )}
-
-                      {/* Campos dinámicos del molde de la plantilla */}
-                      <div className={`${incluirFoto ? "md:col-span-8" : "w-full"} space-y-2`}>
-                        {camposMolde.map((campo, cIdx) => (
-                          <div key={campo.id} className="p-1.5 border border-gray-200 rounded bg-gray-50/50 text-xs">
-                            <strong className="text-primary block font-mono text-[11px] uppercase">{campo.nombre}:</strong>
+              {/* 1. TABLA SIMPLE DE BIENES */}
+              {tipoTablaTdr === "BIENES_SIMPLE" && (
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse border border-gray-400 text-xs text-left">
+                    <thead>
+                      <tr className="bg-gray-100 font-bold uppercase text-gray-900 border-b border-gray-400">
+                        <th className="border border-gray-400 p-2 text-center w-12">ÍTEM</th>
+                        <th className="border border-gray-400 p-2 w-1/3">DESCRIPCIÓN DEL BIEN</th>
+                        <th className="border border-gray-400 p-2 text-center w-20">UNIDAD</th>
+                        <th className="border border-gray-400 p-2 text-center w-20">CANTIDAD</th>
+                        <th className="border border-gray-400 p-2">CARACTERÍSTICAS TÉCNICAS REQUERIDAS</th>
+                        <th className="border border-gray-400 p-1 text-center w-14 no-print">ACCIÓN</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map((item) => (
+                        <tr key={item.id} className="hover:bg-blue-50/20 border-b border-gray-300">
+                          <td className="border border-gray-400 p-2 font-mono font-bold text-center bg-gray-50/50">
+                            {item.item}
+                          </td>
+                          <td className="border border-gray-400 p-2 font-bold text-primary">
                             <div
                               contentEditable
                               suppressContentEditableWarning
-                              className="p-1 text-gray-800 hover:bg-white focus:bg-white rounded focus:outline-none"
+                              onBlur={(e) => handleItemTextChange(item.id, "descripcion", e.currentTarget.textContent || "")}
+                              className="focus:bg-white focus:outline-none p-1 rounded hover:bg-blue-50/50"
                             >
-                              {cIdx === 0
-                                ? item.fichaTecnica?.normaCertificacion || campo.valorEjemplo
-                                : cIdx === 1
-                                ? item.fichaTecnica?.material || campo.valorEjemplo
-                                : cIdx === 2
-                                ? item.fichaTecnica?.dimensiones || campo.valorEjemplo
-                                : cIdx === 3
-                                ? item.fichaTecnica?.uso || campo.valorEjemplo
-                                : item.fichaTecnica?.caracteristicasDetalle?.[0] || campo.valorEjemplo}
+                              {item.descripcion}
                             </div>
+                          </td>
+                          <td className="border border-gray-400 p-2 text-center font-mono">
+                            <div
+                              contentEditable
+                              suppressContentEditableWarning
+                              onBlur={(e) => handleItemTextChange(item.id, "unidad", e.currentTarget.textContent || "")}
+                              className="focus:bg-white focus:outline-none p-1 rounded hover:bg-blue-50/50"
+                            >
+                              {item.unidad || "PZA"}
+                            </div>
+                          </td>
+                          <td className="border border-gray-400 p-2 text-center font-mono font-bold">
+                            <div
+                              contentEditable
+                              suppressContentEditableWarning
+                              onBlur={(e) => handleItemTextChange(item.id, "cantidad", Number(e.currentTarget.textContent) || 1)}
+                              className="focus:bg-white focus:outline-none p-1 rounded hover:bg-blue-50/50"
+                            >
+                              {item.cantidad}
+                            </div>
+                          </td>
+                          <td className="border border-gray-400 p-2 text-gray-800 leading-relaxed">
+                            <div
+                              contentEditable
+                              suppressContentEditableWarning
+                              onBlur={(e) => handleItemTextChange(item.id, "caracteristicasTecnicas", e.currentTarget.textContent || "")}
+                              className="focus:bg-white focus:outline-none p-1 rounded hover:bg-blue-50/50 whitespace-pre-wrap"
+                            >
+                              {item.caracteristicasTecnicas ||
+                                (item.fichaTecnica?.caracteristicasDetalle && item.fichaTecnica.caracteristicasDetalle.length > 0
+                                  ? item.fichaTecnica.caracteristicasDetalle.join("\n• ")
+                                  : `${item.fichaTecnica?.material ? `Material: ${item.fichaTecnica.material}. ` : ""}${item.fichaTecnica?.normaCertificacion ? `Norma: ${item.fichaTecnica.normaCertificacion}. ` : ""}${item.fichaTecnica?.dimensiones ? `Dimensiones: ${item.fichaTecnica.dimensiones}` : ""}`.trim()) ||
+                                "Cumplimiento con especificaciones técnicas requeridas por ENDE Deoruro S.A."}
+                            </div>
+                          </td>
+                          <td className="border border-gray-400 p-1 text-center no-print">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveItem(item.id)}
+                              className="text-red-500 hover:text-red-700 p-1"
+                              title="Eliminar ítem"
+                            >
+                              <Trash2 className="w-4 h-4 mx-auto" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* 2. TABLA DE SALUD OCUPACIONAL / LABORATORIO */}
+              {tipoTablaTdr === "SALUD_OCUPACIONAL" && (
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse border border-gray-400 text-xs text-left">
+                    <thead>
+                      <tr className="bg-gray-100 font-bold uppercase text-gray-900 border-b border-gray-400">
+                        <th className="border border-gray-400 p-2 text-center w-12">ÍTEM</th>
+                        <th className="border border-gray-400 p-2 w-1/3">EXAMEN / ESTUDIO REQUERIDO</th>
+                        <th className="border border-gray-400 p-2 w-1/3">ESPECIFICACIÓN MÍNIMA / METODOLOGÍA</th>
+                        <th className="border border-gray-400 p-2 w-1/4">PROPUESTO / A INFORMAR</th>
+                        <th className="border border-gray-400 p-1 text-center w-14 no-print">ACCIÓN</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map((item) => (
+                        <tr key={item.id} className="hover:bg-blue-50/20 border-b border-gray-300">
+                          <td className="border border-gray-400 p-2 font-mono font-bold text-center bg-gray-50/50">
+                            {item.item}
+                          </td>
+                          <td className="border border-gray-400 p-2">
+                            <div
+                              contentEditable
+                              suppressContentEditableWarning
+                              onBlur={(e) => handleItemTextChange(item.id, "descripcion", e.currentTarget.textContent || "")}
+                              className="font-bold text-primary focus:bg-white focus:outline-none p-1 rounded hover:bg-blue-50/50"
+                            >
+                              {item.descripcion}
+                            </div>
+                            <div className="text-[11px] text-gray-500 font-mono mt-0.5">
+                              Cantidad: {item.cantidad} {item.unidad || "ESTUDIO"}
+                            </div>
+                          </td>
+                          <td className="border border-gray-400 p-2 text-gray-800">
+                            <div
+                              contentEditable
+                              suppressContentEditableWarning
+                              onBlur={(e) => handleItemTextChange(item.id, "especificacionMinima", e.currentTarget.textContent || "")}
+                              className="focus:bg-white focus:outline-none p-1 rounded hover:bg-blue-50/50 whitespace-pre-wrap leading-relaxed"
+                            >
+                              {item.especificacionMinima ||
+                                item.fichaTecnica?.normaCertificacion ||
+                                item.fichaTecnica?.material ||
+                                "Examen médico / estudio de laboratorio clínico con metodología certificada y acreditación sanitaria."}
+                            </div>
+                          </td>
+                          <td className="border border-gray-400 p-2 text-gray-700">
+                            <div
+                              contentEditable
+                              suppressContentEditableWarning
+                              onBlur={(e) => handleItemTextChange(item.id, "propuestoOferente", e.currentTarget.textContent || "")}
+                              className="focus:bg-white focus:outline-none p-1 rounded hover:bg-blue-50/50 italic text-gray-600"
+                            >
+                              {item.propuestoOferente || "Cumple según metodología del oferente / A informar"}
+                            </div>
+                          </td>
+                          <td className="border border-gray-400 p-1 text-center no-print">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveItem(item.id)}
+                              className="text-red-500 hover:text-red-700 p-1"
+                              title="Eliminar examen"
+                            >
+                              <Trash2 className="w-4 h-4 mx-auto" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* 3. FICHAS TÉCNICAS INDIVIDUALES */}
+              {tipoTablaTdr === "FICHAS_DINAMICAS" && (
+                <div className="space-y-6">
+                  {items.map((item) => (
+                    <div key={item.id} className="border-2 border-black rounded-lg p-4 bg-white space-y-3 shadow-sm">
+                      <div className="flex justify-between items-center border-b border-gray-300 pb-1">
+                        <span className="font-mono font-bold text-xs bg-primary text-white px-2.5 py-0.5 rounded">
+                          ÍTEM #{item.item}: {item.cantidad} {item.unidad}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveItem(item.id)}
+                          className="text-red-600 hover:text-red-800 p-1 text-xs font-bold flex items-center gap-1"
+                          title="Eliminar este ítem"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Eliminar</span>
+                        </button>
+                      </div>
+
+                      <div
+                        contentEditable
+                        suppressContentEditableWarning
+                        onBlur={(e) => handleItemTextChange(item.id, "descripcion", e.currentTarget.textContent || "")}
+                        className="font-black text-sm text-primary uppercase border-b pb-1 hover:bg-blue-50/50 p-1 rounded focus:outline-none"
+                      >
+                        {item.descripcion}
+                      </div>
+
+                      {/* Contenedor con Foto del Ítem y Campos */}
+                      <div className={`grid gap-4 items-start ${incluirFotoEnItems ? "grid-cols-1 md:grid-cols-12" : "grid-cols-1"}`}>
+                        {incluirFotoEnItems && (
+                          <div className="md:col-span-4 h-44 bg-gray-50 border border-gray-300 rounded flex flex-col items-center justify-center text-gray-500 text-xs font-mono p-2 text-center relative group">
+                            {item.fichaTecnica?.imagenUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={item.fichaTecnica.imagenUrl} alt="Foto" className="h-32 w-auto object-contain" />
+                            ) : (
+                              <>
+                                <Camera className="w-7 h-7 text-gray-400 mb-1" />
+                                <span className="font-bold">Fotografía Oficial del Ítem</span>
+                              </>
+                            )}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              ref={(el) => {
+                                fileInputRefs.current[item.id] = el;
+                              }}
+                              onChange={(e) => {
+                                const f = e.target.files?.[0];
+                                if (f) handleImageUpload(item.id, f);
+                              }}
+                              className="hidden"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => fileInputRefs.current[item.id]?.click()}
+                              className="mt-1 px-2 py-0.5 bg-primary/10 hover:bg-primary/20 text-primary text-[10px] font-bold rounded"
+                            >
+                              Subir Foto
+                            </button>
                           </div>
-                        ))}
+                        )}
+
+                        <div className={`${incluirFotoEnItems ? "md:col-span-8" : "w-full"} space-y-2`}>
+                          {camposMolde.map((campo, cIdx) => (
+                            <div key={campo.id} className="p-1.5 border border-gray-200 rounded bg-gray-50/50 text-xs">
+                              <strong className="text-primary block font-mono text-[11px] uppercase">{campo.nombre}:</strong>
+                              <div
+                                contentEditable
+                                suppressContentEditableWarning
+                                className="p-1 text-gray-800 hover:bg-white focus:bg-white rounded focus:outline-none"
+                              >
+                                {cIdx === 0
+                                  ? item.fichaTecnica?.normaCertificacion || campo.valorEjemplo
+                                  : cIdx === 1
+                                  ? item.fichaTecnica?.material || campo.valorEjemplo
+                                  : cIdx === 2
+                                  ? item.fichaTecnica?.dimensiones || campo.valorEjemplo
+                                  : cIdx === 3
+                                  ? item.fichaTecnica?.uso || campo.valorEjemplo
+                                  : item.fichaTecnica?.caracteristicasDetalle?.[0] || campo.valorEjemplo}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
-
-                    {/* Tabla de Especificación Técnica Oficial (REQUERIDO / PROPUESTO) */}
-                    <div className="pt-2">
-                      <span className="text-[11px] font-bold text-gray-700 block mb-1">
-                        Tabla de Evaluación Técnica (REQUERIDO / PROPUESTO):
-                      </span>
-                      <table className="w-full border-collapse border border-gray-300 text-xs text-left">
-                        <thead>
-                          <tr className="bg-gray-100">
-                            <th className="border border-gray-300 p-2 w-1/2 font-bold uppercase text-gray-900">REQUERIDO</th>
-                            <th className="border border-gray-300 p-2 w-1/2 font-bold uppercase text-gray-900">PROPUESTO / INFORMAR</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {item.fichaTecnica?.caracteristicasDetalle && item.fichaTecnica.caracteristicasDetalle.length > 0 ? (
-                            item.fichaTecnica.caracteristicasDetalle.map((carac, cIdx) => (
-                              <tr key={cIdx} className="hover:bg-blue-50/30">
-                                <td
-                                  contentEditable
-                                  suppressContentEditableWarning
-                                  onBlur={(e) => {
-                                    const updatedDetails = [...(item.fichaTecnica?.caracteristicasDetalle || [])];
-                                    updatedDetails[cIdx] = e.currentTarget.textContent || "";
-                                    handleFichaChange(item.id, "caracteristicasDetalle", updatedDetails);
-                                  }}
-                                  className="border border-gray-300 p-2 text-gray-800 focus:outline-none"
-                                >
-                                  • {carac}
-                                </td>
-                                <td className="border border-gray-300 p-2 text-gray-400 italic">
-                                  [A ser llenado por el proponente]
-                                </td>
-                              </tr>
-                            ))
-                          ) : (
-                            <tr>
-                              <td className="border border-gray-300 p-2 text-gray-800">
-                                {item.fichaTecnica?.normaCertificacion || "Especificación técnica según normas vigentes"}
-                              </td>
-                              <td className="border border-gray-300 p-2 text-gray-400 italic">
-                                [A ser llenado por el proponente]
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
 
               {/* Punto 4: Calidad */}
               <div className="space-y-1 pt-2">
@@ -895,11 +1074,142 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
       <Modal
         isOpen={showAiModal}
         onClose={() => !isAiProcessing && setShowAiModal(false)}
-        title="✨ Asistente de IA: Redacción Inteligente de TDR"
-        subtitle="Sube una cotización, proforma o documento para redactar el TDR oficial automáticamente con antecedentes y justificación fundamentada."
+        title="✨ Asistente de IA: Redacción y Estructuración de TDR"
+        subtitle="Pega tu TDR en Markdown/Texto o sube tu documento. La IA acomodará la información en nuestra plantilla oficial respetando con fidelidad total tus especificaciones."
         maxWidth="lg"
       >
         <div className="space-y-4 font-sans text-xs">
+          {/* Selector de Modo de Entrada */}
+          <div className="flex border-b border-outline-variant">
+            <button
+              type="button"
+              onClick={() => setAiInputMode("markdown")}
+              className={`flex-1 py-2.5 text-center font-bold text-xs border-b-2 transition-colors ${
+                aiInputMode === "markdown"
+                  ? "border-primary text-primary bg-primary/5"
+                  : "border-transparent text-on-surface-variant hover:text-primary"
+              }`}
+            >
+              📝 Pegar TDR (Formato Markdown / Texto)
+            </button>
+            <button
+              type="button"
+              onClick={() => setAiInputMode("file")}
+              className={`flex-1 py-2.5 text-center font-bold text-xs border-b-2 transition-colors ${
+                aiInputMode === "file"
+                  ? "border-primary text-primary bg-primary/5"
+                  : "border-transparent text-on-surface-variant hover:text-primary"
+              }`}
+            >
+              📁 Subir Archivo (.md, .txt, .pdf, Foto, Word)
+            </button>
+          </div>
+
+          {/* Opción 1: Pegar Markdown / Texto Completo */}
+          {aiInputMode === "markdown" ? (
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <label className="font-bold text-primary text-xs">
+                  Pega aquí el contenido completo del TDR (en Markdown o Texto):
+                </label>
+                <span className="text-[11px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-mono font-semibold border border-emerald-200">
+                  ✓ Fidelidad 100% Literal (Sin alucinaciones)
+                </span>
+              </div>
+              <textarea
+                rows={9}
+                value={markdownTdrText}
+                onChange={(e) => setMarkdownTdrText(e.target.value)}
+                placeholder={`# ESPECIFICACIONES TÉCNICAS (TDR)\n\n## 1. ANTECEDENTES\nEn el marco del plan de mantenimiento anual...\n\n## 2. JUSTIFICACIÓN\nSe requiere la adquisición de los siguientes ítems para garantizar...\n\n## 3. ÍTEMS REQUERIDOS\n| Ítem | Descripción | Cantidad | Unidad | Características Técnicas |\n| 1 | Botas de Seguridad Dieléctricas | 20 | PAR | Conforme a norma ASTM F2413, suela antideslizante... |\n| 2 | Casco Dieléctrico Tipo II | 20 | PZA | Clase E, barboquejo de 4 puntos... |`}
+                className="w-full p-3 border border-outline-variant rounded font-mono text-xs bg-surface leading-relaxed focus:outline-none focus:border-primary"
+              />
+              <p className="text-[11px] text-on-surface-variant italic">
+                * La IA acomodará exactamente los antecedentes, justificación y cada ítem en la plantilla de ENDE Deoruro S.A. sin aumentar ni suprimir requisitos.
+              </p>
+            </div>
+          ) : (
+            /* Opción 2: Subir Archivo */
+            <div
+              onClick={() => aiFileInputRef.current?.click()}
+              className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
+                uploadedAiFile ? "border-primary bg-primary/5" : "border-outline-variant hover:border-primary bg-surface-container-low"
+              }`}
+            >
+              <input
+                type="file"
+                ref={aiFileInputRef}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleAiFileUpload(f);
+                }}
+                accept="image/*,.pdf,.doc,.docx,.txt,.md"
+                className="hidden"
+              />
+              {uploadedAiFile ? (
+                <div className="space-y-2">
+                  <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />
+                  <p className="font-bold text-sm text-primary">{uploadedAiFile.name}</p>
+                  <p className="text-[11px] text-outline">Haz clic para seleccionar otro archivo si lo deseas</p>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <FileUp className="w-10 h-10 text-primary mx-auto opacity-75" />
+                  <p className="font-bold text-sm text-primary">Arrastra o haz clic aquí para subir tu documento o foto</p>
+                  <p className="text-on-surface-variant text-[11px]">
+                    Formatos soportados: Markdown (.md), Fotos (JPG, PNG), Documentos (PDF, Word, TXT)
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Selector de Tipo de Tabla Preferido */}
+          <div className="p-3 bg-surface-container-low border border-outline-variant rounded-lg space-y-2">
+            <span className="font-bold text-on-surface text-xs block">
+              Formato de Tabla de Especificaciones Técnicas deseado:
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => setTipoTablaTdr("BIENES_SIMPLE")}
+                className={`p-2 rounded text-left border text-xs transition-all ${
+                  tipoTablaTdr === "BIENES_SIMPLE"
+                    ? "border-primary bg-white ring-2 ring-primary text-primary font-bold shadow-sm"
+                    : "border-outline-variant bg-surface text-on-surface-variant hover:bg-white"
+                }`}
+              >
+                <div className="font-bold">📦 Bienes General</div>
+                <div className="text-[10px] text-outline font-normal">Descripción y Características</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTipoTablaTdr("SALUD_OCUPACIONAL")}
+                className={`p-2 rounded text-left border text-xs transition-all ${
+                  tipoTablaTdr === "SALUD_OCUPACIONAL"
+                    ? "border-primary bg-white ring-2 ring-primary text-primary font-bold shadow-sm"
+                    : "border-outline-variant bg-surface text-on-surface-variant hover:bg-white"
+                }`}
+              >
+                <div className="font-bold">🩺 Salud / Laboratorio</div>
+                <div className="text-[10px] text-outline font-normal">Examen, Metodología y Propuesto</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTipoTablaTdr("FICHAS_DINAMICAS")}
+                className={`p-2 rounded text-left border text-xs transition-all ${
+                  tipoTablaTdr === "FICHAS_DINAMICAS"
+                    ? "border-primary bg-white ring-2 ring-primary text-primary font-bold shadow-sm"
+                    : "border-outline-variant bg-surface text-on-surface-variant hover:bg-white"
+                }`}
+              >
+                <div className="font-bold">📑 Fichas Técnicas</div>
+                <div className="text-[10px] text-outline font-normal">Tarjetas individuales con foto</div>
+              </button>
+            </div>
+          </div>
+
           {/* Opción de Fotografía Técnica en Ítems */}
           <div className="p-3 bg-surface-container-low border border-outline-variant rounded-lg flex items-center justify-between">
             <div>
@@ -919,50 +1229,16 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
             />
           </div>
 
-          {/* File Upload Slot */}
-          <div
-            onClick={() => aiFileInputRef.current?.click()}
-            className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
-              uploadedAiFile ? "border-primary bg-primary/5" : "border-outline-variant hover:border-primary bg-surface-container-low"
-            }`}
-          >
-            <input
-              type="file"
-              ref={aiFileInputRef}
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) handleAiFileUpload(f);
-              }}
-              accept="image/*,.pdf,.doc,.docx,.txt"
-              className="hidden"
-            />
-            {uploadedAiFile ? (
-              <div className="space-y-2">
-                <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />
-                <p className="font-bold text-sm text-primary">{uploadedAiFile.name}</p>
-                <p className="text-[11px] text-outline">Haz clic para seleccionar otro archivo si lo deseas</p>
-              </div>
-            ) : (
-              <div className="space-y-1">
-                <FileUp className="w-10 h-10 text-primary mx-auto opacity-75" />
-                <p className="font-bold text-sm text-primary">Arrastra o haz clic aquí para subir tu documento o foto</p>
-                <p className="text-on-surface-variant text-[11px]">
-                  Formatos soportados: Fotos (JPG, PNG), Documentos (PDF, Word, TXT)
-                </p>
-              </div>
-            )}
-          </div>
-
           {/* Optional Prompt */}
           <div className="space-y-1">
             <label className="block font-bold text-primary text-xs">
-              Instrucciones o notas adicionales para la IA:
+              Instrucciones adicionales para la IA (Opcional):
             </label>
             <textarea
-              rows={3}
+              rows={2}
               value={aiPrompt}
               onChange={(e) => setAiPrompt(e.target.value)}
-              placeholder="Ejemplo: Extraer los 6 exámenes de laboratorio con especificación de ayunas y entrega en 5 días..."
+              placeholder="Ejemplo: Respetar fielmente las cantidades y métodos descritos..."
               className="w-full p-2.5 border border-outline-variant rounded text-xs bg-surface"
             />
           </div>
@@ -980,19 +1256,19 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
 
             <button
               type="button"
-              disabled={isAiProcessing}
+              disabled={isAiProcessing || (aiInputMode === "markdown" && !markdownTdrText.trim() && !uploadedAiFile)}
               onClick={handleRunAi}
               className="flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white font-sans text-xs font-bold rounded shadow transition-all active:scale-95 disabled:opacity-50"
             >
               {isAiProcessing ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Generando TDR según Reglamento Oficial...</span>
+                  <span>Acomodando datos en Plantilla Oficial...</span>
                 </>
               ) : (
                 <>
                   <Sparkles className="w-4 h-4" />
-                  <span>Generar TDR con IA</span>
+                  <span>Acomodar en Plantilla TDR Oficial</span>
                 </>
               )}
             </button>

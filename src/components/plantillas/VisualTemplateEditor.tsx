@@ -252,6 +252,9 @@ export const VisualTemplateEditor: React.FC<VisualTemplateEditorProps> = ({
   );
 
   // --- CAMPOS TÉCNICOS DEL MOLDE (100% EDITABLES) ---
+  const [tipoTablaMolde, setTipoTablaMolde] = useState<"BIENES_SIMPLE" | "SALUD_OCUPACIONAL" | "FICHAS_DINAMICAS">(
+    savedData.tipoTabla || "BIENES_SIMPLE"
+  );
   const [incluirFotoItem, setIncluirFotoItem] = useState<boolean>(
     savedData.incluirFotoItem !== undefined ? savedData.incluirFotoItem : plantilla.incluir_foto_item !== undefined ? plantilla.incluir_foto_item : true
   );
@@ -410,6 +413,7 @@ export const VisualTemplateEditor: React.FC<VisualTemplateEditorProps> = ({
       firmaEntidad,
       firmaEmpresa,
       seccionesPrompt,
+      tipoTabla: tipoTablaMolde,
       incluirFotoItem,
       nombreItemMolde,
       etiquetaItemMolde,
@@ -419,6 +423,7 @@ export const VisualTemplateEditor: React.FC<VisualTemplateEditorProps> = ({
 
     const updated: Plantilla = {
       ...plantilla,
+      tipo_tabla_tdr: tipoTablaMolde,
       nombre: tituloProceso,
       version: versionDoc,
       logo_url: logoUrl || undefined,
@@ -1079,9 +1084,56 @@ export const VisualTemplateEditor: React.FC<VisualTemplateEditorProps> = ({
                 {/* CAPÍTULO 4: MOLDE MAESTRO DE FICHA TÉCNICA 100% EDITABLE */}
                 {sec.numero === 4 && (plantilla.fk_carpeta === 1 || plantilla.fk_carpeta === 6) && (
                   <div className="mt-4 pt-4 border-t-2 border-dashed border-gray-300 space-y-3">
+                    {/* Selector de Tipo de Tabla para la Plantilla */}
+                    <div className="p-3 bg-surface-container-low border border-outline-variant rounded-lg space-y-2">
+                      <span className="font-bold text-primary text-xs block font-mono">
+                        ⚙️ FORMATO DE TABLA / ESPECIFICACIONES TÉCNICAS POR DEFECTO:
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setTipoTablaMolde("BIENES_SIMPLE")}
+                          className={`p-2 rounded text-left border text-xs transition-all ${
+                            tipoTablaMolde === "BIENES_SIMPLE"
+                              ? "border-primary bg-white ring-2 ring-primary text-primary font-bold shadow-sm"
+                              : "border-outline-variant bg-surface text-on-surface-variant hover:bg-white"
+                          }`}
+                        >
+                          <div className="font-bold">📦 Tabla Simple de Bienes</div>
+                          <div className="text-[10px] text-outline font-normal">Ítem | Descripción | Unidad | Cantidad | Características</div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setTipoTablaMolde("SALUD_OCUPACIONAL")}
+                          className={`p-2 rounded text-left border text-xs transition-all ${
+                            tipoTablaMolde === "SALUD_OCUPACIONAL"
+                              ? "border-primary bg-white ring-2 ring-primary text-primary font-bold shadow-sm"
+                              : "border-outline-variant bg-surface text-on-surface-variant hover:bg-white"
+                          }`}
+                        >
+                          <div className="font-bold">🩺 Tabla Salud / Laboratorio</div>
+                          <div className="text-[10px] text-outline font-normal">Ítem | Examen | Metodología Mínima | Propuesto</div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setTipoTablaMolde("FICHAS_DINAMICAS")}
+                          className={`p-2 rounded text-left border text-xs transition-all ${
+                            tipoTablaMolde === "FICHAS_DINAMICAS"
+                              ? "border-primary bg-white ring-2 ring-primary text-primary font-bold shadow-sm"
+                              : "border-outline-variant bg-surface text-on-surface-variant hover:bg-white"
+                          }`}
+                        >
+                          <div className="font-bold">📑 Fichas Técnicas</div>
+                          <div className="text-[10px] text-outline font-normal">Tarjetas individuales con foto opcional</div>
+                        </button>
+                      </div>
+                    </div>
+
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs font-mono font-bold text-primary uppercase">
                       <span className="flex items-center gap-2">
-                        🟨 MOLDE MAESTRO DE FICHA TÉCNICA (LA IA LO MULTIPLICARÁ AUTOMÁTICAMENTE PARA N ÍTEMS)
+                        🟨 CAMPOS DINÁMICOS Y PARÁMETROS DE EVALUACIÓN
                       </span>
                       <button
                         type="button"
