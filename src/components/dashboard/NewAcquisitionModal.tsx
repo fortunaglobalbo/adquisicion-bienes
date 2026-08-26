@@ -23,7 +23,6 @@ export const NewAcquisitionModal: React.FC<NewAcquisitionModalProps> = ({
   const [titulo, setTitulo] = useState("");
   const [categoria, setCategoria] = useState<CategoriaAdquisicion>("Bienes");
   const [modalidad, setModalidad] = useState("Menor Precio (Art. 31 Reglamento SBC)");
-  const [partida, setPartida] = useState("39500 - Materiales y Suministros Eléctricos");
   const [unidad, setUnidad] = useState("Departamento Técnico de Mantenimiento");
   const [responsable, setResponsable] = useState("Ing. Heydi Canaviri Padilla");
   const [plazoDias, setPlazoDias] = useState<number>(30);
@@ -84,7 +83,7 @@ export const NewAcquisitionModal: React.FC<NewAcquisitionModalProps> = ({
       titulo_proceso: titulo,
       categoria,
       modalidad,
-      partida_presupuestaria: partida,
+      partida_presupuestaria: "",
       estado: "Iniciado",
       prevision_presupuesto: totalPresupuesto > 0 ? totalPresupuesto : 0,
       moneda: "BOB",
@@ -140,7 +139,7 @@ export const NewAcquisitionModal: React.FC<NewAcquisitionModalProps> = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-mono font-bold text-on-surface mb-1">
               Categoría
@@ -155,18 +154,6 @@ export const NewAcquisitionModal: React.FC<NewAcquisitionModalProps> = ({
               <option value="Obras">Obras</option>
               <option value="Consultorías">Consultorías</option>
             </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-mono font-bold text-on-surface mb-1">
-              Partida Presupuestaria
-            </label>
-            <input
-              type="text"
-              value={partida}
-              onChange={(e) => setPartida(e.target.value)}
-              className="w-full px-3 py-2 border border-outline-variant rounded text-sm bg-surface focus:border-primary font-mono text-xs"
-            />
           </div>
 
           <div>
