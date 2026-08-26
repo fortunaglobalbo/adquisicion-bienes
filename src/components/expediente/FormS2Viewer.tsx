@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useState } from "react";
 import { Adquisicion, ItemAdquisicion } from "@/types";
 import {
   Download,
