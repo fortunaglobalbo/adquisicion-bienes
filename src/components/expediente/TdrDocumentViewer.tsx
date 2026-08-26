@@ -197,13 +197,33 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
             : docData.items,
         };
 
-        setTipoTablaTdr(detectedTabla);
-
         const totalPresupuesto = updated.items.reduce(
           (sum, it) => sum + (Number(it.precioTotalEstimado) || (Number(it.cantidad) || 1) * (Number(it.precioUnitarioEstimado) || 0)),
           0
         );
         updated.prevision_presupuesto = totalPresupuesto > 0 ? totalPresupuesto : updated.prevision_presupuesto;
+
+        setTipoTablaTdr(detectedTabla);
+
+        // Actualizar los 14 puntos inmediatamente en pantalla
+        if (updated.antecedentes_texto || updated.justificacion_texto) {
+          setPuntosOficiales((prev) =>
+            prev.map((p) => {
+              if (p.num === 1 && updated.antecedentes_texto) return { ...p, contenido: updated.antecedentes_texto };
+              if (p.num === 2 && updated.justificacion_texto) return { ...p, contenido: updated.justificacion_texto };
+              return p;
+            })
+          );
+        }
+
+        // Auto-cascada para Carpetas 5 y 6 al generar Carpeta 1
+        updated.solicitud_inicio_objeto = `SOLICITUD DE INICIO DEL PROCESO DE COMPRA "${(updated.titulo_proceso || "").toUpperCase()}"`;
+        updated.solicitud_inicio_parrafo1 = `Por medio de la presente, me dirijo a su autoridad para solicitar formalmente el inicio del proceso de compra correspondiente al proceso "${(updated.titulo_proceso || "").toUpperCase()}".`;
+        updated.form_s2_senores = updated.form_s2_senores || "PROVEEDOR / PROPONENTE";
+        updated.form_s2_tiempo_entrega = updated.form_s2_tiempo_entrega || `${updated.plazo_entrega_dias || 30} días calendario`;
+        updated.form_s2_validez_oferta = "30 días calendario";
+        updated.form_s2_observaciones = "SE ADJUNTA ESPECIFICACIONES TECNICAS";
+        updated.form_s2_nota_adicional = "ADJUNTAR FOTOCOPIA SIMPLE DE SU RNC - NIT";
 
         setDocData(updated);
         onAdquisicionUpdated?.(updated);
@@ -335,10 +355,10 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
         const tplContent = matchingTpl?.contenido_default?.trim();
 
         if (p.num === 1) {
-          return { ...p, contenido: tplContent || docData.antecedentes_texto || p.contenido };
+          return { ...p, contenido: docData.antecedentes_texto || tplContent || p.contenido };
         }
         if (p.num === 2) {
-          return { ...p, contenido: tplContent || docData.justificacion_texto || p.contenido };
+          return { ...p, contenido: docData.justificacion_texto || tplContent || p.contenido };
         }
         return {
           ...p,
