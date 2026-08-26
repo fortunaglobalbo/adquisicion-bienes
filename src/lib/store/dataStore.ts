@@ -29,16 +29,54 @@ export class DataStore {
   static async syncWithSupabase(): Promise<void> {
     if (!this.isClient()) return;
     try {
+      const localList = this.getAdquisiciones();
+
+      // 1. Obtener datos actuales de Supabase
       const res = await fetch("/api/db/sync");
       if (!res.ok) return;
       const result = await res.json();
 
-      if (result.success && Array.isArray(result.adquisiciones) && result.adquisiciones.length > 0) {
-        const localList = this.getAdquisiciones();
+      const remoteAdqs: any[] = result.success && Array.isArray(result.adquisiciones) ? result.adquisiciones : [];
+      const remoteCodigos = new Set(remoteAdqs.map((r) => r.codigo));
+
+      // 2. Identificar registros locales que faltan en Supabase y subirlos automáticamente
+      const missingInRemote = localList.filter((loc) => !remoteCodigos.has(loc.codigo));
+      if (missingInRemote.length > 0) {
+        for (const loc of missingInRemote) {
+          try {
+            await fetch("/api/db/sync", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                action: "UPSERT",
+                table: "adquisiciones",
+                data: {
+                  codigo: loc.codigo,
+                  titulo_proceso: loc.titulo_proceso,
+                  categoria: loc.categoria || "Bienes",
+                  modalidad: loc.modalidad,
+                  partida_presupuestaria: loc.partida_presupuestaria || "39500",
+                  estado: loc.estado,
+                  prevision_presupuesto: loc.prevision_presupuesto,
+                  moneda: loc.moneda || "BOB",
+                  unidad_solicitante: loc.unidad_solicitante,
+                  responsable_proceso: loc.responsable_proceso,
+                  creado_por: loc.creado_por || "admin@ende-deoruro.bo",
+                },
+              }),
+            });
+          } catch (e) {
+            console.error("Error subiendo registro local a Supabase:", loc.codigo, e);
+          }
+        }
+      }
+
+      // 3. Combinar datos remotos y locales en el estado
+      if (remoteAdqs.length > 0) {
         const mergedMap = new Map<string, Adquisicion>();
         localList.forEach((a) => mergedMap.set(a.codigo, a));
 
-        result.adquisiciones.forEach((r: any) => {
+        remoteAdqs.forEach((r: any) => {
           const existing = mergedMap.get(r.codigo);
           mergedMap.set(r.codigo, {
             id: r.id || `acq-${r.codigo}`,
@@ -72,6 +110,7 @@ export class DataStore {
       console.warn("Error en syncWithSupabase:", e);
     }
   }
+
 
   // --- ADQUISICIONES ---
   static getAdquisiciones(): Adquisicion[] {
