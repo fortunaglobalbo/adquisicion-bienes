@@ -30,11 +30,9 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
         ? tpl.fechaDoc
         : getMesAnioActual());
   const tituloUpper = (tpl.tituloProceso || adquisicion.titulo_proceso || "ADQUISICIÓN DE BIENES Y SUMINISTROS").toUpperCase();
-  const elaborado = tpl.firmaNombre || (adquisicion.elaborado_por ? `Ing. ${adquisicion.elaborado_por}` : "Ing. Heydi Canaviri Padilla");
-  const elaboradoCargo = tpl.firmaCargo || adquisicion.elaborado_cargo || "SUPERVISORA SEGURIDAD INDUSTRIAL";
-  const incluirFirma = tpl.incluirFirmaPortada !== false;
-  const revisado = adquisicion.revisado_por || "Heydi Canaviri Padilla";
-  const aprobado = adquisicion.aprobado_por || "Lic. Raul Alberto Torrico Gomez";
+  const elaborado = adquisicion.elaborado_por || tpl.firmaNombre || "Área Solicitante";
+  const revisado = adquisicion.revisado_por || "Jefatura de Adquisiciones y Contrataciones";
+  const aprobado = adquisicion.aprobado_por || "Gerencia General / Administrativa Financiera";
 
 
   // Resumen de ítems en viñeta
@@ -215,22 +213,6 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
               }),
             ],
           }),
-          ...(incluirFirma
-            ? [
-                new Paragraph({
-                  alignment: AlignmentType.RIGHT,
-                  spacing: { before: 200 },
-                  children: [
-                    new TextRun({
-                      text: `${elaborado}\n${elaboradoCargo}\nDISTRIBUIDORA DE ELECTRICIDAD ENDE DEORURO S.A.`,
-                      size: FONT_SMALL,
-                      color: ENDE_COLORS.primary,
-                      font: "Inter",
-                    }),
-                  ],
-                }),
-              ]
-            : []),
         ],
       },
 
