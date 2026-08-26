@@ -9,7 +9,7 @@ import {
   LogProceso,
   Plantilla,
 } from "@/types";
-import { INITIAL_ADQUISICIONES, createInitialFolders, INITIAL_PLANTILLAS } from "./initialData";
+import { createInitialFolders, INITIAL_PLANTILLAS } from "./initialData";
 
 const STORAGE_KEYS = {
   ADQUISICIONES: "ende_adquisiciones_v2026",
@@ -25,60 +25,18 @@ export class DataStore {
     return typeof window !== "undefined";
   }
 
-  // --- SINCRONIZACIÓN CON SUPABASE VÍA API ROUTE (BYPASS RLS) ---
+  // --- CARGA DIRECTA DESDE SUPABASE POSTGRESQL ---
   static async syncWithSupabase(): Promise<void> {
     if (!this.isClient()) return;
     try {
-      const localList = this.getAdquisiciones();
-
-      // 1. Obtener datos actuales de Supabase
       const res = await fetch("/api/db/sync");
       if (!res.ok) return;
       const result = await res.json();
 
-      const remoteAdqs: any[] = result.success && Array.isArray(result.adquisiciones) ? result.adquisiciones : [];
-      const remoteCodigos = new Set(remoteAdqs.map((r) => r.codigo));
-
-      // 2. Identificar registros locales que faltan en Supabase y subirlos automáticamente
-      const missingInRemote = localList.filter((loc) => !remoteCodigos.has(loc.codigo));
-      if (missingInRemote.length > 0) {
-        for (const loc of missingInRemote) {
-          try {
-            await fetch("/api/db/sync", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                action: "UPSERT",
-                table: "adquisiciones",
-                data: {
-                  codigo: loc.codigo,
-                  titulo_proceso: loc.titulo_proceso,
-                  categoria: loc.categoria || "Bienes",
-                  modalidad: loc.modalidad,
-                  partida_presupuestaria: loc.partida_presupuestaria || "39500",
-                  estado: loc.estado,
-                  prevision_presupuesto: loc.prevision_presupuesto,
-                  moneda: loc.moneda || "BOB",
-                  unidad_solicitante: loc.unidad_solicitante,
-                  responsable_proceso: loc.responsable_proceso,
-                  creado_por: loc.creado_por || "admin@ende-deoruro.bo",
-                },
-              }),
-            });
-          } catch (e) {
-            console.error("Error subiendo registro local a Supabase:", loc.codigo, e);
-          }
-        }
-      }
-
-      // 3. Combinar datos remotos y locales en el estado
-      if (remoteAdqs.length > 0) {
-        const mergedMap = new Map<string, Adquisicion>();
-        localList.forEach((a) => mergedMap.set(a.codigo, a));
-
-        remoteAdqs.forEach((r: any) => {
-          const existing = mergedMap.get(r.codigo);
-          mergedMap.set(r.codigo, {
+      if (result.success) {
+        // 1. Guardar Adquisiciones reales desde Supabase
+        if (Array.isArray(result.adquisiciones)) {
+          const mappedAdqs: Adquisicion[] = result.adquisiciones.map((r: any) => ({
             id: r.id || `acq-${r.codigo}`,
             codigo: r.codigo,
             titulo_proceso: r.titulo_proceso,
@@ -95,35 +53,55 @@ export class DataStore {
             creado_por: r.creado_por || "admin@ende-deoruro.bo",
             fecha_creacion: r.fecha_creacion,
             fecha_actualizacion: r.fecha_actualizacion,
-            antecedentes_texto: existing?.antecedentes_texto,
-            justificacion_texto: existing?.justificacion_texto,
-            plazo_entrega_dias: existing?.plazo_entrega_dias || 30,
-            multa_diaria_porcentaje: existing?.multa_diaria_porcentaje || 0.25,
-            lugar_entrega: existing?.lugar_entrega || "Almacén Central ENDE DEORURO S.A., Oruro - Bolivia",
-            items: existing?.items || [],
-          });
-        });
+            antecedentes_texto: r.antecedentes_texto,
+            justificacion_texto: r.justificacion_texto,
+            plazo_entrega_dias: r.plazo_entrega_dias || 30,
+            multa_diaria_porcentaje: r.multa_diaria_porcentaje || 0.25,
+            lugar_entrega: r.lugar_entrega || "Almacén Central ENDE DEORURO S.A., Oruro - Bolivia",
+            items: r.items || [],
+          }));
+          this.saveAdquisiciones(mappedAdqs);
+        }
 
-        this.saveAdquisiciones(Array.from(mergedMap.values()));
+        // 2. Guardar Carpetas reales desde Supabase
+        if (Array.isArray(result.carpetas) && result.carpetas.length > 0) {
+          this.saveAllCarpetas(result.carpetas);
+        }
+
+        // 3. Guardar Plantillas reales desde Supabase
+        if (Array.isArray(result.plantillas) && result.plantillas.length > 0) {
+          const mappedPlantillas: Plantilla[] = result.plantillas.map((p: any) => ({
+            id: p.id || `tpl-${p.fk_carpeta}`,
+            fk_carpeta: p.fk_carpeta,
+            nombre: p.nombre,
+            descripcion: p.descripcion,
+            version: p.version || "1.0",
+            campos_configurables: p.contenido_plantilla?.campos_configurables || [],
+            secciones_fijas: p.contenido_plantilla?.secciones_fijas || [],
+            datos_completos: p.contenido_plantilla || {},
+          }));
+          this.saveAllPlantillas(mappedPlantillas);
+        }
+
+        // 4. Guardar Logs reales desde Supabase
+        if (Array.isArray(result.logs)) {
+          localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(result.logs));
+        }
       }
     } catch (e) {
-      console.warn("Error en syncWithSupabase:", e);
+      console.error("Error en syncWithSupabase:", e);
     }
   }
 
-
-  // --- ADQUISICIONES ---
+  // --- ADQUISICIONES (100% PERSISTENCIA EN BASE DE DATOS) ---
   static getAdquisiciones(): Adquisicion[] {
-    if (!this.isClient()) return INITIAL_ADQUISICIONES;
+    if (!this.isClient()) return [];
     const raw = localStorage.getItem(STORAGE_KEYS.ADQUISICIONES);
-    if (!raw) {
-      this.saveAdquisiciones(INITIAL_ADQUISICIONES);
-      return INITIAL_ADQUISICIONES;
-    }
+    if (!raw) return [];
     try {
       return JSON.parse(raw);
     } catch {
-      return INITIAL_ADQUISICIONES;
+      return [];
     }
   }
 
@@ -152,16 +130,13 @@ export class DataStore {
     list.unshift(newAdq);
     this.saveAdquisiciones(list);
 
-    // Create 8 folders
+    // Carpetas
     const initialFolders = createInitialFolders(id);
     const allCarpetas = this.getAllCarpetas();
     allCarpetas.push(...initialFolders);
     this.saveAllCarpetas(allCarpetas);
 
-    // Initial log
-    this.addLog(id, `Expediente creado con código ${newAdq.codigo}: "${newAdq.titulo_proceso}".`, newAdq.creado_por, "CREAR");
-
-    // Guardar en Supabase en segundo plano vía API (Bypass RLS)
+    // Guardado DIRECTO e INMEDIATO en Supabase PostgreSQL
     if (this.isClient()) {
       fetch("/api/db/sync", {
         method: "POST",
@@ -183,8 +158,34 @@ export class DataStore {
             creado_por: newAdq.creado_por,
           },
         }),
-      }).catch(console.error);
+      })
+        .then((r) => r.json())
+        .then((res) => {
+          if (res.data && res.data[0]) {
+            const dbAdqId = res.data[0].id;
+            const dbCarpetas = initialFolders.map((c) => ({
+              adquisicion_id: dbAdqId,
+              numero: c.numero,
+              nombre: c.nombre,
+              tipo_generacion: c.tipo_generacion,
+              estado: c.estado,
+              descripcion: c.descripcion,
+            }));
+            fetch("/api/db/sync", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                action: "INSERT",
+                table: "carpetas",
+                data: dbCarpetas,
+              }),
+            });
+          }
+        })
+        .catch(console.error);
     }
+
+    this.addLog(id, `Expediente creado con código ${newAdq.codigo}: "${newAdq.titulo_proceso}".`, newAdq.creado_por, "CREAR");
 
     return newAdq;
   }
@@ -201,7 +202,7 @@ export class DataStore {
     };
     this.saveAdquisiciones(list);
 
-    // Actualizar en Supabase en segundo plano vía API
+    // Actualización DIRECTA en Supabase PostgreSQL
     if (this.isClient()) {
       const target = list[idx];
       const payload: any = {
@@ -235,11 +236,11 @@ export class DataStore {
     const filtered = list.filter((a) => a.id !== id && a.codigo !== id);
     this.saveAdquisiciones(filtered);
 
-    // Remove associated folders
+    // Carpetas
     const allCarpetas = this.getAllCarpetas().filter((c) => c.adquisicion_id !== id);
     this.saveAllCarpetas(allCarpetas);
 
-    // Eliminar en Supabase en segundo plano vía API
+    // Eliminación DIRECTA en Supabase PostgreSQL
     if (target) {
       fetch("/api/db/sync", {
         method: "POST",
@@ -259,14 +260,7 @@ export class DataStore {
   static getAllCarpetas(): Carpeta[] {
     if (!this.isClient()) return [];
     const raw = localStorage.getItem(STORAGE_KEYS.CARPETAS);
-    if (!raw) {
-      const initial: Carpeta[] = [];
-      INITIAL_ADQUISICIONES.forEach((a) => {
-        initial.push(...createInitialFolders(a.id));
-      });
-      this.saveAllCarpetas(initial);
-      return initial;
-    }
+    if (!raw) return [];
     try {
       return JSON.parse(raw);
     } catch {
@@ -299,6 +293,26 @@ export class DataStore {
     folder.estado = "Completado";
     folder.fecha_proceso = new Date().toISOString();
     this.saveAllCarpetas(all);
+
+    // Guardar documento en Supabase PostgreSQL
+    fetch("/api/db/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "INSERT",
+        table: "documentos",
+        data: {
+          tipo: doc.tipo,
+          nombre_original: doc.nombre_original,
+          mime: doc.mime,
+          tamano: doc.tamano,
+          estado: doc.estado,
+          version: doc.version,
+          creado_por: doc.creado_por,
+          metadata: doc.metadata || {},
+        },
+      }),
+    }).catch(console.error);
 
     this.addLog(
       doc.adquisicion_id,
@@ -402,7 +416,7 @@ export class DataStore {
     all.unshift(newLog);
     localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(all));
 
-    // Guardar en Supabase vía API
+    // Guardar en Supabase PostgreSQL
     fetch("/api/db/sync", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -445,7 +459,7 @@ export class DataStore {
     list[idx] = { ...list[idx], ...updates };
     this.saveAllPlantillas(list);
 
-    // Guardar en Supabase vía API
+    // Guardar en Supabase PostgreSQL
     const target = list[idx];
     fetch("/api/db/sync", {
       method: "POST",

@@ -13,31 +13,45 @@ const serviceKey =
 
 const supabaseAdmin = createClient(supabaseUrl, serviceKey);
 
-// GET: Sincronizar todos los datos desde Supabase
+// GET: Carga directa 100% desde Supabase PostgreSQL
 export async function GET(req: NextRequest) {
   try {
-    const { data: adquisiciones, error: errAdq } = await supabaseAdmin
-      .from("adquisiciones")
-      .select("*")
-      .order("fecha_creacion", { ascending: false });
+    const { searchParams } = new URL(req.url);
+    const table = searchParams.get("table");
+    const adquisicionId = searchParams.get("adquisicion_id");
 
-    const { data: plantillas, error: errPla } = await supabaseAdmin
-      .from("plantillas")
-      .select("*")
-      .order("fk_carpeta", { ascending: true });
+    if (table) {
+      let q = supabaseAdmin.from(table).select("*");
+      if (adquisicionId) {
+        q = q.eq("adquisicion_id", adquisicionId);
+      }
+      const { data, error } = await q;
+      if (error) throw error;
+      return NextResponse.json({ success: true, data: data || [] });
+    }
+
+    // Si no se especifica tabla, devuelve el dataset completo de la base de datos
+    const [adqsRes, plantillasRes, carpetasRes, logsRes] = await Promise.all([
+      supabaseAdmin.from("adquisiciones").select("*").order("fecha_creacion", { ascending: false }),
+      supabaseAdmin.from("plantillas").select("*").order("fk_carpeta", { ascending: true }),
+      supabaseAdmin.from("carpetas").select("*").order("numero", { ascending: true }),
+      supabaseAdmin.from("logs_proceso").select("*").order("fecha", { ascending: false }).limit(100),
+    ]);
 
     return NextResponse.json({
       success: true,
-      adquisiciones: adquisiciones || [],
-      plantillas: plantillas || [],
-      error: errAdq?.message || errPla?.message || null,
+      adquisiciones: adqsRes.data || [],
+      plantillas: plantillasRes.data || [],
+      carpetas: carpetasRes.data || [],
+      logs: logsRes.data || [],
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error("Error en GET /api/db/sync:", err);
+    return NextResponse.json({ error: err.message || "Error al consultar Supabase" }, { status: 500 });
   }
 }
 
-// POST: Crear, actualizar o eliminar registros con Service Role (Bypass RLS)
+// POST: Escritura directa 100% en Supabase PostgreSQL
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -91,7 +105,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ error: "Acción no soportada" }, { status: 400 });
   } catch (err: any) {
-    console.error("Error en API DB Sync:", err);
-    return NextResponse.json({ error: err.message || "Error en base de datos" }, { status: 500 });
+    console.error("Error en POST /api/db/sync:", err);
+    return NextResponse.json({ error: err.message || "Error al escribir en Supabase" }, { status: 500 });
   }
 }
