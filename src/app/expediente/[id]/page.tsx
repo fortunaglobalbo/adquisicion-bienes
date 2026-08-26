@@ -23,6 +23,7 @@ import { FolderViewAi } from "@/components/expediente/FolderViewAi";
 import { FolderViewManual } from "@/components/expediente/FolderViewManual";
 import { Modal } from "@/components/ui/Modal";
 import { DataStore } from "@/lib/store/dataStore";
+import { createInitialFolders } from "@/lib/store/initialData";
 import {
   Adquisicion,
   Carpeta,
