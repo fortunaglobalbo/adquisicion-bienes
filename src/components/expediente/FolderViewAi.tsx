@@ -168,21 +168,21 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
       {carpeta.numero === 1 ? (
         <TdrDocumentViewer
           adquisicion={adquisicion}
-          onDownloadDocx={(live) => handleDownloadDocx(undefined, live)}
+          onDownloadDocx={(live?: Adquisicion) => handleDownloadDocx(undefined, live)}
           onAdquisicionUpdated={handleDocumentUpdate}
         />
       ) : carpeta.numero === 5 ? (
         /* For Carpeta 5: Full-Screen Direct Document Editor & Viewer (Solicitud de Inicio Oficial) */
         <SolicitudInicioViewer
           adquisicion={adquisicion}
-          onDownloadDocx={(live) => handleDownloadDocx(undefined, live)}
+          onDownloadDocx={(live?: Adquisicion) => handleDownloadDocx(undefined, live)}
           onAdquisicionUpdated={handleDocumentUpdate}
         />
       ) : carpeta.numero === 6 ? (
         /* For Carpeta 6: Full-Screen Direct Document Editor & Viewer (Formulario S2-N014 Oficial) */
         <FormS2Viewer
           adquisicion={adquisicion}
-          onDownloadDocx={(live) => handleDownloadDocx(undefined, live)}
+          onDownloadDocx={(live?: Adquisicion) => handleDownloadDocx(undefined, live)}
           onAdquisicionUpdated={handleDocumentUpdate}
         />
       ) : (
