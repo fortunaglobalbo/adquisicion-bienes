@@ -25,6 +25,7 @@ import { Modal } from "@/components/ui/Modal";
 import { InstitutionalLogo } from "../layout/InstitutionalLogo";
 import { DataStore } from "@/lib/store/dataStore";
 import { parseMarkdownTdrLiteral } from "@/lib/ai/markdownTdrParser";
+import { getMesAnioActual } from "@/lib/utils/dateUtils";
 
 
 interface TdrDocumentViewerProps {
@@ -76,7 +77,10 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
   const aiFileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Editable Document State
-  const [docData, setDocData] = useState<Adquisicion>({ ...adquisicion });
+  const [docData, setDocData] = useState<Adquisicion>({ 
+    ...adquisicion,
+    mes_anio_documento: adquisicion.mes_anio_documento || getMesAnioActual() 
+  });
   const [tipoTablaTdr, setTipoTablaTdr] = useState<TipoTablaTDR>(
     adquisicion.tipo_tabla_tdr ||
     ((adquisicion.categoria as any) === "Salud Ocupacional" ||
@@ -1156,7 +1160,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
                   contentEditable
                   suppressContentEditableWarning
                   onBlur={(e) => handlePuntoChange(4, "contenido", e.currentTarget.textContent || "")}
-                  className="text-justify leading-relaxed p-2 rounded hover:bg-blue-50/50 focus:outline-none text-gray-800"
+                  className="text-justify leading-relaxed p-2 rounded hover:bg-blue-50/50 focus:outline-none text-gray-800 text-xs md:text-sm whitespace-pre-line space-y-2"
                 >
                   {puntosOficiales[3].contenido}
                 </div>
@@ -1192,7 +1196,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
                     contentEditable
                     suppressContentEditableWarning
                     onBlur={(e) => handlePuntoChange(pto.num, "contenido", e.currentTarget.textContent || "")}
-                    className="text-justify leading-relaxed p-1.5 rounded hover:bg-blue-50/50 focus:outline-none text-gray-800 text-xs md:text-sm"
+                    className="text-justify leading-relaxed p-1.5 rounded hover:bg-blue-50/50 focus:outline-none text-gray-800 text-xs md:text-sm whitespace-pre-line space-y-2"
                   >
                     {pto.contenido}
                   </div>

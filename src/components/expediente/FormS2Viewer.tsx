@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Modal } from "../ui/Modal";
 import { formatCurrencyBs } from "@/lib/docx/formatters";
+import { getFechaCortaActual } from "@/lib/utils/dateUtils";
 
 interface FormS2ViewerProps {
   adquisicion: Adquisicion;
@@ -35,7 +36,10 @@ export const FormS2Viewer: React.FC<FormS2ViewerProps> = ({
   const [isAiProcessing, setIsAiProcessing] = useState(false);
 
   // Editable Document State
-  const [docData, setDocData] = useState<Adquisicion>({ ...adquisicion });
+  const [docData, setDocData] = useState<Adquisicion>({
+    ...adquisicion,
+    form_s2_fecha_solicitud: adquisicion.form_s2_fecha_solicitud || getFechaCortaActual(),
+  });
 
   // Update field helper
   const handleTextChange = (field: keyof Adquisicion, value: any) => {
@@ -484,11 +488,23 @@ export const FormS2Viewer: React.FC<FormS2ViewerProps> = ({
             {/* Signature on right */}
             <div className="flex justify-end">
               <div className="w-64 text-center space-y-3">
-                <div className="border-t border-gray-900 pt-1 text-xs text-gray-800 font-medium">
-                  Firma del Proveedor Proponente
+                <div
+                  contentEditable
+                  suppressContentEditableWarning
+                  className="border-t border-gray-900 pt-1 text-xs text-gray-800 font-medium hover:bg-blue-50 focus:outline-none cursor-text"
+                >
+                  Firma y Sello del Proveedor Proponente
                 </div>
-                <div className="text-xs text-gray-800 text-left pt-2">
-                  Fecha de Cotizacion: <span className="border-b border-gray-800 inline-block w-28"></span>
+                <div className="text-xs text-gray-800 text-left pt-2 flex items-center gap-1">
+                  <span>Fecha de Cotizacion:</span>
+                  <span
+                    contentEditable
+                    suppressContentEditableWarning
+                    onBlur={(e) => handleTextChange("form_s2_fecha_solicitud", e.currentTarget.textContent || "")}
+                    className="border-b border-gray-800 inline-block px-1 min-w-[100px] hover:bg-blue-50 focus:outline-none font-bold"
+                  >
+                    {fechaSolicitud}
+                  </span>
                 </div>
               </div>
             </div>

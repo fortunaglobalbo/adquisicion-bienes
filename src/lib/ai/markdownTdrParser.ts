@@ -12,7 +12,7 @@ export interface ParsedTdrResult {
 }
 
 /**
- * Limpia tags HTML <br> reemplazándolos por saltos de línea reales y remueve asteriscos de markdown
+ * Limpia tags HTML y asteriscos Markdown, formateando viñetas limpias
  */
 function cleanFormatting(text: string): string {
   if (!text) return "";
@@ -23,6 +23,24 @@ function cleanFormatting(text: string): string {
     .replace(/__/g, "")
     .replace(/^#+\s*/, "")
     .trim();
+}
+
+/**
+ * Formatea un bloque de texto que contiene viñetas (* o - o •) en párrafos limpios con '❖'
+ */
+function formatBulletParagraphs(text: string): string {
+  if (!text) return "";
+  const lines = text.split("\n");
+  const formattedLines = lines.map((line) => {
+    const cleanL = cleanFormatting(line);
+    if (!cleanL) return "";
+    if (cleanL.startsWith("*") || cleanL.startsWith("-") || cleanL.startsWith("•") || cleanL.startsWith("❖")) {
+      return `❖  ${cleanL.replace(/^[\*\-\•\❖]\s*/, "")}`;
+    }
+    return cleanL;
+  }).filter(Boolean);
+
+  return formattedLines.join("\n\n");
 }
 
 /**
@@ -63,7 +81,6 @@ export function parseMarkdownTdrLiteral(rawMarkdown: string): ParsedTdrResult {
   // =========================================================================
   // 2. SEGMENTAR EL DOCUMENTO EN LAS 14 SECCIONES OFICIALES
   // =========================================================================
-  // Mapa de palabras clave para detectar cada sección del 1 al 14
   const sectionKeywords: { [num: number]: string[] } = {
     1: ["ANTECEDENTES"],
     2: ["JUSTIFICACIÓN", "JUSTIFICACION", "NECESIDAD"],
@@ -81,7 +98,6 @@ export function parseMarkdownTdrLiteral(rawMarkdown: string): ParsedTdrResult {
     14: ["APLICACIÓN DE MULTAS", "APLICACION DE MULTAS", "MULTAS", "MULTA"],
   };
 
-  // Identificar los límites (línea de inicio) de cada punto encontrado
   interface SectionPos {
     num: number;
     title: string;
@@ -93,10 +109,9 @@ export function parseMarkdownTdrLiteral(rawMarkdown: string): ParsedTdrResult {
     const line = lines[i].trim();
     const cleanL = cleanFormatting(line).toUpperCase();
     if (!cleanL || cleanL.length > 90) continue;
-    // Ignorar filas de tablas
     if (line.startsWith("|")) continue;
 
-    // Buscar si es un encabezado numerado como "### 4. CALIDAD" o "4. CALIDAD" o "**4. CALIDAD**"
+    // Buscar encabezado como "### 4. CALIDAD", "#### **4. CALIDAD**", "4. CALIDAD"
     const matchNum = cleanL.match(/^(?:#+\s*)?(\d+)[\.\-\)]\s*([A-ZÁÉÍÓÚÑ\s\/\-_]+)/i);
     if (matchNum) {
       const num = parseInt(matchNum[1], 10);
@@ -106,7 +121,7 @@ export function parseMarkdownTdrLiteral(rawMarkdown: string): ParsedTdrResult {
       }
     }
 
-    // Si no tiene número, buscar por palabras clave
+    // Si no tiene número, buscar por palabra clave
     for (const [numStr, kwList] of Object.entries(sectionKeywords)) {
       const num = parseInt(numStr, 10);
       if (kwList.some((kw) => cleanL === kw || cleanL.startsWith(kw + ":") || cleanL.startsWith(kw + " -") || cleanL.endsWith(kw))) {
@@ -118,10 +133,8 @@ export function parseMarkdownTdrLiteral(rawMarkdown: string): ParsedTdrResult {
     }
   }
 
-  // Ordenar secciones por su posición en el documento
   detectedSections.sort((a, b) => a.lineIdx - b.lineIdx);
 
-  // Extraer el texto de cada sección entre su línea y la siguiente sección
   const sectionTexts: { [num: number]: string } = {};
 
   for (let i = 0; i < detectedSections.length; i++) {
@@ -136,7 +149,7 @@ export function parseMarkdownTdrLiteral(rawMarkdown: string): ParsedTdrResult {
 
     sectionTexts[current.num] = bodyText;
     if (current.num !== 3) {
-      result.puntos_detectados[current.num] = cleanFormatting(bodyText);
+      result.puntos_detectados[current.num] = formatBulletParagraphs(bodyText);
     }
   }
 
@@ -146,13 +159,11 @@ export function parseMarkdownTdrLiteral(rawMarkdown: string): ParsedTdrResult {
   // =========================================================================
   // 3. EXTRAER Y RECONSTRUIR LA TABLA DE ÍTEMS Y CARACTERÍSTICAS TÉCNICAS
   // =========================================================================
-  // Usar el bloque de la sección 3 o buscar la tabla en todo el documento
   const section3Raw = sectionTexts[3] || rawText;
-
-  // Buscar todas las líneas que pertenecen a la tabla
   const s3Lines = section3Raw.split("\n");
-  let tableHeaderIdx = -1;
+
   let tableSeparatorIdx = -1;
+  let tableHeaderIdx = -1;
 
   for (let i = 0; i < s3Lines.length; i++) {
     const l = s3Lines[i].trim();
@@ -174,26 +185,25 @@ export function parseMarkdownTdrLiteral(rawMarkdown: string): ParsedTdrResult {
       headerLower.includes("metodologia") ||
       headerLower.includes("propuesto");
 
-    // Recolectar todas las líneas que corresponden a los datos de la tabla
     const tableDataLines = s3Lines.slice(tableSeparatorIdx + 1);
 
-    // Reagrupar líneas multilínea en bloques por cada fila de la tabla
-    // Una nueva fila comienza con '|' seguido de un número de ítem (e.g. '| 1 |', '| 1.- |', '| 2 |')
+    // Agrupar filas: cada fila inicia con '|' seguido de un número (con o sin asteriscos: | 1 |, | **1** |, | 1. |)
     const itemChunks: string[] = [];
     let currentItemChunk = "";
+
+    const rowStartRegex = /^\|\s*(?:\*{1,2})?\s*\d+[\.\-\)]?\s*(?:\*{1,2})?\s*\|/i;
 
     for (let i = 0; i < tableDataLines.length; i++) {
       const line = tableDataLines[i];
       const trimmed = line.trim();
 
-      // Si la línea inicia con un nuevo ítem (e.g. "| 1 |", "| 2 |", "| 3 |")
-      if (/^\|\s*\d+[\.\-\)]?\s*\|/.test(trimmed)) {
+      if (rowStartRegex.test(trimmed)) {
         if (currentItemChunk) {
           itemChunks.push(currentItemChunk);
         }
         currentItemChunk = trimmed;
       } else if (currentItemChunk) {
-        // Continuación de las características multilínea del ítem actual
+        // Continuación multilínea del ítem
         currentItemChunk += "\n" + line;
       }
     }
@@ -204,22 +214,14 @@ export function parseMarkdownTdrLiteral(rawMarkdown: string): ParsedTdrResult {
     const parsedItems: ItemAdquisicion[] = [];
 
     itemChunks.forEach((chunk, chunkIdx) => {
-      // Reemplazar <br> por saltos de línea reales
       const normalizedChunk = chunk
         .replace(/<br\s*\/?>/gi, "\n")
         .replace(/<\/?[^>]+(>|$)/g, "");
 
-      // Separar las columnas principales por el delimitador '|' al inicio y final
-      // Formato típico: | Item | Descripción | Características (Multilínea) | Cantidad |
       const pipeParts = normalizedChunk.split("|");
-      // pipeParts[0] = "" (antes del primer pipe)
-      // pipeParts[1] = Item
-      // pipeParts[2] = Descripción
-      // pipeParts[3 ... (length - 2)] = Características Técnicas
-      // pipeParts[length - 2] = Cantidad / Requerimiento (o características si solo hay 3 cols)
 
       if (pipeParts.length >= 4) {
-        const itemNumStr = pipeParts[1].trim();
+        const itemNumStr = cleanFormatting(pipeParts[1]).trim();
         const itemNum = parseInt(itemNumStr.replace(/[^\d]/g, ""), 10) || chunkIdx + 1;
         const descripcion = cleanFormatting(pipeParts[2]).trim().toUpperCase();
 
@@ -232,12 +234,10 @@ export function parseMarkdownTdrLiteral(rawMarkdown: string): ParsedTdrResult {
           // 3 columnas: | Item | Descripción | Características |
           caracteristicasRaw = pipeParts[3].trim();
         } else if (pipeParts.length >= 5) {
-          // 4 columnas: | Item | Descripción | Características | Cantidad |
-          // o más columnas
-          cantidadStr = pipeParts[pipeParts.length - 2].trim();
+          // 4 o 5 columnas: | Item | Descripción | Características | Cantidad |
+          cantidadStr = cleanFormatting(pipeParts[pipeParts.length - 2]).trim();
           caracteristicasRaw = pipeParts.slice(3, pipeParts.length - 2).join("|").trim();
 
-          // Analizar cantidad y unidad
           const cantParsed = parseInt(cantidadStr.replace(/[^\d]/g, ""), 10);
           if (!isNaN(cantParsed) && cantParsed > 0) cantidad = cantParsed;
 
@@ -250,7 +250,6 @@ export function parseMarkdownTdrLiteral(rawMarkdown: string): ParsedTdrResult {
           else if (isSalud) unidad = "ESTUDIO";
         }
 
-        // Limpiar y estructurar las características técnicas con viñetas limpias
         const cleanLines = caracteristicasRaw
           .split("\n")
           .map((l) => l.trim())
@@ -258,11 +257,11 @@ export function parseMarkdownTdrLiteral(rawMarkdown: string): ParsedTdrResult {
 
         const formattedCaracs = cleanLines
           .map((l) => {
-            const noMd = l.replace(/\*\*/g, "").replace(/__/g, "").trim();
-            if (noMd.startsWith("•") || noMd.startsWith("-") || noMd.startsWith("*")) {
-              return `• ${noMd.replace(/^[\•\-\*]\s*/, "")}`;
+            const noMd = cleanFormatting(l);
+            if (noMd.startsWith("•") || noMd.startsWith("-") || noMd.startsWith("*") || noMd.startsWith("❖")) {
+              return `❖  ${noMd.replace(/^[\•\-\*\❖]\s*/, "")}`;
             }
-            return `• ${noMd}`;
+            return noMd;
           })
           .join("\n\n");
 
@@ -278,15 +277,15 @@ export function parseMarkdownTdrLiteral(rawMarkdown: string): ParsedTdrResult {
           precioTotalEstimado: 0,
           caracteristicasTecnicas: finalCaracs,
           especificacionMinima: finalCaracs,
-          propuestoOferente: "Cumple con la totalidad de especificaciones técnicas",
+          propuestoOferente: "Cumple con la totalidad de especificaciones técnicas requeridas",
           fichaTecnica: {
-            uso: isSalud ? "Salud Ocupacional" : "Personal Técnico Operativo de Campo",
-            normaCertificacion: isSalud ? "Acreditación Sanitaria" : "Normas ASTM F2413-18 / UNE EN ISO 20345",
-            material: "Material homologado de alta resistencia",
+            uso: isSalud ? "Salud Ocupacional" : "Personal Institucional / Técnico",
+            normaCertificacion: isSalud ? "Acreditación Sanitaria" : "Normas de Calidad y Eficiencia Aplicables",
+            material: "Material homologado de alta calidad",
             color: "Estándar",
-            dimensiones: "Según requerimiento de lote",
-            categoriaItem: isSalud ? "Salud Ocupacional" : "Equipos de Protección Personal (EPP)",
-            caracteristicasDetalle: cleanLines.map((l) => l.replace(/^[\•\-\*]\s*/, "").replace(/\*\*/g, "").trim()),
+            dimensiones: "Según requerimiento técnico",
+            categoriaItem: isSalud ? "Salud Ocupacional" : "Bienes y Suministros Oficiales",
+            caracteristicasDetalle: cleanLines.map((l) => cleanFormatting(l).replace(/^[\•\-\*\❖]\s*/, "").trim()),
           },
         });
       }

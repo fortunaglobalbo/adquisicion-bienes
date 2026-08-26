@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { Modal } from "../ui/Modal";
 
+import { getFechaTextoActual } from "@/lib/utils/dateUtils";
+
 interface SolicitudInicioViewerProps {
   adquisicion: Adquisicion;
   onDownloadDocx: (liveData?: Adquisicion) => void;
@@ -32,7 +34,10 @@ export const SolicitudInicioViewer: React.FC<SolicitudInicioViewerProps> = ({
   const [isAiProcessing, setIsAiProcessing] = useState(false);
 
   // Editable Document State
-  const [docData, setDocData] = useState<Adquisicion>({ ...adquisicion });
+  const [docData, setDocData] = useState<Adquisicion>({
+    ...adquisicion,
+    solicitud_inicio_fecha: adquisicion.solicitud_inicio_fecha || getFechaTextoActual(),
+  });
 
   // Update field helper
   const handleTextChange = (field: keyof Adquisicion, value: any) => {
