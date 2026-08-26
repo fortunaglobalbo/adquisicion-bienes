@@ -13,6 +13,10 @@ const serviceKey =
 
 const supabaseAdmin = createClient(supabaseUrl, serviceKey);
 
+const isUuid = (val?: string): boolean =>
+  typeof val === "string" &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(val);
+
 // GET: Carga directa 100% desde Supabase PostgreSQL
 export async function GET(req: NextRequest) {
   try {
@@ -23,7 +27,9 @@ export async function GET(req: NextRequest) {
     if (table) {
       let q = supabaseAdmin.from(table).select("*");
       if (adquisicionId) {
-        q = q.eq("adquisicion_id", adquisicionId);
+        q = isUuid(adquisicionId)
+          ? q.eq("adquisicion_id", adquisicionId)
+          : q.eq("codigo", adquisicionId);
       }
       const { data, error } = await q;
       if (error) {
@@ -95,7 +101,11 @@ export async function POST(req: NextRequest) {
     if (action === "UPDATE") {
       let query = supabaseAdmin.from(table).update(data);
       if (id) {
-        query = query.or(`id.eq.${id},codigo.eq.${id}`);
+        if (isUuid(id)) {
+          query = query.eq("id", id);
+        } else {
+          query = query.eq("codigo", id);
+        }
       } else if (filter) {
         query = query.eq(filter.column, filter.value);
       }
@@ -109,7 +119,11 @@ export async function POST(req: NextRequest) {
     if (action === "DELETE") {
       let query = supabaseAdmin.from(table).delete();
       if (id) {
-        query = query.or(`id.eq.${id},codigo.eq.${id}`);
+        if (isUuid(id)) {
+          query = query.eq("id", id);
+        } else {
+          query = query.eq("codigo", id);
+        }
       } else if (filter) {
         query = query.eq(filter.column, filter.value);
       }
