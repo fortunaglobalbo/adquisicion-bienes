@@ -93,8 +93,13 @@ export interface Adquisicion {
   antecedentes_texto?: string;
   justificacion_texto?: string;
   calidad_texto?: string;
+  ambito_aplicacion?: string;
+  metodo_seleccion?: string;
   metodo_seleccion_texto?: string;
+  vigencia_propuesta?: string;
   vigencia_propuesta_texto?: string;
+  forma_adjudicacion?: string;
+  aceptacion_lote?: string;
   forma_pago_texto?: string;
 
   // Campos específicos de la Carpeta 5 (Solicitud de Inicio de Proceso de Compra - Formato Oficial)
