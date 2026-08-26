@@ -440,6 +440,49 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
               return [tablaSalud, new Paragraph({ spacing: { after: 200 } })];
             }
 
+            if (tipoTabla === "BIENES_3_COLS") {
+              const tablaBienes3Cols = new Table({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                borders: defaultTableBorders,
+                rows: [
+                  new TableRow({
+                    tableHeader: true,
+                    children: [
+                      new TableCell({
+                        width: { size: 8, type: WidthType.PERCENTAGE },
+                        shading: { type: ShadingType.CLEAR, fill: "ECEEF0" },
+                        margins: { top: 80, bottom: 80, left: 60, right: 60 },
+                        children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "ÍTEM", bold: true, size: FONT_BODY, font: "Inter" })] })],
+                      }),
+                      new TableCell({
+                        width: { size: 42, type: WidthType.PERCENTAGE },
+                        shading: { type: ShadingType.CLEAR, fill: "ECEEF0" },
+                        margins: { top: 80, bottom: 80, left: 80, right: 80 },
+                        children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "DESCRIPCIÓN DEL BIEN / REQUERIMIENTO", bold: true, size: FONT_BODY, font: "Inter" })] })],
+                      }),
+                      new TableCell({
+                        width: { size: 50, type: WidthType.PERCENTAGE },
+                        shading: { type: ShadingType.CLEAR, fill: "ECEEF0" },
+                        margins: { top: 80, bottom: 80, left: 80, right: 80 },
+                        children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "CARACTERÍSTICAS TÉCNICAS REQUERIDAS", bold: true, size: FONT_BODY, font: "Inter" })] })],
+                      }),
+                    ],
+                  }),
+                  ...adquisicion.items.map((it) => {
+                    const carac = it.caracteristicasTecnicas || it.especificacionMinima || "Cumplimiento con especificaciones técnicas requeridas por ENDE Deoruro S.A.";
+                    return new TableRow({
+                      children: [
+                        new TableCell({ margins: { top: 80, bottom: 80, left: 60, right: 60 }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: String(it.item), bold: true, size: FONT_BODY, font: "Inter" })] })] }),
+                        new TableCell({ margins: { top: 80, bottom: 80, left: 80, right: 80 }, children: [new Paragraph({ children: [new TextRun({ text: it.descripcion, bold: true, size: FONT_BODY, font: "Inter" })] })] }),
+                        new TableCell({ margins: { top: 80, bottom: 80, left: 80, right: 80 }, children: [new Paragraph({ children: [new TextRun({ text: carac, size: FONT_BODY, font: "Inter" })] })] }),
+                      ],
+                    });
+                  }),
+                ],
+              });
+              return [tablaBienes3Cols, new Paragraph({ spacing: { after: 200 } })];
+            }
+
             if (tipoTabla === "BIENES_SIMPLE") {
               const tablaBienes = new Table({
                 width: { size: 100, type: WidthType.PERCENTAGE },

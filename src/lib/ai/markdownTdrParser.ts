@@ -172,7 +172,7 @@ export function parseMarkdownTdrLiteral(rawMarkdown: string): ParsedTdrResult {
       }
     });
 
-    // Detectar si es tabla de salud o bienes
+    // Detectar si es tabla de salud o bienes (3 columnas vs 5 columnas)
     const isSaludTable =
       headerLine.toLowerCase().includes("examen") ||
       headerLine.toLowerCase().includes("estudio") ||
@@ -180,7 +180,13 @@ export function parseMarkdownTdrLiteral(rawMarkdown: string): ParsedTdrResult {
       headerLine.toLowerCase().includes("propuesto") ||
       (idxPropuesto !== -1 && idxUnidad === -1);
 
-    result.tipo_tabla_sugerido = isSaludTable ? "SALUD_OCUPACIONAL" : "BIENES_SIMPLE";
+    if (isSaludTable) {
+      result.tipo_tabla_sugerido = "SALUD_OCUPACIONAL";
+    } else if (idxUnidad === -1 && idxCant === -1 && headerCells.length <= 3) {
+      result.tipo_tabla_sugerido = "BIENES_3_COLS";
+    } else {
+      result.tipo_tabla_sugerido = "BIENES_SIMPLE";
+    }
 
     // Procesar filas de datos (ignorando separadores |---|)
     const dataRows = rawTableLines.slice(1).filter((r) => !r.includes("---"));

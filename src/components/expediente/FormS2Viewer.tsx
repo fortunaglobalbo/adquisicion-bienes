@@ -89,19 +89,18 @@ export const FormS2Viewer: React.FC<FormS2ViewerProps> = ({
   };
 
   const handleDeleteItem = (itemId: string) => {
-    if ((docData.items?.length || 0) <= 1) return;
-    setDocData((prev) => {
-      const filtered = (prev.items || []).filter((it) => it.id !== itemId).map((it, idx) => ({ ...it, item: idx + 1 }));
-      const totalPresupuesto = filtered.reduce(
-        (sum, it) => sum + (Number(it.precioTotalEstimado) || 0),
-        0
-      );
-      return {
-        ...prev,
-        items: filtered,
-        prevision_presupuesto: totalPresupuesto,
-      };
-    });
+    const filtered = (docData.items || []).filter((it) => it.id !== itemId).map((it, idx) => ({ ...it, item: idx + 1 }));
+    const totalPresupuesto = filtered.reduce(
+      (sum, it) => sum + (Number(it.precioTotalEstimado) || (Number(it.cantidad) || 1) * (Number(it.precioUnitarioEstimado) || 0)),
+      0
+    );
+    const updated = {
+      ...docData,
+      items: filtered,
+      prevision_presupuesto: totalPresupuesto,
+    };
+    setDocData(updated);
+    onAdquisicionUpdated?.(updated);
   };
 
   // Direct 1-Click AI Generation
@@ -401,17 +400,15 @@ export const FormS2Viewer: React.FC<FormS2ViewerProps> = ({
                           <td className="border-r border-gray-900 p-2 text-center font-mono font-bold bg-gray-50/50">
                             {formatCurrencyBs(subtotal)}
                           </td>
-                          <td className="p-2 text-center">
-                            {items.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteItem(item.id)}
-                                className="text-red-500 hover:text-red-700 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                                title="Eliminar ítem"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
+                          <td className="p-2 text-center no-print">
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteItem(item.id)}
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded transition-colors"
+                              title="Eliminar ítem"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 mx-auto" />
+                            </button>
                           </td>
                         </tr>
                       );

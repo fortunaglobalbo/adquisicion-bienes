@@ -766,6 +766,20 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
                   <button
                     type="button"
                     onClick={() => {
+                      setTipoTablaTdr("BIENES_3_COLS");
+                      handleTextChange("tipo_tabla_tdr", "BIENES_3_COLS");
+                    }}
+                    className={`px-2.5 py-1 rounded text-xs font-bold font-mono transition-all ${
+                      tipoTablaTdr === "BIENES_3_COLS"
+                        ? "bg-primary text-white shadow-sm ring-1 ring-primary"
+                        : "bg-white text-on-surface-variant hover:bg-surface-container-high border border-outline-variant"
+                    }`}
+                  >
+                    📦 Tabla 3 Columnas (Ítem | Descripción | Características)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
                       setTipoTablaTdr("BIENES_SIMPLE");
                       handleTextChange("tipo_tabla_tdr", "BIENES_SIMPLE");
                     }}
@@ -775,7 +789,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
                         : "bg-white text-on-surface-variant hover:bg-surface-container-high border border-outline-variant"
                     }`}
                   >
-                    📦 Tabla de Bienes (Descripción y Características)
+                    📦 Tabla 5 Columnas (Ítem | Descripción | Unidad | Cantidad | Características)
                   </button>
                   <button
                     type="button"
@@ -810,7 +824,62 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
 
               {/* RENDERIZADO SEGÚN EL TIPO DE TABLA SELECCIONADO */}
 
-              {/* 1. TABLA SIMPLE DE BIENES */}
+              {/* 1. TABLA 3 COLUMNAS DE BIENES (ÍTEM, DESCRIPCIÓN, CARACTERÍSTICAS) */}
+              {tipoTablaTdr === "BIENES_3_COLS" && (
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse border border-gray-400 text-xs text-left">
+                    <thead>
+                      <tr className="bg-gray-100 font-bold uppercase text-gray-900 border-b border-gray-400">
+                        <th className="border border-gray-400 p-2 text-center w-12">ÍTEM</th>
+                        <th className="border border-gray-400 p-2 w-2/5">DESCRIPCIÓN DEL BIEN / REQUERIMIENTO</th>
+                        <th className="border border-gray-400 p-2">CARACTERÍSTICAS TÉCNICAS REQUERIDAS</th>
+                        <th className="border border-gray-400 p-1 text-center w-14 no-print">ACCIÓN</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map((item) => (
+                        <tr key={item.id} className="hover:bg-blue-50/20 border-b border-gray-300">
+                          <td className="border border-gray-400 p-2 font-mono font-bold text-center bg-gray-50/50">
+                            {item.item}
+                          </td>
+                          <td className="border border-gray-400 p-2 font-bold text-primary">
+                            <div
+                              contentEditable
+                              suppressContentEditableWarning
+                              onBlur={(e) => handleItemTextChange(item.id, "descripcion", e.currentTarget.textContent || "")}
+                              className="focus:bg-white focus:outline-none p-1 rounded hover:bg-blue-50/50"
+                            >
+                              {item.descripcion}
+                            </div>
+                          </td>
+                          <td className="border border-gray-400 p-2 text-gray-800 leading-relaxed">
+                            <div
+                              contentEditable
+                              suppressContentEditableWarning
+                              onBlur={(e) => handleItemTextChange(item.id, "caracteristicasTecnicas", e.currentTarget.textContent || "")}
+                              className="focus:bg-white focus:outline-none p-1 rounded hover:bg-blue-50/50 whitespace-pre-wrap"
+                            >
+                              {item.caracteristicasTecnicas || item.especificacionMinima || "Cumplimiento con especificaciones técnicas requeridas por ENDE Deoruro S.A."}
+                            </div>
+                          </td>
+                          <td className="border border-gray-400 p-1 text-center no-print">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveItem(item.id)}
+                              className="text-red-500 hover:text-red-700 p-1"
+                              title="Eliminar ítem"
+                            >
+                              <Trash2 className="w-4 h-4 mx-auto" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* 2. TABLA SIMPLE DE BIENES (5 COLUMNAS) */}
               {tipoTablaTdr === "BIENES_SIMPLE" && (
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse border border-gray-400 text-xs text-left">

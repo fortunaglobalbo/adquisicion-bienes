@@ -55,7 +55,7 @@ export interface ItemAdquisicion {
   fichaTecnica?: FichaTecnicaItem;
 }
 
-export type TipoTablaTDR = "BIENES_SIMPLE" | "SALUD_OCUPACIONAL" | "FICHAS_DINAMICAS";
+export type TipoTablaTDR = "BIENES_SIMPLE" | "BIENES_3_COLS" | "SALUD_OCUPACIONAL" | "FICHAS_DINAMICAS";
 
 export interface Adquisicion {
   id: string;
