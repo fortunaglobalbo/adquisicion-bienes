@@ -70,18 +70,18 @@ export default function ExpedienteDetailPage() {
 
     setAdquisicion(adq);
     const folders = DataStore.getCarpetasByAdquisicion(adq.id);
-    setCarpetas(folders);
+    const safeFolders = Array.isArray(folders) && folders.length > 0 ? folders : createInitialFolders(adq.id);
+    setCarpetas(safeFolders);
     const fields = DataStore.getCamposExtraidos(adq.id);
-    setCamposExtraidos(fields);
+    setCamposExtraidos(Array.isArray(fields) ? fields : []);
     const sigs = DataStore.getFirmas(adq.id);
-    setFirmas(sigs);
+    setFirmas(Array.isArray(sigs) ? sigs : []);
     setLoading(false);
   };
 
   useEffect(() => {
     loadData();
   }, [id]);
-
 
   if (loading) {
     return (
@@ -108,10 +108,13 @@ export default function ExpedienteDetailPage() {
     );
   }
 
-  const activeFolder = carpetas.find((c) => c.numero === activeFolderNum) || carpetas[0];
+  const safeCarpetas = carpetas.length > 0 ? carpetas : createInitialFolders(adquisicion.id);
+  const activeFolder = safeCarpetas.find((c) => c.numero === activeFolderNum) || safeCarpetas[0];
 
   const handleDocumentAdded = (newDoc: Documento, newCampos?: CampoExtraido[]) => {
-    DataStore.addDocumentToCarpeta(activeFolder.id, newDoc);
+    if (activeFolder?.id) {
+      DataStore.addDocumentToCarpeta(activeFolder.id, newDoc);
+    }
     if (newCampos && newCampos.length > 0) {
       DataStore.saveCamposExtraidos(adquisicion.id, newCampos);
     }
@@ -121,6 +124,7 @@ export default function ExpedienteDetailPage() {
     }
     loadData();
   };
+
 
   const handleSign = (firmaId: string) => {
     DataStore.signFirma(firmaId, "Usuario Autenticado");

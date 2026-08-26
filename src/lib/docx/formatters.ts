@@ -90,13 +90,22 @@ export function numeroALiteralBs(monto: number): string {
   return `${literal.trim()} ${centavosStr} BOLIVIANOS`;
 }
 
-export function formatDateBO(dateStr: string): string {
-  if (!dateStr) return '';
-  const [year, month, day] = dateStr.split('T')[0].split('-');
-  const meses = [
-    'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
-  ];
-  const mIndex = parseInt(month, 10) - 1;
-  return `${day} de ${meses[mIndex] || month} de ${year}`;
+export function formatDateBO(dateStr?: string): string {
+  if (!dateStr || typeof dateStr !== "string") return "2026";
+  try {
+    const cleanDate = dateStr.split("T")[0];
+    const parts = cleanDate.split("-");
+    if (parts.length < 3) return dateStr;
+    const [year, month, day] = parts;
+    const meses = [
+      "enero", "febrero", "marzo", "abril", "mayo", "junio",
+      "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
+    ];
+    const mIndex = parseInt(month, 10) - 1;
+    const mesNombre = meses[mIndex] || month;
+    return `${day || "01"} de ${mesNombre} de ${year || "2026"}`;
+  } catch {
+    return dateStr || "2026";
+  }
 }
+

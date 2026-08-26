@@ -6,7 +6,6 @@ import {
   FileText,
   Table,
   ReceiptText,
-  CheckCircle2,
   FileCheck2,
   FileSignature,
   FolderOpen,
@@ -14,16 +13,18 @@ import {
 import { Carpeta } from "@/types";
 
 interface FolderSidebarProps {
-  carpetas: Carpeta[];
+  carpetas?: Carpeta[];
   activeNumero: number;
   onSelectNumero: (num: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8) => void;
 }
 
 export const FolderSidebar: React.FC<FolderSidebarProps> = ({
-  carpetas,
+  carpetas = [],
   activeNumero,
   onSelectNumero,
 }) => {
+  const safeCarpetas = Array.isArray(carpetas) ? carpetas : [];
+
   const getFolderIcon = (numero: number) => {
     switch (numero) {
       case 1:
@@ -54,20 +55,21 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
           Carpetas del Expediente
         </h3>
         <span className="text-[10px] font-mono bg-surface-container-high px-1.5 py-0.5 rounded text-on-surface-variant">
-          8 Fijas
+          {safeCarpetas.length} Carpetas
         </span>
       </div>
 
-      {carpetas.map((folder) => {
-        const isActive = folder.numero === activeNumero;
+      {safeCarpetas.map((folder, index) => {
+        const num = (folder.numero || index + 1) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+        const isActive = num === activeNumero;
         const isAI = folder.tipo_generacion === "IA";
-        const hasDocs = folder.documentos.length > 0;
-        const Icon = getFolderIcon(folder.numero);
+        const hasDocs = Array.isArray(folder.documentos) && folder.documentos.length > 0;
+        const Icon = getFolderIcon(num);
 
         return (
           <button
-            key={folder.id}
-            onClick={() => onSelectNumero(folder.numero as any)}
+            key={folder.id || `sidebar-folder-${num}`}
+            onClick={() => onSelectNumero(num)}
             className={`w-full flex items-center justify-between p-3 text-left rounded transition-all duration-150 group ${
               isActive
                 ? "bg-surface-container-lowest border-l-4 border-primary shadow-sm border border-outline-variant"
@@ -91,7 +93,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
                   isActive ? "text-primary font-bold" : "text-on-surface-variant"
                 }`}
               >
-                {folder.numero}. {folder.nombre}
+                {folder.numero || num}. {folder.nombre}
               </span>
             </div>
 
