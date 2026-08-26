@@ -20,7 +20,7 @@ import {
   Edit3,
   Layers,
 } from "lucide-react";
-import { Adquisicion, ItemAdquisicion, Plantilla, CampoMoldeLibre } from "@/types";
+import { Adquisicion, ItemAdquisicion, Plantilla, CampoMoldeLibre, TipoTablaTDR } from "@/types";
 import { Modal } from "@/components/ui/Modal";
 import { InstitutionalLogo } from "../layout/InstitutionalLogo";
 import { DataStore } from "@/lib/store/dataStore";
