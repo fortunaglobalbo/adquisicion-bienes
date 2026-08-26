@@ -667,56 +667,7 @@ export const VisualTemplateEditor: React.FC<VisualTemplateEditorProps> = ({
               </div>
             </div>
 
-            {/* SELLO DE FIRMA OFICIAL (EDITABLE O ELIMINABLE) */}
-            <div className="flex flex-col items-end space-y-1">
-              {incluirFirmaPortada ? (
-                <div className="border-2 border-blue-400 bg-blue-50/90 p-3.5 rounded-xl text-right font-mono text-xs text-primary space-y-1 shadow-sm relative group/firma min-w-[240px]">
-                  <button
-                    type="button"
-                    onClick={() => setIncluirFirmaPortada(false)}
-                    className="absolute -top-2.5 -left-2.5 bg-red-600 hover:bg-red-700 text-white rounded-full p-1 shadow transition-transform hover:scale-110 flex items-center gap-1 text-[10px] px-2 font-sans font-bold"
-                    title="Eliminar sello de firma de la portada"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                    <span>Eliminar Sello</span>
-                  </button>
-
-                  <input
-                    type="text"
-                    value={firmaNombre}
-                    onChange={(e) => setFirmaNombre(e.target.value)}
-                    className="font-bold underline text-right bg-transparent focus:outline-none w-full text-blue-950 border-b border-transparent hover:border-blue-400"
-                  />
-                  <input
-                    type="text"
-                    value={firmaCargo}
-                    onChange={(e) => setFirmaCargo(e.target.value)}
-                    className="text-right bg-transparent focus:outline-none w-full text-[11px] text-gray-800 border-b border-transparent hover:border-blue-400 uppercase font-bold"
-                  />
-                  <input
-                    type="text"
-                    value={firmaEntidad}
-                    onChange={(e) => setFirmaEntidad(e.target.value)}
-                    className="font-bold text-[10px] text-blue-900 text-right bg-transparent focus:outline-none w-full border-b border-transparent hover:border-blue-400 uppercase"
-                  />
-                  <input
-                    type="text"
-                    value={firmaEmpresa}
-                    onChange={(e) => setFirmaEmpresa(e.target.value)}
-                    className="font-bold text-[10px] text-blue-900 text-right bg-transparent focus:outline-none w-full border-b border-transparent hover:border-blue-400 uppercase"
-                  />
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setIncluirFirmaPortada(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-950 rounded-lg text-xs font-bold border border-blue-300 shadow-sm"
-                >
-                  <Stamp className="w-3.5 h-3.5 text-blue-700" />
-                  <span>+ Añadir Sello / Cuadro de Firma en Portada</span>
-                </button>
-              )}
-            </div>
+            {/* Pie de Portada sin sellos ni cuadros de firma */}
           </div>
         </div>
 

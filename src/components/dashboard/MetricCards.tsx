@@ -1,18 +1,19 @@
 "use client";
 
 import React from "react";
-import { TrendingUp, Clock, CheckCircle2, FileStack } from "lucide-react";
+import { TrendingUp, Clock, CheckCircle2 } from "lucide-react";
 import { Adquisicion } from "@/types";
 
 interface MetricCardsProps {
-  adquisiciones: Adquisicion[];
+  adquisiciones?: Adquisicion[];
 }
 
-export const MetricCards: React.FC<MetricCardsProps> = ({ adquisiciones }) => {
-  const totalActivos = adquisiciones.filter((a) => a.estado !== "Concluido" && a.estado !== "Cancelado").length;
-  const pendientesIA = adquisiciones.filter((a) => a.estado === "Generación IA" || a.estado === "Iniciado").length;
-  const concluidos = adquisiciones.filter((a) => a.estado === "Concluido").length;
-  const montoTotalBs = adquisiciones.reduce((sum, a) => sum + (Number(a.prevision_presupuesto) || 0), 0);
+export const MetricCards: React.FC<MetricCardsProps> = ({ adquisiciones = [] }) => {
+  const safeList = Array.isArray(adquisiciones) ? adquisiciones : [];
+  const totalActivos = safeList.filter((a) => a && a.estado !== "Concluido" && a.estado !== "Cancelado").length;
+  const pendientesIA = safeList.filter((a) => a && (a.estado === "Generación IA" || a.estado === "Iniciado")).length;
+  const concluidos = safeList.filter((a) => a && a.estado === "Concluido").length;
+  const montoTotalBs = safeList.reduce((sum, a) => sum + (Number(a?.prevision_presupuesto) || 0), 0);
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -25,7 +26,7 @@ export const MetricCards: React.FC<MetricCardsProps> = ({ adquisiciones }) => {
         <h3 className="font-headline-lg text-3xl font-bold text-primary">{totalActivos}</h3>
         <p className="font-mono text-xs text-secondary mt-2 flex items-center gap-1">
           <TrendingUp className="w-3.5 h-3.5" />
-          <span>Gestión Activa PAC 2024</span>
+          <span>Gestión Activa PAC 2026</span>
         </p>
       </div>
 
@@ -59,14 +60,13 @@ export const MetricCards: React.FC<MetricCardsProps> = ({ adquisiciones }) => {
       <div className="bg-surface-container-lowest border border-outline-variant rounded-lg p-5 relative overflow-hidden shadow-institutional">
         <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
         <p className="font-mono text-xs text-on-surface-variant uppercase tracking-wider mb-1">
-          Presupuesto Programado
+          Presupuesto Estimado Total
         </p>
-        <h3 className="font-headline-lg text-2xl font-bold text-primary font-mono truncate">
-          {new Intl.NumberFormat("es-BO", { style: "decimal", minimumFractionDigits: 0 }).format(montoTotalBs)} Bs.
+        <h3 className="font-headline-lg text-2xl font-bold text-primary truncate">
+          Bs. {montoTotalBs.toLocaleString("es-BO", { minimumFractionDigits: 2 })}
         </h3>
-        <p className="font-mono text-xs text-primary-container mt-2 flex items-center gap-1">
-          <FileStack className="w-3.5 h-3.5" />
-          <span>{adquisiciones.length} procesos registrados</span>
+        <p className="font-mono text-[11px] text-on-surface-variant mt-2">
+          {safeList.length} expedientes registrados
         </p>
       </div>
     </div>

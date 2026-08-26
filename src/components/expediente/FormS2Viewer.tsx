@@ -341,7 +341,7 @@ export const FormS2Viewer: React.FC<FormS2ViewerProps> = ({
             <div className="flex justify-end">
               <div className="w-64 text-center space-y-3">
                 <div className="border-t border-gray-900 pt-1 text-xs text-gray-800 font-medium">
-                  Sello y Firma Proveedor
+                  Firma del Proveedor Proponente
                 </div>
                 <div className="text-xs text-gray-800 text-left pt-2">
                   Fecha de Cotizacion: <span className="border-b border-gray-800 inline-block w-28"></span>

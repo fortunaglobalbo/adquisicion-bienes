@@ -25,18 +25,22 @@ export const AcquisitionsTable: React.FC<AcquisitionsTableProps> = ({
   const [deletingItem, setDeletingItem] = useState<Adquisicion | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const filtered = adquisiciones.filter((item) => {
+  const safeList = Array.isArray(adquisiciones) ? adquisiciones : [];
+
+  const filtered = safeList.filter((item) => {
+    if (!item) return false;
     const matchSearch =
       searchTerm.trim() === "" ||
-      item.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.titulo_proceso.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.partida_presupuestaria?.toLowerCase().includes(searchTerm.toLowerCase());
+      (item.codigo || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.titulo_proceso || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.partida_presupuestaria || "").toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchCategoria = categoriaFilter === "ALL" || item.categoria === categoriaFilter;
     const matchEstado = estadoFilter === "ALL" || item.estado === estadoFilter;
 
     return matchSearch && matchCategoria && matchEstado;
   });
+
 
   const handleDeleteConfirm = () => {
     if (!deletingItem) return;

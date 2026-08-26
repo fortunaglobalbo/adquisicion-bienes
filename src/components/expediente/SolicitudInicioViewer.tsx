@@ -383,7 +383,7 @@ export const SolicitudInicioViewer: React.FC<SolicitudInicioViewerProps> = ({
             </div>
           </div>
 
-          {/* Footer Signatures and Stamp Area (Espacio limpio para firma y sello físico manual) */}
+          {/* Footer Area */}
           <div className="pt-16 mt-auto">
             <div className="flex justify-between items-end">
               {/* Bottom Left: Carbon Copy / Attachments */}
@@ -392,9 +392,11 @@ export const SolicitudInicioViewer: React.FC<SolicitudInicioViewerProps> = ({
                 <div>Adj. Lo indicado</div>
               </div>
 
-              {/* Clean blank space for manual stamp and signature */}
-              <div className="h-24 w-52 flex items-center justify-center border border-dashed border-gray-200 rounded text-[10px] font-mono text-gray-400 select-none">
-                [ Espacio para firma y sello manual ]
+              {/* Clean signature line */}
+              <div className="text-center font-sans text-xs text-gray-800">
+                <div className="w-48 border-t border-gray-900 mb-1"></div>
+                <div className="font-bold">{remitenteNombre}</div>
+                <div className="text-[10px] text-gray-600 uppercase">{remitenteCargo}</div>
               </div>
             </div>
           </div>

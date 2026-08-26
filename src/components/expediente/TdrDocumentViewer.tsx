@@ -74,7 +74,9 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
   const [aiPrompt, setAiPrompt] = useState("");
   const [uploadedAiFile, setUploadedAiFile] = useState<{ name: string; base64: string; type: string } | null>(null);
   const [isAiProcessing, setIsAiProcessing] = useState(false);
+  const [incluirFotoEnItems, setIncluirFotoEnItems] = useState<boolean>(false);
   const aiFileInputRef = useRef<HTMLInputElement | null>(null);
+
 
   // Editable Document State
   const [docData, setDocData] = useState<Adquisicion>({ ...adquisicion });
@@ -272,7 +274,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
     { id: "cmp-4", nombre: "Uso Operativo y Destino de Cuadrilla", valorEjemplo: "Personal Operativo Mantenimiento Redes MT" },
     { id: "cmp-5", nombre: "Características y Ventajas Técnicas", valorEjemplo: "Cuchillas templadas y mecanismo de palanca de alto rendimiento" },
   ];
-  const incluirFoto = tplData.incluirFotoItem !== false;
+  const incluirFoto = incluirFotoEnItems;
 
   // 14 Puntos Oficiales de ENDE Deoruro S.A.
   const isSaludDomain = (docData.categoria as string) === "Salud Ocupacional" || docData.titulo_proceso.toLowerCase().includes("oftalmo") || docData.titulo_proceso.toLowerCase().includes("laboratorio");
@@ -666,17 +668,27 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
             <RunningHeader pageNum={4} />
 
             <div className="space-y-6 flex-1 text-sm font-sans">
-              <div className="flex justify-between items-center border-b pb-1">
+              <div className="flex flex-wrap justify-between items-center border-b pb-1 gap-2">
                 <h4 className="font-bold text-gray-900 text-sm">
                   3. ESPECIFICACIÓN TÉCNICA ({items.length} ÍTEMS)
                 </h4>
-                <button
-                  onClick={handleAddItem}
-                  className="flex items-center gap-1 px-3 py-1 bg-primary text-white rounded text-xs font-bold shadow"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>+ Añadir Ítem</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIncluirFotoEnItems(!incluirFotoEnItems)}
+                    className="flex items-center gap-1.5 px-2.5 py-1 bg-surface-container-high hover:bg-surface-variant text-primary border border-outline-variant rounded text-xs font-bold transition-colors"
+                  >
+                    <Camera className="w-3.5 h-3.5 text-primary" />
+                    <span>{incluirFotoEnItems ? "Ocultar Fotografías" : "Habilitar Fotografías"}</span>
+                  </button>
+                  <button
+                    onClick={handleAddItem}
+                    className="flex items-center gap-1 px-3 py-1 bg-primary text-white rounded text-xs font-bold shadow"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+ Añadir Ítem</span>
+                  </button>
+                </div>
               </div>
 
               {/* Fichas Técnicas que Respetan el Molde de la Plantilla */}
@@ -884,36 +896,27 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
         isOpen={showAiModal}
         onClose={() => !isAiProcessing && setShowAiModal(false)}
         title="✨ Asistente de IA: Redacción Inteligente de TDR"
-        subtitle="Sube una foto o documento de cualquier rubro (Salud, Herramientas, Consultoría, etc.) para redactar el TDR oficial automáticamente con antecedentes y justificación amplios."
+        subtitle="Sube una cotización, proforma o documento para redactar el TDR oficial automáticamente con antecedentes y justificación fundamentada."
         maxWidth="lg"
       >
         <div className="space-y-4 font-sans text-xs">
-          {/* Rubro Selector Quick Badges */}
-          <div className="space-y-1.5">
-            <label className="font-bold text-primary text-xs">Selección rápida de categoría / rubro:</label>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setAiPrompt("Adquisición de servicios de salud ocupacional, exámenes médicos y laboratorio clínico periódico según matriz IPER 2025 para el personal de ENDE Deoruro.")}
-                className="px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-950 font-bold rounded-lg text-xs"
-              >
-                🩺 Salud Ocupacional (Exámenes/Laboratorio)
-              </button>
-              <button
-                type="button"
-                onClick={() => setAiPrompt("Adquisición de herramientas de trabajo para cuadrillas de mantenimiento de redes de Media y Baja Tensión bajo normas ASTM e ISO.")}
-                className="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold rounded-lg text-xs"
-              >
-                ⚡ Herramientas y Bienes Eléctricos
-              </button>
-              <button
-                type="button"
-                onClick={() => setAiPrompt("Adquisición de servicios generales y provisión continua para instalaciones de ENDE DEORURO S.A.")}
-                className="px-3 py-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-950 font-bold rounded-lg text-xs"
-              >
-                🏢 Servicios Generales / Consultoría
-              </button>
+          {/* Opción de Fotografía Técnica en Ítems */}
+          <div className="p-3 bg-surface-container-low border border-outline-variant rounded-lg flex items-center justify-between">
+            <div>
+              <label htmlFor="check-foto-modal" className="font-bold text-on-surface text-xs cursor-pointer block">
+                ¿Incluir recuadro de fotografía para cada ítem?
+              </label>
+              <p className="text-[11px] text-on-surface-variant">
+                Habilita el espacio para subir y mostrar la imagen técnica de cada ítem en las especificaciones.
+              </p>
             </div>
+            <input
+              id="check-foto-modal"
+              type="checkbox"
+              checked={incluirFotoEnItems}
+              onChange={(e) => setIncluirFotoEnItems(e.target.checked)}
+              className="w-4 h-4 text-primary rounded cursor-pointer accent-primary ml-3"
+            />
           </div>
 
           {/* File Upload Slot */}
