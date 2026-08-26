@@ -48,14 +48,16 @@ export interface ItemAdquisicion {
   cantidad: number;
   precioUnitarioEstimado: number;
   precioTotalEstimado: number;
-  // Campos adaptables para diferentes tipos de tablas (Bienes simples o Salud)
+  // Campos adaptables para diferentes tipos de tablas (Bienes simples, Matriz de Servicios o Salud)
   especificacionMinima?: string;
   propuestoOferente?: string;
   caracteristicasTecnicas?: string;
+  productoEntregable?: string;
+  valores_columnas?: string[];
   fichaTecnica?: FichaTecnicaItem;
 }
 
-export type TipoTablaTDR = "BIENES_SIMPLE" | "BIENES_3_COLS" | "SALUD_OCUPACIONAL" | "FICHAS_DINAMICAS";
+export type TipoTablaTDR = "BIENES_SIMPLE" | "BIENES_3_COLS" | "SALUD_OCUPACIONAL" | "FICHAS_DINAMICAS" | "MATRIZ_SERVICIOS" | "TABLA_DINAMICA";
 
 export interface Adquisicion {
   id: string;
@@ -98,9 +100,15 @@ export interface Adquisicion {
   metodo_seleccion_texto?: string;
   vigencia_propuesta?: string;
   vigencia_propuesta_texto?: string;
+  categoria_texto?: string;
+  tiempo_entrega_texto?: string;
   forma_adjudicacion?: string;
   aceptacion_lote?: string;
   forma_pago_texto?: string;
+  multas_texto?: string;
+  puntos_14_texto?: { [num: number]: string };
+  seccion3_introduccion_texto?: string;
+  columnas_tabla_tdr?: string[];
 
   // Campos específicos de la Carpeta 5 (Solicitud de Inicio de Proceso de Compra - Formato Oficial)
   solicitud_inicio_numero?: string; // ej. "047/2026"

@@ -382,11 +382,26 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
           ),
 
           new Paragraph({
-            spacing: { before: 100, after: 180 },
+            spacing: { before: 100, after: 140 },
             children: [
               new TextRun({ text: "3.   ESPECIFICACIÓN TÉCNICA", bold: true, size: FONT_HEADING, font: "Inter" }),
             ],
           }),
+
+          ...(adquisicion.seccion3_introduccion_texto
+            ? [
+                new Paragraph({
+                  spacing: { after: 140 },
+                  children: [
+                    new TextRun({
+                      text: adquisicion.seccion3_introduccion_texto,
+                      size: FONT_BODY,
+                      font: "Inter",
+                    }),
+                  ],
+                }),
+              ]
+            : []),
 
           // TABLAS DE ESPECIFICACIONES TÉCNICAS (Páginas 3 a 6) - 12 pt
           ...(() => {
@@ -397,7 +412,109 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
               adquisicion.titulo_proceso.toLowerCase().includes("oftalmo") ||
               adquisicion.titulo_proceso.toLowerCase().includes("laboratorio")
                 ? "SALUD_OCUPACIONAL"
-                : "BIENES_SIMPLE");
+                : "MATRIZ_SERVICIOS");
+
+            if (tipoTabla === "MATRIZ_SERVICIOS") {
+              const tablaMatriz = new Table({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                borders: defaultTableBorders,
+                rows: [
+                  new TableRow({
+                    tableHeader: true,
+                    children: [
+                      new TableCell({
+                        width: { size: 8, type: WidthType.PERCENTAGE },
+                        shading: { type: ShadingType.CLEAR, fill: "ECEEF0" },
+                        margins: { top: 80, bottom: 80, left: 60, right: 60 },
+                        children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "ÍTEM", bold: true, size: FONT_BODY, font: "Inter" })] })],
+                      }),
+                      new TableCell({
+                        width: { size: 30, type: WidthType.PERCENTAGE },
+                        shading: { type: ShadingType.CLEAR, fill: "ECEEF0" },
+                        margins: { top: 80, bottom: 80, left: 80, right: 80 },
+                        children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "DESCRIPCIÓN DE COMPONENTE", bold: true, size: FONT_BODY, font: "Inter" })] })],
+                      }),
+                      new TableCell({
+                        width: { size: 38, type: WidthType.PERCENTAGE },
+                        shading: { type: ShadingType.CLEAR, fill: "ECEEF0" },
+                        margins: { top: 80, bottom: 80, left: 80, right: 80 },
+                        children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "CARACTERÍSTICAS / ESPECIFICACIÓN TÉCNICA MÍNIMA REQUERIDA", bold: true, size: FONT_BODY, font: "Inter" })] })],
+                      }),
+                      new TableCell({
+                        width: { size: 24, type: WidthType.PERCENTAGE },
+                        shading: { type: ShadingType.CLEAR, fill: "ECEEF0" },
+                        margins: { top: 80, bottom: 80, left: 80, right: 80 },
+                        children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "PRODUCTO ENTREGABLE", bold: true, size: FONT_BODY, font: "Inter" })] })],
+                      }),
+                    ],
+                  }),
+                  ...adquisicion.items.map((it) => {
+                    const carac = it.caracteristicasTecnicas || it.especificacionMinima || "Cumplimiento con especificaciones técnicas y alcance requerido.";
+                    const entregable = it.productoEntregable || it.propuestoOferente || "Informe final y entregables técnicos aprobados.";
+                    
+                    const caracParagraphs = carac
+                      .split("\n")
+                      .map((line) => line.trim())
+                      .filter(Boolean)
+                      .map(
+                        (line) =>
+                          new Paragraph({
+                            spacing: { before: 30, after: 30 },
+                            children: [new TextRun({ text: line, size: FONT_BODY, font: "Inter" })],
+                          })
+                      );
+
+                    return new TableRow({
+                      children: [
+                        new TableCell({ margins: { top: 80, bottom: 80, left: 60, right: 60 }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: String(it.item), bold: true, size: FONT_BODY, font: "Inter" })] })] }),
+                        new TableCell({ margins: { top: 80, bottom: 80, left: 80, right: 80 }, children: [new Paragraph({ children: [new TextRun({ text: it.descripcion, bold: true, size: FONT_BODY, font: "Inter" })] })] }),
+                        new TableCell({ margins: { top: 80, bottom: 80, left: 80, right: 80 }, children: caracParagraphs.length > 0 ? caracParagraphs : [new Paragraph({ children: [new TextRun({ text: carac, size: FONT_BODY, font: "Inter" })] })] }),
+                        new TableCell({ margins: { top: 80, bottom: 80, left: 80, right: 80 }, children: [new Paragraph({ children: [new TextRun({ text: entregable, size: FONT_BODY, font: "Inter" })] })] }),
+                      ],
+                    });
+                  }),
+                ],
+              });
+              return [tablaMatriz, new Paragraph({ spacing: { after: 200 } })];
+            }
+
+            if (tipoTabla === "TABLA_DINAMICA" && adquisicion.columnas_tabla_tdr && adquisicion.columnas_tabla_tdr.length > 0) {
+              const cols = adquisicion.columnas_tabla_tdr;
+              const colWidth = Math.floor(100 / cols.length);
+
+              const tablaDinamica = new Table({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                borders: defaultTableBorders,
+                rows: [
+                  new TableRow({
+                    tableHeader: true,
+                    children: cols.map((colName, idx) =>
+                      new TableCell({
+                        width: { size: idx === 0 ? 8 : (idx === 1 ? colWidth + (colWidth - 8) : colWidth), type: WidthType.PERCENTAGE },
+                        shading: { type: ShadingType.CLEAR, fill: "ECEEF0" },
+                        margins: { top: 80, bottom: 80, left: 60, right: 60 },
+                        children: [new Paragraph({ alignment: idx === 0 ? AlignmentType.CENTER : AlignmentType.LEFT, children: [new TextRun({ text: colName, bold: true, size: FONT_BODY, font: "Inter" })] })],
+                      })
+                    ),
+                  }),
+                  ...adquisicion.items.map((it) => {
+                    const rowVals = it.valores_columnas && it.valores_columnas.length === cols.length
+                      ? it.valores_columnas
+                      : [String(it.item), it.descripcion, it.caracteristicasTecnicas || "", it.productoEntregable || ""];
+
+                    return new TableRow({
+                      children: cols.map((_, colIdx) =>
+                        new TableCell({
+                          margins: { top: 80, bottom: 80, left: 60, right: 60 },
+                          children: [new Paragraph({ alignment: colIdx === 0 ? AlignmentType.CENTER : AlignmentType.LEFT, children: [new TextRun({ text: rowVals[colIdx] || "", size: FONT_BODY, font: "Inter" })] })],
+                        })
+                      ),
+                    });
+                  }),
+                ],
+              });
+              return [tablaDinamica, new Paragraph({ spacing: { after: 200 } })];
+            }
 
             if (tipoTabla === "SALUD_OCUPACIONAL") {
               const tablaSalud = new Table({
@@ -723,7 +840,7 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
             children: [new TextRun({ text: "4.   CALIDAD", bold: true, size: FONT_HEADING, font: "Inter" })],
           }),
           ...formatSectionParagraphs(
-            adquisicion.calidad_texto,
+            adquisicion.calidad_texto || adquisicion.puntos_14_texto?.[4],
             "Los bienes deberán ser nuevos, de primer uso y fabricados bajo normas de calidad aplicables, o el proponente/laboratorio deberá contar con las acreditaciones y credenciales sanitarias vigentes ante las autoridades competentes."
           ),
 
@@ -732,7 +849,7 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
             children: [new TextRun({ text: "5.   ÁMBITO DE APLICACIÓN", bold: true, size: FONT_HEADING, font: "Inter" })],
           }),
           ...formatSectionParagraphs(
-            adquisicion.ambito_aplicacion,
+            adquisicion.ambito_aplicacion || adquisicion.puntos_14_texto?.[5],
             "Personal institucional y áreas operativas/administrativas de la Distribuidora de Electricidad ENDE DEORURO S.A."
           ),
 
@@ -741,7 +858,7 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
             children: [new TextRun({ text: "6.   MÉTODO DE SELECCIÓN", bold: true, size: FONT_HEADING, font: "Inter" })],
           }),
           ...formatSectionParagraphs(
-            adquisicion.metodo_seleccion,
+            adquisicion.metodo_seleccion_texto || adquisicion.metodo_seleccion || adquisicion.puntos_14_texto?.[6],
             "Menor Precio (Art. 31 del Reglamento SBC)."
           ),
 
@@ -750,7 +867,7 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
             children: [new TextRun({ text: "7.   VIGENCIA DE LA PROPUESTA", bold: true, size: FONT_HEADING, font: "Inter" })],
           }),
           ...formatSectionParagraphs(
-            adquisicion.vigencia_propuesta,
+            adquisicion.vigencia_propuesta_texto || adquisicion.vigencia_propuesta || adquisicion.puntos_14_texto?.[7],
             "Tendrá una validez mínima de 30 días calendario computables a partir de la fecha de presentación de la propuesta."
           ),
 
@@ -759,7 +876,7 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
             children: [new TextRun({ text: "8.   CATEGORÍA", bold: true, size: FONT_HEADING, font: "Inter" })],
           }),
           ...formatSectionParagraphs(
-            adquisicion.categoria,
+            adquisicion.categoria_texto || adquisicion.categoria || adquisicion.puntos_14_texto?.[8],
             "Bienes y Suministros Oficiales / Servicios Ocupacionales."
           ),
 
@@ -768,7 +885,7 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
             children: [new TextRun({ text: "9.   LUGAR DE ENTREGA", bold: true, size: FONT_HEADING, font: "Inter" })],
           }),
           ...formatSectionParagraphs(
-            adquisicion.lugar_entrega,
+            adquisicion.lugar_entrega || adquisicion.puntos_14_texto?.[9],
             "Instalaciones / Almacén Central de ENDE DEORURO S.A., ubicado en la ciudad de Oruro - Bolivia."
           ),
 
@@ -777,7 +894,7 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
             children: [new TextRun({ text: "10.   TIEMPO DE ENTREGA", bold: true, size: FONT_HEADING, font: "Inter" })],
           }),
           ...formatSectionParagraphs(
-            `Máximo ${adquisicion.plazo_entrega_dias || 30} días calendario computables a partir del día siguiente hábil de la recepción formal de la Orden de Compra.`,
+            adquisicion.tiempo_entrega_texto || adquisicion.puntos_14_texto?.[10] || (adquisicion.plazo_entrega_dias ? `Máximo ${adquisicion.plazo_entrega_dias} días calendario computables a partir del día siguiente hábil de la recepción formal de la Orden de Compra.` : undefined),
             "30 días calendario."
           ),
 
@@ -786,7 +903,7 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
             children: [new TextRun({ text: "11.   FORMA DE ADJUDICACIÓN", bold: true, size: FONT_HEADING, font: "Inter" })],
           }),
           ...formatSectionParagraphs(
-            adquisicion.forma_adjudicacion,
+            adquisicion.forma_adjudicacion || adquisicion.puntos_14_texto?.[11],
             "Por ítem requerido, formalizada mediante Orden de Compra (Art. 31 SBC)."
           ),
 
@@ -795,7 +912,7 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
             children: [new TextRun({ text: "12.   PARA LA ACEPTACIÓN DEL LOTE / SERVICIO", bold: true, size: FONT_HEADING, font: "Inter" })],
           }),
           ...formatSectionParagraphs(
-            adquisicion.aceptacion_lote,
+            adquisicion.aceptacion_lote || adquisicion.puntos_14_texto?.[12],
             "El personal técnico de ENDE DEORURO realizará una evaluación técnica de conformidad el día de la entrega; en caso de existir observaciones, se hará conocer inmediatamente."
           ),
 
@@ -804,7 +921,7 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
             children: [new TextRun({ text: "13.   FORMA DE PAGO", bold: true, size: FONT_HEADING, font: "Inter" })],
           }),
           ...formatSectionParagraphs(
-            adquisicion.forma_pago_texto,
+            adquisicion.forma_pago_texto || adquisicion.puntos_14_texto?.[13],
             "El pago se realizará contra entrega satisfactoria del producto o servicio, conformidad emitida por ENDE DEORURO S.A. y entrega de la siguiente documentación: Nota de Entrega / Acta de Recepción, Solicitud de Pago y Factura oficial original."
           ),
 
@@ -813,7 +930,7 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
             children: [new TextRun({ text: "14.   APLICACIÓN DE MULTAS", bold: true, size: FONT_HEADING, font: "Inter" })],
           }),
           ...formatSectionParagraphs(
-            `Ante el incumplimiento de los plazos y otras condiciones establecidas en la Orden de Compra y Especificaciones Técnicas, se aplicará la multa del ${adquisicion.multa_diaria_porcentaje || 0.25}% por cada día de retraso injustificado.`,
+            adquisicion.multas_texto || adquisicion.puntos_14_texto?.[14] || (adquisicion.multa_diaria_porcentaje ? `Ante el incumplimiento de los plazos y otras condiciones establecidas en la Orden de Compra y Especificaciones Técnicas, se aplicará la multa del ${adquisicion.multa_diaria_porcentaje}% por cada día de retraso injustificado.` : undefined),
             "Multa del 0.25% por cada día de retraso injustificado."
           ),
         ],

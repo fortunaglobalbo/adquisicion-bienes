@@ -4,6 +4,23 @@ export interface ParsedTdrResult {
   titulo_proceso?: string;
   antecedentes_texto?: string;
   justificacion_texto?: string;
+  calidad_texto?: string;
+  ambito_aplicacion?: string;
+  metodo_seleccion_texto?: string;
+  vigencia_propuesta_texto?: string;
+  categoria_texto?: string;
+  tiempo_entrega_texto?: string;
+  forma_adjudicacion?: string;
+  aceptacion_lote?: string;
+  forma_pago_texto?: string;
+  multas_texto?: string;
+  puntos_14_texto?: { [num: number]: string };
+  seccion3_introduccion_texto?: string;
+  columnas_tabla_tdr?: string[];
+  elaborado_por?: string;
+  revisado_por?: string;
+  aprobado_por?: string;
+  codigo_documento?: string;
   lugar_entrega?: string;
   plazo_entrega_dias?: number;
   tipo_tabla_sugerido?: TipoTablaTDR;
@@ -12,12 +29,12 @@ export interface ParsedTdrResult {
 }
 
 /**
- * Limpia tags HTML y asteriscos Markdown
+ * Limpia tags HTML y asteriscos Markdown pero preserva el texto literal y saltos de párrafo
  */
 function cleanFormatting(text: string): string {
   if (!text) return "";
   return text
-    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<br\s*\/?>/gi, " ")
     .replace(/<\/?[^>]+(>|$)/g, "")
     .replace(/\*\*/g, "")
     .replace(/__/g, "")
@@ -26,21 +43,51 @@ function cleanFormatting(text: string): string {
 }
 
 /**
- * Formatea un bloque de texto que contiene viñetas (* o - o • o ❖) en párrafos limpios con '❖'
+ * Normaliza tablas Markdown que puedan tener filas cortadas por <br> o saltos de línea
  */
-function formatBulletParagraphs(text: string): string {
-  if (!text) return "";
-  const lines = text.split("\n");
-  const formattedLines = lines.map((line) => {
-    const cleanL = cleanFormatting(line);
-    if (!cleanL) return "";
-    if (cleanL.startsWith("*") || cleanL.startsWith("-") || cleanL.startsWith("•") || cleanL.startsWith("❖")) {
-      return `❖  ${cleanL.replace(/^[\*\-\•\❖]\s*/, "")}`;
-    }
-    return cleanL;
-  }).filter(Boolean);
+function normalizeMarkdownTables(text: string): string {
+  let clean = text.replace(/<br\s*\/?>/gi, " ");
+  const lines = clean.split("\n");
+  const result: string[] = [];
+  let tableBuffer = "";
+  let insideTable = false;
 
-  return formattedLines.join("\n\n");
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i];
+    const l = raw.trim();
+
+    if (l.startsWith("|")) {
+      if (tableBuffer) {
+        result.push(tableBuffer);
+      }
+      tableBuffer = l;
+      insideTable = true;
+    } else if (insideTable) {
+      if (l.startsWith("#") || (l.startsWith("---") && !tableBuffer.includes("---"))) {
+        if (tableBuffer) {
+          result.push(tableBuffer);
+          tableBuffer = "";
+        }
+        insideTable = false;
+        result.push(raw);
+      } else {
+        if (l.length > 0) {
+          tableBuffer += " " + l;
+        }
+        if (l.endsWith("|") && (tableBuffer.match(/\|/g) || []).length >= 4) {
+          result.push(tableBuffer);
+          tableBuffer = "";
+          insideTable = false;
+        }
+      }
+    } else {
+      result.push(raw);
+    }
+  }
+  if (tableBuffer) {
+    result.push(tableBuffer);
+  }
+  return result.join("\n");
 }
 
 /**
@@ -56,25 +103,57 @@ export function parseMarkdownTdrLiteral(rawMarkdown: string): ParsedTdrResult {
     puntos_detectados: {},
   };
 
-  const rawText = rawMarkdown.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-  const lines = rawText.split("\n");
+  const normalized = normalizeMarkdownTables(rawMarkdown.replace(/\r\n/g, "\n").replace(/\r/g, "\n"));
+  const lines = normalized.split("\n");
 
   // =========================================================================
-  // 1. EXTRAER TÍTULO PRINCIPAL DEL PROCESO
+  // 1. EXTRAER TÍTULO PRINCIPAL DEL PROCESO Y METADATOS DE PORTADA
   // =========================================================================
-  for (let i = 0; i < Math.min(lines.length, 20); i++) {
-    const cleanL = cleanFormatting(lines[i]).toUpperCase();
+  for (let i = 0; i < Math.min(lines.length, 35); i++) {
+    const l = lines[i].trim();
+    const cleanL = cleanFormatting(l).toUpperCase();
+
+    // Objeto o Adquisición específica
+    const matchObj = l.match(/\*\*(?:ADQUISICI[OÓ]N(?:\s+Y\s+CONTRATACI[OÓ]N)?|CONTRATACI[OÓ]N|OBJETO(?:\s+GENERAL)?):\*\*\s*(.+)/i);
+    if (matchObj) {
+      result.titulo_proceso = cleanFormatting(matchObj[1]).toUpperCase();
+      break;
+    }
+
     if (
-      cleanL.startsWith("ESPECIFICACIONES TÉCNICAS") ||
-      cleanL.startsWith("TÉRMINOS DE REFERENCIA") ||
-      cleanL.startsWith("ADQUISICIÓN") ||
-      cleanL.startsWith("CONTRATACIÓN") ||
-      cleanL.startsWith("COMPRA DE") ||
-      cleanL.startsWith("PROVISIÓN") ||
+      cleanL.startsWith("CONSULTORÍA") ||
       cleanL.startsWith("SERVICIO DE") ||
-      cleanL.startsWith("CONSULTORÍA")
+      cleanL.startsWith("ADQUISICIÓN") ||
+      cleanL.startsWith("COMPRA DE")
     ) {
-      result.titulo_proceso = cleanL.replace(/^["'“]|["'”]$/g, "").trim();
+      result.titulo_proceso = cleanL;
+      break;
+    }
+  }
+
+  // Código de documento
+  for (let i = 0; i < Math.min(lines.length, 30); i++) {
+    const matchCod = lines[i].match(/\*\*(?:C[OÓ]DIGO(?:\s+DE\s+DOCUMENTO)?):\*\*\s*(.+)/i);
+    if (matchCod) {
+      result.codigo_documento = cleanFormatting(matchCod[1]);
+      break;
+    }
+  }
+
+  // Firmas de portada si existen en tabla
+  for (let i = 0; i < Math.min(lines.length, 40); i++) {
+    if (lines[i].includes("ELABORADO POR") && lines[i].includes("APROBADO POR")) {
+      for (let j = i + 1; j < Math.min(lines.length, i + 8); j++) {
+        if (lines[j].includes("|") && !lines[j].includes("---")) {
+          const parts = lines[j].split("|").map(p => cleanFormatting(p).trim()).filter(Boolean);
+          if (parts.length >= 3) {
+            result.elaborado_por = parts[0];
+            result.revisado_por = parts[1];
+            result.aprobado_por = parts[2];
+            break;
+          }
+        }
+      }
       break;
     }
   }
@@ -105,30 +184,50 @@ export function parseMarkdownTdrLiteral(rawMarkdown: string): ParsedTdrResult {
     lineIdx: number;
   }
   const detectedSections: SectionPos[] = [];
+  let inIndice = false;
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    const cleanL = cleanFormatting(line).toUpperCase();
-    if (!cleanL || cleanL.length > 90) continue;
-    if (line.startsWith("|")) continue;
+    const rawLine = lines[i].trim();
+    const cleanL = cleanFormatting(rawLine).toUpperCase();
+    if (!cleanL || cleanL.length > 100) continue;
+    if (rawLine.startsWith("|")) continue;
 
-    // Encabezado tipo "3. ESPECIFICACIÓN TÉCNICA (OPCIÓN A...)", "### 4. CALIDAD", "4. CALIDAD"
-    const matchNum = cleanL.match(/^(?:#+\s*)?(\d+)[\.\-\)]\s*([A-ZÁÉÍÓÚÑ\s\/\-_\(\)]+)/i);
-    if (matchNum) {
-      const num = parseInt(matchNum[1], 10);
-      if (num >= 1 && num <= 14) {
-        detectedSections.push({ num, title: matchNum[2].trim(), lineIdx: i });
+    // Detectar si entramos al bloque de Índice para ignorar los 14 ítems listados dentro del índice
+    if (cleanL.includes("ÍNDICE") || cleanL.includes("INDICE") || cleanL.includes("TABLA DE CONTENIDO")) {
+      inIndice = true;
+      continue;
+    }
+
+    if (inIndice) {
+      if (rawLine.startsWith("---") || rawLine.startsWith("## ") || rawLine.startsWith("# ")) {
+        inIndice = false;
+      } else {
         continue;
       }
     }
 
-    // Por palabra clave
-    for (const [numStr, kwList] of Object.entries(sectionKeywords)) {
-      const num = parseInt(numStr, 10);
-      if (kwList.some((kw) => cleanL === kw || cleanL.startsWith(kw + ":") || cleanL.startsWith(kw + " -") || cleanL.endsWith(kw))) {
-        if (!detectedSections.some((s) => s.num === num)) {
-          detectedSections.push({ num, title: cleanL, lineIdx: i });
-          break;
+    // Ignorar sub-secciones como "4.1.", "4.2.", etc.
+    if (/^\d+\.\d+/.test(cleanL) || /^#+\s*\d+\.\d+/.test(rawLine)) {
+      continue;
+    }
+
+    // Encabezado de sección tipo "## 3. ESPECIFICACIÓN TÉCNICA", "# 1. ANTECEDENTES", "3. ESPECIFICACIÓN TÉCNICA"
+    const matchHeader = rawLine.match(/^(?:#+\s*)?(\d+)[\.\-\)]\s*([A-ZÁÉÍÓÚÑ\s\/\-_\(\)]+)/i);
+    if (matchHeader) {
+      const num = parseInt(matchHeader[1], 10);
+      const titleRest = matchHeader[2].trim().toUpperCase();
+      if (num >= 1 && num <= 14) {
+        const isRealHeading = rawLine.startsWith("#") || sectionKeywords[num]?.some(kw => titleRest.includes(kw));
+        if (isRealHeading) {
+          const existingIdx = detectedSections.findIndex(s => s.num === num);
+          if (existingIdx >= 0) {
+            if (rawLine.startsWith("#")) {
+              detectedSections[existingIdx] = { num, title: titleRest, lineIdx: i };
+            }
+          } else {
+            detectedSections.push({ num, title: titleRest, lineIdx: i });
+          }
+          continue;
         }
       }
     }
@@ -143,29 +242,42 @@ export function parseMarkdownTdrLiteral(rawMarkdown: string): ParsedTdrResult {
     const nextLineIdx = i < detectedSections.length - 1 ? detectedSections[i + 1].lineIdx : lines.length;
     const bodyLines = lines.slice(current.lineIdx + 1, nextLineIdx);
 
-    const bodyText = bodyLines
-      .map((l) => l.trim())
-      .filter((l) => l.length > 0 && !l.startsWith("---"))
-      .join("\n");
+    // Extraer texto 100% literal preservando saltos de línea originales, viñetas y formato
+    const rawBodyText = bodyLines
+      .join("\n")
+      .replace(/^---\s*$/gm, "")
+      .replace(/^[\r\n]+|[\r\n]+$/g, "")
+      .trim();
 
-    sectionTexts[current.num] = bodyText;
-    if (current.num !== 3) {
-      result.puntos_detectados[current.num] = formatBulletParagraphs(bodyText);
+    sectionTexts[current.num] = rawBodyText;
+    if (current.num !== 3 && rawBodyText) {
+      result.puntos_detectados[current.num] = rawBodyText;
     }
   }
 
+  result.puntos_14_texto = { ...result.puntos_detectados };
   if (result.puntos_detectados[1]) result.antecedentes_texto = result.puntos_detectados[1];
   if (result.puntos_detectados[2]) result.justificacion_texto = result.puntos_detectados[2];
+  if (result.puntos_detectados[4]) result.calidad_texto = result.puntos_detectados[4];
+  if (result.puntos_detectados[5]) result.ambito_aplicacion = result.puntos_detectados[5];
+  if (result.puntos_detectados[6]) result.metodo_seleccion_texto = result.puntos_detectados[6];
+  if (result.puntos_detectados[7]) result.vigencia_propuesta_texto = result.puntos_detectados[7];
+  if (result.puntos_detectados[8]) result.categoria_texto = result.puntos_detectados[8];
+  if (result.puntos_detectados[9]) result.lugar_entrega = result.puntos_detectados[9];
+  if (result.puntos_detectados[10]) result.tiempo_entrega_texto = result.puntos_detectados[10];
+  if (result.puntos_detectados[11]) result.forma_adjudicacion = result.puntos_detectados[11];
+  if (result.puntos_detectados[12]) result.aceptacion_lote = result.puntos_detectados[12];
+  if (result.puntos_detectados[13]) result.forma_pago_texto = result.puntos_detectados[13];
+  if (result.puntos_detectados[14]) result.multas_texto = result.puntos_detectados[14];
 
   // =========================================================================
-  // 3. EXTRAER Y RECONSTRUIR LA TABLA DE ÍTEMS (MARKDOWN O TEXTO PLANO)
+  // 3. EXTRAER Y RECONSTRUIR LA TABLA DE ÍTEMS EN SECCIÓN 3
   // =========================================================================
-  const section3Raw = sectionTexts[3] || rawText;
+  const section3Raw = sectionTexts[3] || normalized;
   const s3Lines = section3Raw.split("\n");
 
   const parsedItems: ItemAdquisicion[] = [];
 
-  // 3.A. Intento 1: Tabla Markdown con Pipes |
   let tableSeparatorIdx = -1;
   let tableHeaderIdx = -1;
 
@@ -180,211 +292,157 @@ export function parseMarkdownTdrLiteral(rawMarkdown: string): ParsedTdrResult {
     }
   }
 
-  if (tableSeparatorIdx !== -1) {
-    const headerLine = tableHeaderIdx !== -1 ? s3Lines[tableHeaderIdx] : "";
-    const headerLower = headerLine.toLowerCase();
+  if (tableHeaderIdx >= 0) {
+    const introLines = s3Lines.slice(0, tableHeaderIdx)
+      .map((l) => cleanFormatting(l))
+      .filter((l) => l.length > 0 && !l.startsWith("#") && !l.startsWith("---"));
+    if (introLines.length > 0) {
+      result.seccion3_introduccion_texto = introLines.join("\n\n");
+    }
+
+    const headerLine = s3Lines[tableHeaderIdx];
+    const detectedHeaders = headerLine
+      .split("|")
+      .map((h) => cleanFormatting(h).toUpperCase())
+      .filter((h) => h.length > 0);
+
+    result.columnas_tabla_tdr = detectedHeaders;
+
+    const isMatrizServicios =
+      detectedHeaders.some(h => h.includes("ENTREGABLE") || h.includes("PRODUCTO")) ||
+      (detectedHeaders.length === 4 && detectedHeaders.some(h => h.includes("COMPONENTE") || h.includes("SERVICIO")));
+
+    const is3ColsBienes =
+      !isMatrizServicios &&
+      detectedHeaders.length === 3 &&
+      (detectedHeaders[1].includes("DESCRIPCI") || detectedHeaders[1].includes("BIEN")) &&
+      (detectedHeaders[2].includes("CARACTER") || detectedHeaders[2].includes("ESPECIFIC"));
+
+    const isSimpleBienes =
+      !isMatrizServicios &&
+      (detectedHeaders.includes("CANTIDAD") || detectedHeaders.includes("UNIDAD") || detectedHeaders.length === 5);
+
     const isSalud =
-      headerLower.includes("examen") ||
-      headerLower.includes("estudio") ||
-      headerLower.includes("metodologia") ||
-      headerLower.includes("propuesto");
+      detectedHeaders.some(h => h.includes("EXAMEN") || h.includes("ESTUDIO") || h.includes("LABORATORIO"));
 
-    const tableDataLines = s3Lines.slice(tableSeparatorIdx + 1);
-
-    const itemChunks: string[] = [];
-    let currentItemChunk = "";
-    const rowStartRegex = /^\|\s*(?:\*{1,2})?\s*\d+[\.\-\)]?\s*(?:\*{1,2})?\s*\|/i;
-
-    for (let i = 0; i < tableDataLines.length; i++) {
-      const line = tableDataLines[i];
-      const trimmed = line.trim();
-
-      if (rowStartRegex.test(trimmed)) {
-        if (currentItemChunk) {
-          itemChunks.push(currentItemChunk);
-        }
-        currentItemChunk = trimmed;
-      } else if (currentItemChunk) {
-        currentItemChunk += "\n" + line;
-      }
-    }
-    if (currentItemChunk) {
-      itemChunks.push(currentItemChunk);
+    if (isMatrizServicios) {
+      result.tipo_tabla_sugerido = "MATRIZ_SERVICIOS";
+    } else if (is3ColsBienes) {
+      result.tipo_tabla_sugerido = "BIENES_3_COLS";
+    } else if (isSalud) {
+      result.tipo_tabla_sugerido = "SALUD_OCUPACIONAL";
+    } else if (isSimpleBienes) {
+      result.tipo_tabla_sugerido = "BIENES_SIMPLE";
+    } else {
+      result.tipo_tabla_sugerido = "TABLA_DINAMICA";
     }
 
-    itemChunks.forEach((chunk, chunkIdx) => {
-      const normalizedChunk = chunk
-        .replace(/<br\s*\/?>/gi, "\n")
-        .replace(/<\/?[^>]+(>|$)/g, "");
-
-      const pipeParts = normalizedChunk.split("|");
-
-      if (pipeParts.length >= 4) {
-        const itemNumStr = cleanFormatting(pipeParts[1]).trim();
-        const itemNum = parseInt(itemNumStr.replace(/[^\d]/g, ""), 10) || chunkIdx + 1;
-        const descripcion = cleanFormatting(pipeParts[2]).trim().toUpperCase();
-
-        let caracteristicasRaw = "";
-        let cantidadStr = "";
-        let unidad = "PZA";
-        let cantidad = 1;
-
-        if (pipeParts.length === 4) {
-          caracteristicasRaw = pipeParts[3].trim();
-        } else if (pipeParts.length >= 5) {
-          cantidadStr = cleanFormatting(pipeParts[pipeParts.length - 2]).trim();
-          caracteristicasRaw = pipeParts.slice(3, pipeParts.length - 2).join("|").trim();
-
-          const cantParsed = parseInt(cantidadStr.replace(/[^\d]/g, ""), 10);
-          if (!isNaN(cantParsed) && cantParsed > 0) cantidad = cantParsed;
-
-          const cantLower = cantidadStr.toLowerCase();
-          if (cantLower.includes("lote")) unidad = "LOTE";
-          else if (cantLower.includes("par")) unidad = "PAR";
-          else if (cantLower.includes("jgo") || cantLower.includes("juego")) unidad = "JGO";
-          else if (cantLower.includes("global")) unidad = "GLB";
-          else if (cantLower.includes("servicio")) unidad = "SRV";
-          else if (isSalud) unidad = "ESTUDIO";
-        }
-
-        const cleanLines = caracteristicasRaw
-          .split("\n")
-          .map((l) => l.trim())
-          .filter((l) => l.length > 0 && l !== "<br>");
-
-        const formattedCaracs = cleanLines
-          .map((l) => {
-            const noMd = cleanFormatting(l);
-            if (noMd.startsWith("•") || noMd.startsWith("-") || noMd.startsWith("*") || noMd.startsWith("❖")) {
-              return `❖  ${noMd.replace(/^[\•\-\*\❖]\s*/, "")}`;
-            }
-            return noMd;
-          })
-          .join("\n\n");
-
-        const finalCaracs = formattedCaracs || descripcion;
-
-        parsedItems.push({
-          id: `item-tdr-${Date.now()}-${chunkIdx}`,
-          item: itemNum,
-          descripcion: descripcion || `ÍTEM #${itemNum}`,
-          unidad: unidad.toUpperCase(),
-          cantidad,
-          precioUnitarioEstimado: 0,
-          precioTotalEstimado: 0,
-          caracteristicasTecnicas: finalCaracs,
-          especificacionMinima: finalCaracs,
-          propuestoOferente: "Cumple con la totalidad de especificaciones técnicas requeridas",
-          fichaTecnica: {
-            uso: isSalud ? "Salud Ocupacional" : "Personal Institucional / Técnico",
-            normaCertificacion: isSalud ? "Acreditación Sanitaria" : "Normas de Calidad y Eficiencia Aplicables",
-            material: "Material homologado de alta calidad",
-            color: "Estándar",
-            dimensiones: "Según requerimiento técnico",
-            categoriaItem: isSalud ? "Salud Ocupacional" : "Bienes y Suministros Oficiales",
-            caracteristicasDetalle: cleanLines.map((l) => cleanFormatting(l).replace(/^[\•\-\*\❖]\s*/, "").trim()),
-          },
-        });
-      }
-    });
-  }
-
-  // 3.B. Intento 2: Parser para Tablas en Texto Plano o Copiadas de Word / PDF
-  if (parsedItems.length === 0) {
-    const isHeaderLine = (l: string) => {
-      const up = cleanFormatting(l).toUpperCase();
-      return (
-        up === "ÍTEM" ||
-        up === "ITEM" ||
-        up === "NO." ||
-        up === "N°" ||
-        up.startsWith("DESCRIPCIÓN") ||
-        up.startsWith("DESCRIPCION") ||
-        up.startsWith("CARACTERÍSTICAS") ||
-        up.startsWith("CARACTERISTICAS") ||
-        up.startsWith("PRODUCTO ENTREGABLE") ||
-        up.startsWith("ESPECIFICACIÓN") ||
-        up.startsWith("ESPECIFICACION") ||
-        up.startsWith("CANT.") ||
-        up.startsWith("CANTIDAD") ||
-        up.startsWith("UNIDAD") ||
-        up.startsWith("EL PROPONENTE DEBE")
-      );
-    };
-
-    const itemBlocks: Array<{ num: number; lines: string[] }> = [];
-    let currentBlock: { num: number; lines: string[] } | null = null;
-
-    for (let i = 0; i < s3Lines.length; i++) {
+    for (let i = tableSeparatorIdx + 1; i < s3Lines.length; i++) {
       const line = s3Lines[i].trim();
-      if (!line) continue;
-      if (isHeaderLine(line)) continue;
+      if (!line || !line.startsWith("|")) continue;
+      if (line.includes("---")) continue;
 
-      // Buscar número de ítem aislado (ej. "1", "2", "3") o con prefijo (ej. "1.", "ÍTEM 1:")
-      const matchNumOnly = line.match(/^(\d+)$/);
-      const matchNumPrefix = line.match(/^(?:ÍTEM|ITEM)?\s*(\d+)[\.\-\)]\s*(.*)$/i);
+      const cells = line.split("|").map((c) => cleanFormatting(c).trim());
+      const contentCells = cells.slice(1, cells.length - 1);
 
-      if (matchNumOnly) {
-        const num = parseInt(matchNumOnly[1], 10);
-        if (num >= 1 && num <= 50) {
-          if (currentBlock) itemBlocks.push(currentBlock);
-          currentBlock = { num, lines: [] };
-          continue;
+      if (contentCells.length >= 2) {
+        let itemNum = parsedItems.length + 1;
+        const rawNum = contentCells[0].replace(/\D/g, "");
+        if (rawNum) itemNum = parseInt(rawNum, 10);
+
+        if (isMatrizServicios) {
+          const desc = contentCells[1] || `COMPONENTE ${itemNum}`;
+          const carac = contentCells[2] || "";
+          const entregable = contentCells[3] || "";
+
+          parsedItems.push({
+            id: `item-srv-${Date.now()}-${itemNum}`,
+            item: itemNum,
+            descripcion: desc.toUpperCase(),
+            unidad: "SRV",
+            cantidad: 1,
+            precioUnitarioEstimado: 0,
+            precioTotalEstimado: 0,
+            caracteristicasTecnicas: carac,
+            especificacionMinima: carac,
+            productoEntregable: entregable,
+            propuestoOferente: entregable || "Cumple con entregable requerido",
+            valores_columnas: [String(itemNum), desc, carac, entregable],
+            fichaTecnica: {
+              uso: "Servicios Especializados / Consultoría Institucional",
+              normaCertificacion: "Normativa Nacional Vigente Aplicable",
+              material: "Informes Técnicos, Matrices y Documentación Oficial",
+              color: "Estándar",
+              dimensiones: "Según alcance técnico",
+              categoriaItem: "Servicios Especializados",
+              caracteristicasDetalle: [carac],
+            },
+          });
+        } else if (is3ColsBienes) {
+          const desc = contentCells[1] || `ÍTEM ${itemNum}`;
+          const carac = contentCells[2] || "";
+
+          parsedItems.push({
+            id: `item-bien3-${Date.now()}-${itemNum}`,
+            item: itemNum,
+            descripcion: desc.toUpperCase(),
+            unidad: "PZA",
+            cantidad: 1,
+            precioUnitarioEstimado: 0,
+            precioTotalEstimado: 0,
+            caracteristicasTecnicas: carac,
+            especificacionMinima: carac,
+            valores_columnas: [String(itemNum), desc, carac],
+            fichaTecnica: {
+              uso: "Personal Institucional",
+              normaCertificacion: "Norma Técnica Aplicable",
+              material: "Según especificación técnica",
+              color: "Estándar",
+              dimensiones: "Estándar",
+              categoriaItem: "Bienes y Suministros",
+              caracteristicasDetalle: [carac],
+            },
+          });
+        } else if (isSimpleBienes && contentCells.length >= 4) {
+          const desc = contentCells[1] || `ÍTEM ${itemNum}`;
+          const unidad = contentCells[2] || "PZA";
+          const cantidad = parseInt(contentCells[3].replace(/[^\d]/g, ""), 10) || 1;
+          const carac = contentCells[4] || "";
+
+          parsedItems.push({
+            id: `item-bien5-${Date.now()}-${itemNum}`,
+            item: itemNum,
+            descripcion: desc.toUpperCase(),
+            unidad: unidad.toUpperCase(),
+            cantidad: cantidad,
+            precioUnitarioEstimado: 0,
+            precioTotalEstimado: 0,
+            caracteristicasTecnicas: carac,
+            especificacionMinima: carac,
+            valores_columnas: [String(itemNum), desc, unidad, String(cantidad), carac],
+          });
+        } else {
+          // Tabla Dinámica
+          const desc = contentCells[1] || `ÍTEM ${itemNum}`;
+          const rest = contentCells.slice(2).join(" | ");
+
+          parsedItems.push({
+            id: `item-dyn-${Date.now()}-${itemNum}`,
+            item: itemNum,
+            descripcion: desc.toUpperCase(),
+            unidad: "PZA",
+            cantidad: 1,
+            precioUnitarioEstimado: 0,
+            precioTotalEstimado: 0,
+            caracteristicasTecnicas: rest,
+            especificacionMinima: rest,
+            valores_columnas: contentCells,
+          });
         }
-      } else if (matchNumPrefix) {
-        const num = parseInt(matchNumPrefix[1], 10);
-        if (num >= 1 && num <= 50) {
-          if (currentBlock) itemBlocks.push(currentBlock);
-          currentBlock = { num, lines: matchNumPrefix[2] ? [matchNumPrefix[2].trim()] : [] };
-          continue;
-        }
-      }
-
-      if (currentBlock) {
-        currentBlock.lines.push(line);
       }
     }
-    if (currentBlock) itemBlocks.push(currentBlock);
-
-    itemBlocks.forEach((block, bIdx) => {
-      if (block.lines.length > 0) {
-        const desc = cleanFormatting(block.lines[0]).toUpperCase();
-        const rest = block.lines.slice(1).map((l) => cleanFormatting(l)).filter(Boolean);
-
-        const caracs =
-          rest.length > 0
-            ? rest.map((l) => `❖  ${l.replace(/^[\•\-\*\❖]\s*/, "")}`).join("\n\n")
-            : desc;
-
-        parsedItems.push({
-          id: `item-plain-${Date.now()}-${bIdx}`,
-          item: block.num || bIdx + 1,
-          descripcion: desc || `COMPONENTE #${bIdx + 1}`,
-          unidad: "SRV",
-          cantidad: 1,
-          precioUnitarioEstimado: 0,
-          precioTotalEstimado: 0,
-          caracteristicasTecnicas: caracs,
-          especificacionMinima: caracs,
-          propuestoOferente: "Cumple con la totalidad de especificaciones técnicas y entregables requeridos",
-          fichaTecnica: {
-            uso: "Servicios Especializados / Requerimiento Institucional",
-            normaCertificacion: "Normativa Nacional Vigente Aplicable",
-            material: "Informes Técnicos, Matrices y Documentación Oficial",
-            color: "Estándar",
-            dimensiones: "Según alcance técnico",
-            categoriaItem: "Servicios Especializados",
-            caracteristicasDetalle: rest,
-          },
-        });
-      }
-    });
   }
 
-  if (parsedItems.length > 0) {
-    result.items = parsedItems;
-    result.tipo_tabla_sugerido = "BIENES_3_COLS";
-  }
-
+  result.items = parsedItems;
   return result;
 }

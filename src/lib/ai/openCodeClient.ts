@@ -73,9 +73,23 @@ export async function extractTdrFromDocumentOrImageWithAI(
   items?: ItemAdquisicion[];
   antecedentes_texto?: string;
   justificacion_texto?: string;
+  calidad_texto?: string;
+  ambito_aplicacion?: string;
+  metodo_seleccion_texto?: string;
+  vigencia_propuesta_texto?: string;
+  categoria_texto?: string;
+  lugar_entrega?: string;
+  tiempo_entrega_texto?: string;
+  forma_adjudicacion?: string;
+  aceptacion_lote?: string;
+  forma_pago_texto?: string;
+  multas_texto?: string;
+  puntos_14_texto?: { [num: number]: string };
   resumen_ia?: string;
   categoria_detectada?: string;
   tipo_tabla_sugerido?: TipoTablaTDR;
+  seccion3_introduccion_texto?: string;
+  columnas_tabla_tdr?: string[];
   puntos_detectados?: { [num: number]: string };
   secciones_14_puntos?: Array<{ numero: number; titulo: string; contenido: string }>;
 }> {
@@ -87,23 +101,52 @@ export async function extractTdrFromDocumentOrImageWithAI(
   }
 
   const systemPrompt = `Eres el Especialista Principal en Contrataciones y Adquisiciones de la DISTRIBUIDORA DE ELECTRICIDAD ENDE DEORURO S.A.
-Tu tarea es leer y procesar TODO el documento, texto o Markdown proporcionado por el usuario, comprendiendo cada sección y estructurándolo con FIDELIDAD LITERAL 100% (COPIA FIEL) en la plantilla oficial de TDR.
+Tu tarea es tomar el documento, texto o Markdown proporcionado por el usuario y transferir su contenido a la plantilla oficial de TDR con FIDELIDAD LITERAL 100% (COPIA FIEL EXACTA).
 
-REGLAS ESTRICTAS DE EXTRACCIÓN CON IA:
-1. FIDELIDAD TOTAL Y LITERAL:
-   - Extrae el texto del usuario sin aumentar, inventar ni omitir ninguna especificación.
-2. CARACTERÍSTICAS TÉCNICAS COMPLETAS:
-   - En cada ítem, debes extraer en "caracteristicasTecnicas" TODAS las viñetas, especificaciones mecánicas, eléctricas, de materiales y normas (por ejemplo: Caña, Puntera, Protección Eléctrica EH, Impermeabilidad, Planta y Entresuela, Plantilla, Cordones, Taco, etc.) con sus viñetas completas. NUNCA resumas ni dejes solo el título del ítem.
-3. 14 PUNTOS OFICIALES:
-   - Extrae fielmente el texto de cada punto provisto (1. Antecedentes, 2. Justificación, 4. Calidad, 5. Ámbito, 6. Método, 7. Vigencia, 8. Categoría, 9. Lugar, 10. Tiempo, 11. Adjudicación, 12. Aceptación, 13. Pago, 14. Multas).
+DIRECTIVAS CRÍTICAS Y OBLIGATORIAS:
+1. PROHIBIDO RESUMIR, PARAFRASEAR, SINTETIZAR O CAMBIAR PALABRAS:
+   - Extrae el texto EXACTO tal como fue redactado en el documento original. No alteres ni una sola palabra ni inventes texto.
+2. COPIA FIEL DE LAS 14 SECCIONES:
+   - Copia textualmente el contenido de cada una de las 14 secciones presentes en el insumo:
+     1. Antecedentes
+     2. Justificación / Necesidad
+     4. Calidad
+     5. Ámbito de Aplicación
+     6. Método de Selección
+     7. Vigencia de la Propuesta
+     8. Categoría
+     9. Lugar de Entrega
+     10. Tiempo / Plazo de Entrega
+     11. Forma de Adjudicación
+     12. Aceptación del Lote / Servicio
+     13. Forma de Pago
+     14. Aplicación de Multas
+3. TABLAS DE CUALQUIER FORMATO:
+   - Si es una Matriz de Servicios (4 columnas), extrae en "descripcion" el componente, en "caracteristicasTecnicas" la especificación/alcance técnico completo, y en "productoEntregable" el entregable exacto ("tipo_tabla_sugerido": "MATRIZ_SERVICIOS").
+   - Si es una tabla de 3 columnas de Bienes, extrae ítem, descripción y características ("tipo_tabla_sugerido": "BIENES_3_COLS").
+   - Si es una tabla de 5 columnas, extrae ítem, descripción, unidad, cantidad y características ("tipo_tabla_sugerido": "BIENES_SIMPLE").
+   - Si es de Salud Ocupacional o Laboratorio, extrae examen, metodología y propuesto ("tipo_tabla_sugerido": "SALUD_OCUPACIONAL").
 
 DEBES DEVOLVER ESTRICTAMENTE UN OBJETO JSON VÁLIDO con la siguiente estructura:
 {
   "categoria_detectada": "Bienes" | "Servicios" | "Salud Ocupacional" | "Obras",
   "titulo_proceso": "TÍTULO EXACTO DEL PROCESO EN MAYÚSCULAS",
-  "tipo_tabla_sugerido": "BIENES_3_COLS" | "BIENES_SIMPLE" | "SALUD_OCUPACIONAL" | "FICHAS_DINAMICAS",
-  "antecedentes_texto": "Texto exacto de antecedentes...",
-  "justificacion_texto": "Texto exacto de justificación...",
+  "tipo_tabla_sugerido": "MATRIZ_SERVICIOS" | "BIENES_3_COLS" | "BIENES_SIMPLE" | "SALUD_OCUPACIONAL" | "FICHAS_DINAMICAS" | "TABLA_DINAMICA",
+  "seccion3_introduccion_texto": "Texto introductorio previo a la tabla si existe...",
+  "columnas_tabla": ["ÍTEM", "DESCRIPCIÓN DE COMPONENTE", "CARACTERÍSTICAS / ESPECIFICACIÓN TÉCNICA MÍNIMA REQUERIDA", "PRODUCTO ENTREGABLE"],
+  "antecedentes_texto": "Texto exacto y completo de antecedentes...",
+  "justificacion_texto": "Texto exacto y completo de justificación...",
+  "calidad_texto": "Texto exacto de calidad...",
+  "ambito_aplicacion": "Texto exacto de ámbito de aplicación...",
+  "metodo_seleccion_texto": "Texto exacto de método de selección...",
+  "vigencia_propuesta_texto": "Texto exacto de vigencia de propuesta...",
+  "categoria_texto": "Texto exacto de categoría...",
+  "lugar_entrega": "Texto exacto de lugar de entrega...",
+  "tiempo_entrega_texto": "Texto exacto de tiempo/plazo de entrega...",
+  "forma_adjudicacion": "Texto exacto de forma de adjudicación...",
+  "aceptacion_lote": "Texto exacto de aceptación...",
+  "forma_pago_texto": "Texto exacto de forma de pago...",
+  "multas_texto": "Texto exacto de multas...",
   "puntos_14": {
     "1": "Texto exacto de antecedentes",
     "2": "Texto exacto de justificación / necesidad",
@@ -122,18 +165,19 @@ DEBES DEVOLVER ESTRICTAMENTE UN OBJETO JSON VÁLIDO con la siguiente estructura:
   "items": [
     {
       "item": 1,
-      "descripcion": "NOMBRE DEL ÍTEM EN MAYÚSCULAS",
+      "descripcion": "NOMBRE DEL ÍTEM O COMPONENTE EN MAYÚSCULAS",
       "cantidad": 1,
-      "unidad": "PZA" | "PAR" | "LOTE" | "ESTUDIO" | "JGO",
+      "unidad": "SRV" | "PZA" | "PAR" | "LOTE" | "ESTUDIO" | "GLB",
       "precioUnitarioEstimado": 0,
-      "caracteristicasTecnicas": "• Caña: ...\n• Puntera: ...\n• Protección Eléctrica: ...\n• Impermeabilidad: ...",
-      "especificacionMinima": "Mismas características o metodología requerida...",
+      "caracteristicasTecnicas": "Texto completo de especificaciones técnicas o alcance requerido...",
+      "especificacionMinima": "Texto completo de especificaciones...",
+      "productoEntregable": "Informe, documento o entregable requerido...",
       "propuestoOferente": "Cumple con las especificaciones técnicas requeridas"
     }
   ]
 }`;
 
-  let userContent: any = `Estructura este documento/texto para el proceso ${adquisicion.codigo} manteniendo fidelidad 100% literal:\n`;
+  let userContent: any = `Transfiere este documento/texto para el proceso ${adquisicion.codigo} a la plantilla oficial respetando COPIA FIEL 100% LITERAL (PROHIBIDO RESUMIR O PARAFRASEAR):\n`;
   if (input.nombreArchivo) userContent += `Archivo: ${input.nombreArchivo}\n`;
   if (input.documentText) userContent += `Texto provisto:\n${input.documentText}\n`;
   if (input.insumoTexto) userContent += `Instrucción:\n${input.insumoTexto}\n`;
@@ -155,40 +199,68 @@ DEBES DEVOLVER ESTRICTAMENTE UN OBJETO JSON VÁLIDO con la siguiente estructura:
     });
   }
 
-  const aiRaw = await callOpenCodeGo(messages, 0.1);
+  const aiRaw = await callOpenCodeGo(messages, 0.0);
 
   if (aiRaw) {
     try {
       const cleanJson = aiRaw.replace(/```json/gi, "").replace(/```/g, "").trim();
       const parsed = JSON.parse(cleanJson);
       if (parsed.items && Array.isArray(parsed.items) && parsed.items.length > 0) {
+        const mergedPuntos14 = {
+          ...(literalParsed?.puntos_detectados || {}),
+          ...(parsed.puntos_14 || {}),
+        };
+
         return {
-          titulo_proceso: parsed.titulo_proceso || literalParsed?.titulo_proceso || adquisicion.titulo_proceso,
-          antecedentes_texto: parsed.antecedentes_texto || parsed.puntos_14?.["1"] || literalParsed?.antecedentes_texto || adquisicion.antecedentes_texto,
-          justificacion_texto: parsed.justificacion_texto || parsed.puntos_14?.["2"] || literalParsed?.justificacion_texto || adquisicion.justificacion_texto,
-          tipo_tabla_sugerido: parsed.tipo_tabla_sugerido || literalParsed?.tipo_tabla_sugerido || adquisicion.tipo_tabla_tdr,
-          puntos_detectados: parsed.puntos_14 || literalParsed?.puntos_detectados || {},
-          items: parsed.items.map((it: any, idx: number) => ({
-            id: `item-ia-${Date.now()}-${idx}`,
-            item: it.item || idx + 1,
-            descripcion: (it.descripcion || `ÍTEM #${idx + 1}`).toUpperCase(),
-            cantidad: Number(it.cantidad) || 1,
-            unidad: (it.unidad || "PZA").toUpperCase(),
-            precioUnitarioEstimado: Number(it.precioUnitarioEstimado) || 0,
-            precioTotalEstimado: (Number(it.cantidad) || 1) * (Number(it.precioUnitarioEstimado) || 0),
-            caracteristicasTecnicas: it.caracteristicasTecnicas || it.especificacionMinima || "",
-            especificacionMinima: it.especificacionMinima || it.caracteristicasTecnicas || "",
-            propuestoOferente: it.propuestoOferente || "Cumple según especificaciones",
-            fichaTecnica: {
-              uso: it.fichaTecnica?.uso || "Personal Institucional",
-              normaCertificacion: it.fichaTecnica?.normaCertificacion || "Norma Técnica Aplicable",
-              material: it.fichaTecnica?.material || "Según especificación técnica",
-              color: it.fichaTecnica?.color || "Estándar",
-              dimensiones: it.fichaTecnica?.dimensiones || "Estándar",
-              categoriaItem: it.fichaTecnica?.categoriaItem || "Suministros Oficiales",
-              caracteristicasDetalle: it.caracteristicasTecnicas ? [it.caracteristicasTecnicas] : ["Conforme a especificaciones"],
-            },
-          })),
+          titulo_proceso: literalParsed?.titulo_proceso || parsed.titulo_proceso || adquisicion.titulo_proceso,
+          antecedentes_texto: literalParsed?.antecedentes_texto || parsed.antecedentes_texto || parsed.puntos_14?.["1"] || adquisicion.antecedentes_texto,
+          justificacion_texto: literalParsed?.justificacion_texto || parsed.justificacion_texto || parsed.puntos_14?.["2"] || adquisicion.justificacion_texto,
+          calidad_texto: literalParsed?.calidad_texto || parsed.calidad_texto || parsed.puntos_14?.["4"] || adquisicion.calidad_texto,
+          ambito_aplicacion: literalParsed?.ambito_aplicacion || parsed.ambito_aplicacion || parsed.puntos_14?.["5"] || adquisicion.ambito_aplicacion,
+          metodo_seleccion_texto: literalParsed?.metodo_seleccion_texto || parsed.metodo_seleccion_texto || parsed.puntos_14?.["6"] || adquisicion.metodo_seleccion_texto,
+          vigencia_propuesta_texto: literalParsed?.vigencia_propuesta_texto || parsed.vigencia_propuesta_texto || parsed.puntos_14?.["7"] || adquisicion.vigencia_propuesta_texto,
+          categoria_texto: literalParsed?.categoria_texto || parsed.categoria_texto || parsed.puntos_14?.["8"] || adquisicion.categoria_texto,
+          lugar_entrega: literalParsed?.lugar_entrega || parsed.lugar_entrega || parsed.puntos_14?.["9"] || adquisicion.lugar_entrega,
+          tiempo_entrega_texto: literalParsed?.tiempo_entrega_texto || parsed.tiempo_entrega_texto || parsed.puntos_14?.["10"] || adquisicion.tiempo_entrega_texto,
+          forma_adjudicacion: literalParsed?.forma_adjudicacion || parsed.forma_adjudicacion || parsed.puntos_14?.["11"] || adquisicion.forma_adjudicacion,
+          aceptacion_lote: literalParsed?.aceptacion_lote || parsed.aceptacion_lote || parsed.puntos_14?.["12"] || adquisicion.aceptacion_lote,
+          forma_pago_texto: literalParsed?.forma_pago_texto || parsed.forma_pago_texto || parsed.puntos_14?.["13"] || adquisicion.forma_pago_texto,
+          multas_texto: literalParsed?.multas_texto || parsed.multas_texto || parsed.puntos_14?.["14"] || adquisicion.multas_texto,
+          seccion3_introduccion_texto: literalParsed?.seccion3_introduccion_texto || parsed.seccion3_introduccion_texto || adquisicion.seccion3_introduccion_texto,
+          tipo_tabla_sugerido: literalParsed?.tipo_tabla_sugerido || parsed.tipo_tabla_sugerido || adquisicion.tipo_tabla_tdr,
+          columnas_tabla_tdr: literalParsed?.columnas_tabla_tdr || parsed.columnas_tabla || adquisicion.columnas_tabla_tdr,
+          puntos_detectados: mergedPuntos14,
+          puntos_14_texto: mergedPuntos14,
+          items: literalParsed?.items && literalParsed.items.length > 0
+            ? literalParsed.items
+            : parsed.items.map((it: any, idx: number) => ({
+                id: `item-ia-${Date.now()}-${idx}`,
+                item: it.item || idx + 1,
+                descripcion: (it.descripcion || `ÍTEM #${idx + 1}`).toUpperCase(),
+                cantidad: Number(it.cantidad) || 1,
+                unidad: (it.unidad || (parsed.tipo_tabla_sugerido === "MATRIZ_SERVICIOS" ? "SRV" : "PZA")).toUpperCase(),
+                precioUnitarioEstimado: Number(it.precioUnitarioEstimado) || 0,
+                precioTotalEstimado: (Number(it.cantidad) || 1) * (Number(it.precioUnitarioEstimado) || 0),
+                caracteristicasTecnicas: it.caracteristicasTecnicas || it.especificacionMinima || "",
+                especificacionMinima: it.especificacionMinima || it.caracteristicasTecnicas || "",
+                productoEntregable: it.productoEntregable || it.propuestoOferente || "",
+                propuestoOferente: it.propuestoOferente || it.productoEntregable || "Cumple según especificaciones",
+                valores_columnas: it.valores_columnas || [
+                  String(it.item || idx + 1),
+                  it.descripcion || "",
+                  it.caracteristicasTecnicas || "",
+                  it.productoEntregable || ""
+                ],
+                fichaTecnica: {
+                  uso: it.fichaTecnica?.uso || (parsed.tipo_tabla_sugerido === "MATRIZ_SERVICIOS" ? "Servicios Especializados" : "Personal Institucional"),
+                  normaCertificacion: it.fichaTecnica?.normaCertificacion || "Norma Técnica Aplicable y Homologación",
+                  material: it.fichaTecnica?.material || "Según especificación técnica y entregables",
+                  color: it.fichaTecnica?.color || "Estándar",
+                  dimensiones: it.fichaTecnica?.dimensiones || "Estándar",
+                  categoriaItem: it.fichaTecnica?.categoriaItem || (parsed.tipo_tabla_sugerido === "MATRIZ_SERVICIOS" ? "Servicios Especializados" : "Suministros Oficiales"),
+                  caracteristicasDetalle: it.caracteristicasTecnicas ? [it.caracteristicasTecnicas] : ["Conforme a especificaciones"],
+                },
+              })),
         };
       }
     } catch (e) {
@@ -202,7 +274,22 @@ DEBES DEVOLVER ESTRICTAMENTE UN OBJETO JSON VÁLIDO con la siguiente estructura:
       titulo_proceso: literalParsed.titulo_proceso || adquisicion.titulo_proceso,
       antecedentes_texto: literalParsed.antecedentes_texto || adquisicion.antecedentes_texto,
       justificacion_texto: literalParsed.justificacion_texto || adquisicion.justificacion_texto,
+      calidad_texto: literalParsed.calidad_texto || adquisicion.calidad_texto,
+      ambito_aplicacion: literalParsed.ambito_aplicacion || adquisicion.ambito_aplicacion,
+      metodo_seleccion_texto: literalParsed.metodo_seleccion_texto || adquisicion.metodo_seleccion_texto,
+      vigencia_propuesta_texto: literalParsed.vigencia_propuesta_texto || adquisicion.vigencia_propuesta_texto,
+      categoria_texto: literalParsed.categoria_texto || adquisicion.categoria_texto,
+      lugar_entrega: literalParsed.lugar_entrega || adquisicion.lugar_entrega,
+      tiempo_entrega_texto: literalParsed.tiempo_entrega_texto || adquisicion.tiempo_entrega_texto,
+      forma_adjudicacion: literalParsed.forma_adjudicacion || adquisicion.forma_adjudicacion,
+      aceptacion_lote: literalParsed.aceptacion_lote || adquisicion.aceptacion_lote,
+      forma_pago_texto: literalParsed.forma_pago_texto || adquisicion.forma_pago_texto,
+      multas_texto: literalParsed.multas_texto || adquisicion.multas_texto,
+      seccion3_introduccion_texto: literalParsed.seccion3_introduccion_texto || adquisicion.seccion3_introduccion_texto,
       tipo_tabla_sugerido: literalParsed.tipo_tabla_sugerido || adquisicion.tipo_tabla_tdr,
+      columnas_tabla_tdr: literalParsed.columnas_tabla_tdr || adquisicion.columnas_tabla_tdr,
+      puntos_detectados: literalParsed.puntos_detectados || {},
+      puntos_14_texto: literalParsed.puntos_14_texto || literalParsed.puntos_detectados || {},
       items: literalParsed.items.length > 0 ? literalParsed.items : adquisicion.items,
     };
   }
@@ -212,7 +299,21 @@ DEBES DEVOLVER ESTRICTAMENTE UN OBJETO JSON VÁLIDO con la siguiente estructura:
     titulo_proceso: adquisicion.titulo_proceso,
     antecedentes_texto: adquisicion.antecedentes_texto,
     justificacion_texto: adquisicion.justificacion_texto,
+    calidad_texto: adquisicion.calidad_texto,
+    ambito_aplicacion: adquisicion.ambito_aplicacion,
+    metodo_seleccion_texto: adquisicion.metodo_seleccion_texto,
+    vigencia_propuesta_texto: adquisicion.vigencia_propuesta_texto,
+    categoria_texto: adquisicion.categoria_texto,
+    lugar_entrega: adquisicion.lugar_entrega,
+    tiempo_entrega_texto: adquisicion.tiempo_entrega_texto,
+    forma_adjudicacion: adquisicion.forma_adjudicacion,
+    aceptacion_lote: adquisicion.aceptacion_lote,
+    forma_pago_texto: adquisicion.forma_pago_texto,
+    multas_texto: adquisicion.multas_texto,
+    seccion3_introduccion_texto: adquisicion.seccion3_introduccion_texto,
     tipo_tabla_sugerido: adquisicion.tipo_tabla_tdr || "BIENES_SIMPLE",
+    columnas_tabla_tdr: adquisicion.columnas_tabla_tdr,
+    puntos_14_texto: adquisicion.puntos_14_texto,
     items: adquisicion.items,
   };
 }

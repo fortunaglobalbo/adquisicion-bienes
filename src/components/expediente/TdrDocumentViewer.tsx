@@ -187,12 +187,31 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
       const parsedData = result.data || directParsed;
       if (parsedData) {
         const detectedTabla = directParsed?.tipo_tabla_sugerido || parsedData.tipo_tabla_sugerido || tipoTablaTdr;
+        const detectedPuntos = directParsed?.puntos_14_texto || directParsed?.puntos_detectados || parsedData?.puntos_14_texto || parsedData?.puntos_detectados || {};
+
         const updated: Adquisicion = {
           ...docData,
           tipo_tabla_tdr: detectedTabla,
           titulo_proceso: directParsed?.titulo_proceso || parsedData.titulo_proceso || docData.titulo_proceso,
-          antecedentes_texto: directParsed?.antecedentes_texto || parsedData.antecedentes_texto || docData.antecedentes_texto,
-          justificacion_texto: directParsed?.justificacion_texto || parsedData.justificacion_texto || docData.justificacion_texto,
+          elaborado_por: directParsed?.elaborado_por || docData.elaborado_por,
+          revisado_por: directParsed?.revisado_por || docData.revisado_por,
+          aprobado_por: directParsed?.aprobado_por || docData.aprobado_por,
+          antecedentes_texto: directParsed?.antecedentes_texto || parsedData.antecedentes_texto || detectedPuntos[1] || docData.antecedentes_texto,
+          justificacion_texto: directParsed?.justificacion_texto || parsedData.justificacion_texto || detectedPuntos[2] || docData.justificacion_texto,
+          calidad_texto: directParsed?.calidad_texto || parsedData.calidad_texto || detectedPuntos[4] || docData.calidad_texto,
+          ambito_aplicacion: directParsed?.ambito_aplicacion || parsedData.ambito_aplicacion || detectedPuntos[5] || docData.ambito_aplicacion,
+          metodo_seleccion_texto: directParsed?.metodo_seleccion_texto || parsedData.metodo_seleccion_texto || detectedPuntos[6] || docData.metodo_seleccion_texto,
+          vigencia_propuesta_texto: directParsed?.vigencia_propuesta_texto || parsedData.vigencia_propuesta_texto || detectedPuntos[7] || docData.vigencia_propuesta_texto,
+          categoria_texto: directParsed?.categoria_texto || parsedData.categoria_texto || detectedPuntos[8] || docData.categoria_texto,
+          lugar_entrega: directParsed?.lugar_entrega || parsedData.lugar_entrega || detectedPuntos[9] || docData.lugar_entrega,
+          tiempo_entrega_texto: directParsed?.tiempo_entrega_texto || parsedData.tiempo_entrega_texto || detectedPuntos[10] || docData.tiempo_entrega_texto,
+          forma_adjudicacion: directParsed?.forma_adjudicacion || parsedData.forma_adjudicacion || detectedPuntos[11] || docData.forma_adjudicacion,
+          aceptacion_lote: directParsed?.aceptacion_lote || parsedData.aceptacion_lote || detectedPuntos[12] || docData.aceptacion_lote,
+          forma_pago_texto: directParsed?.forma_pago_texto || parsedData.forma_pago_texto || detectedPuntos[13] || docData.forma_pago_texto,
+          multas_texto: directParsed?.multas_texto || parsedData.multas_texto || detectedPuntos[14] || docData.multas_texto,
+          puntos_14_texto: Object.keys(detectedPuntos).length > 0 ? detectedPuntos : docData.puntos_14_texto,
+          seccion3_introduccion_texto: directParsed?.seccion3_introduccion_texto || parsedData.seccion3_introduccion_texto || docData.seccion3_introduccion_texto,
+          columnas_tabla_tdr: directParsed?.columnas_tabla_tdr || parsedData.columnas_tabla_tdr || docData.columnas_tabla_tdr,
           categoria: (parsedData.categoria_detectada as any) || docData.categoria,
           items: directParsed?.items && directParsed.items.length > 0
             ? directParsed.items
@@ -209,30 +228,27 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
 
         setTipoTablaTdr(detectedTabla);
 
-        // Actualizar todos los 14 puntos inmediatamente en pantalla y en updated
-        if (directParsed?.puntos_detectados) {
-          setPuntosOficiales((prev) =>
-            prev.map((p) => {
-              const detected = directParsed.puntos_detectados[p.num];
-              if (detected) return { ...p, contenido: detected };
-              if (p.num === 1 && updated.antecedentes_texto) return { ...p, contenido: updated.antecedentes_texto };
-              if (p.num === 2 && updated.justificacion_texto) return { ...p, contenido: updated.justificacion_texto };
-              return p;
-            })
-          );
-
-          if (directParsed.puntos_detectados[4]) updated.calidad_texto = directParsed.puntos_detectados[4];
-          if (directParsed.puntos_detectados[9]) updated.lugar_entrega = directParsed.puntos_detectados[9];
-          if (directParsed.puntos_detectados[13]) updated.forma_pago_texto = directParsed.puntos_detectados[13];
-        } else if (updated.antecedentes_texto || updated.justificacion_texto) {
-          setPuntosOficiales((prev) =>
-            prev.map((p) => {
-              if (p.num === 1 && updated.antecedentes_texto) return { ...p, contenido: updated.antecedentes_texto };
-              if (p.num === 2 && updated.justificacion_texto) return { ...p, contenido: updated.justificacion_texto };
-              return p;
-            })
-          );
-        }
+        // Actualizar todos los 14 puntos inmediatamente en pantalla con COPIA FIEL 100%
+        setPuntosOficiales((prev) =>
+          prev.map((p) => {
+            const detected = detectedPuntos[p.num];
+            if (detected) return { ...p, contenido: detected };
+            if (p.num === 1 && updated.antecedentes_texto) return { ...p, contenido: updated.antecedentes_texto };
+            if (p.num === 2 && updated.justificacion_texto) return { ...p, contenido: updated.justificacion_texto };
+            if (p.num === 4 && updated.calidad_texto) return { ...p, contenido: updated.calidad_texto };
+            if (p.num === 5 && updated.ambito_aplicacion) return { ...p, contenido: updated.ambito_aplicacion };
+            if (p.num === 6 && updated.metodo_seleccion_texto) return { ...p, contenido: updated.metodo_seleccion_texto };
+            if (p.num === 7 && updated.vigencia_propuesta_texto) return { ...p, contenido: updated.vigencia_propuesta_texto };
+            if (p.num === 8 && updated.categoria_texto) return { ...p, contenido: updated.categoria_texto };
+            if (p.num === 9 && updated.lugar_entrega) return { ...p, contenido: updated.lugar_entrega };
+            if (p.num === 10 && updated.tiempo_entrega_texto) return { ...p, contenido: updated.tiempo_entrega_texto };
+            if (p.num === 11 && updated.forma_adjudicacion) return { ...p, contenido: updated.forma_adjudicacion };
+            if (p.num === 12 && updated.aceptacion_lote) return { ...p, contenido: updated.aceptacion_lote };
+            if (p.num === 13 && updated.forma_pago_texto) return { ...p, contenido: updated.forma_pago_texto };
+            if (p.num === 14 && updated.multas_texto) return { ...p, contenido: updated.multas_texto };
+            return p;
+          })
+        );
 
         // Auto-cascada para Carpetas 5 y 6 al generar Carpeta 1
         updated.solicitud_inicio_objeto = `SOLICITUD DE INICIO DEL PROCESO DE COMPRA "${(updated.titulo_proceso || "").toUpperCase()}"`;
@@ -339,54 +355,60 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
   // 14 Puntos Oficiales de ENDE Deoruro S.A.
   const isSaludDomain = ((docData.categoria as any) === "Salud Ocupacional") || docData.titulo_proceso.toLowerCase().includes("oftalmo") || docData.titulo_proceso.toLowerCase().includes("laboratorio");
 
+  const getDocPointContent = (num: number): string | undefined => {
+    if (docData.puntos_14_texto?.[num]) return docData.puntos_14_texto[num];
+    if (num === 1 && docData.antecedentes_texto) return docData.antecedentes_texto;
+    if (num === 2 && docData.justificacion_texto) return docData.justificacion_texto;
+    if (num === 4 && docData.calidad_texto) return docData.calidad_texto;
+    if (num === 5 && docData.ambito_aplicacion) return docData.ambito_aplicacion;
+    if (num === 6 && docData.metodo_seleccion_texto) return docData.metodo_seleccion_texto;
+    if (num === 7 && docData.vigencia_propuesta_texto) return docData.vigencia_propuesta_texto;
+    if (num === 8 && docData.categoria_texto) return docData.categoria_texto;
+    if (num === 9 && docData.lugar_entrega) return docData.lugar_entrega;
+    if (num === 10 && docData.tiempo_entrega_texto) return docData.tiempo_entrega_texto;
+    if (num === 11 && docData.forma_adjudicacion) return docData.forma_adjudicacion;
+    if (num === 12 && docData.aceptacion_lote) return docData.aceptacion_lote;
+    if (num === 13 && docData.forma_pago_texto) return docData.forma_pago_texto;
+    if (num === 14 && docData.multas_texto) return docData.multas_texto;
+    return undefined;
+  };
+
   const [puntosOficiales, setPuntosOficiales] = useState([
     {
       num: 1,
       titulo: "ANTECEDENTES",
-      contenido: docData.antecedentes_texto || "De acuerdo a la legislación vigente, normas y políticas internas se inicia el presente proceso de adquisición/contratación para el cumplimiento de los objetivos operativos e institucionales de la Distribuidora de Electricidad ENDE DEORURO S.A.",
+      contenido: getDocPointContent(1) || "De acuerdo a la legislación vigente, normas y políticas internas se inicia el presente proceso de adquisición/contratación para el cumplimiento de los objetivos operativos e institucionales de la Distribuidora de Electricidad ENDE DEORURO S.A.",
     },
     {
       num: 2,
       titulo: "JUSTIFICACIÓN / NECESIDAD",
-      contenido: docData.justificacion_texto || "La presente contratación se justifica en la necesidad operativa de contar oportunamente con los bienes y servicios requeridos para el adecuado funcionamiento de las áreas de ENDE DEORURO S.A.",
+      contenido: getDocPointContent(2) || "La presente contratación se justifica en la necesidad operativa de contar oportunamente con los bienes y servicios requeridos para el adecuado funcionamiento de las áreas de ENDE DEORURO S.A.",
     },
     { num: 3, titulo: "ESPECIFICACION TECNICA", contenido: "Detalle técnico y especificaciones de los requerimientos:" },
-    { num: 4, titulo: "CALIDAD", contenido: docData.calidad_texto || (isSaludDomain ? "El proponente o laboratorio debe cumplir con los estándares de calidad y credenciales sanitarias vigentes ante las autoridades competentes." : "Los bienes deberán ser nuevos, de primer uso y fabricados bajo normas de calidad aplicables, con garantía oficial.") },
-    { num: 5, titulo: "ÁMBITO DE APLICACIÓN", contenido: "Personal institucional y áreas operativas/administrativas de la Distribuidora de Electricidad ENDE DEORURO S.A." },
-    { num: 6, titulo: "MÉTODO DE SELECCIÓN", contenido: "Menor Precio (Art. 31 del Reglamento SBC)." },
-    { num: 7, titulo: "VIGENCIA DE LA PROPUESTA", contenido: "Tendrá una validez mínima de 30 días calendario computables a partir de la fecha de presentación de la propuesta." },
-    { num: 8, titulo: "CATEGORÍA", contenido: isSaludDomain ? "Salud Ocupacional y Medicina del Trabajo." : "Bienes y Suministros Oficiales." },
-    { num: 9, titulo: "LUGAR DE ENTREGA", contenido: docData.lugar_entrega || "Instalaciones / Almacén de ENDE DEORURO S.A., Oruro - Bolivia." },
-    { num: 10, titulo: "TIEMPO DE ENTREGA", contenido: `Máximo ${docData.plazo_entrega_dias || 30} días calendario computables a partir del día siguiente hábil de la recepción de la Orden de Compra.` },
-    { num: 11, titulo: "FORMA DE ADJUDICACIÓN", contenido: "Por Ítem requerido, formalizada por Orden de Compra (Art. 31 SBC)." },
-    { num: 12, titulo: "PARA LA ACEPTACIÓN DEL LOTE / SERVICIO", contenido: "El personal técnico de ENDE DEORURO realizará una evaluación técnica de conformidad el día de la entrega." },
-    { num: 13, titulo: "FORMA DE PAGO", contenido: docData.forma_pago_texto || "El pago se realizará contra entrega satisfactoria del producto o servicio, conformidad emitida por ENDE DEORURO S.A. y entrega de la siguiente documentación: Nota de Entrega / Conformidad, Solicitud de Pago y Factura oficial." },
-    { num: 14, titulo: "APLICACIÓN DE MULTAS", contenido: `Ante el incumplimiento de los plazos y otras condiciones establecidas en la Orden de Compra y Especificaciones Técnicas, se aplicará la multa del ${docData.multa_diaria_porcentaje || 0.25}% por cada día de retraso injustificado.` },
+    { num: 4, titulo: "CALIDAD", contenido: getDocPointContent(4) || (isSaludDomain ? "El proponente o laboratorio debe cumplir con los estándares de calidad y credenciales sanitarias vigentes ante las autoridades competentes." : "Los bienes deberán ser nuevos, de primer uso y fabricados bajo normas de calidad aplicables, con garantía oficial.") },
+    { num: 5, titulo: "ÁMBITO DE APLICACIÓN", contenido: getDocPointContent(5) || "Personal institucional y áreas operativas/administrativas de la Distribuidora de Electricidad ENDE DEORURO S.A." },
+    { num: 6, titulo: "MÉTODO DE SELECCIÓN", contenido: getDocPointContent(6) || "Menor Precio (Art. 31 del Reglamento SBC)." },
+    { num: 7, titulo: "VIGENCIA DE LA PROPUESTA", contenido: getDocPointContent(7) || "Tendrá una validez mínima de 30 días calendario computables a partir de la fecha de presentación de la propuesta." },
+    { num: 8, titulo: "CATEGORÍA", contenido: getDocPointContent(8) || (isSaludDomain ? "Salud Ocupacional y Medicina del Trabajo." : "Bienes y Suministros Oficiales.") },
+    { num: 9, titulo: "LUGAR DE ENTREGA", contenido: getDocPointContent(9) || "Instalaciones / Almacén de ENDE DEORURO S.A., Oruro - Bolivia." },
+    { num: 10, titulo: "TIEMPO DE ENTREGA", contenido: getDocPointContent(10) || `Máximo ${docData.plazo_entrega_dias || 30} días calendario computables a partir del día siguiente hábil de la recepción de la Orden de Compra.` },
+    { num: 11, titulo: "FORMA DE ADJUDICACIÓN", contenido: getDocPointContent(11) || "Por Ítem requerido, formalizada por Orden de Compra (Art. 31 SBC)." },
+    { num: 12, titulo: "PARA LA ACEPTACIÓN DEL LOTE / SERVICIO", contenido: getDocPointContent(12) || "El personal técnico de ENDE DEORURO realizará una evaluación técnica de conformidad el día de la entrega." },
+    { num: 13, titulo: "FORMA DE PAGO", contenido: getDocPointContent(13) || "El pago se realizará contra entrega satisfactoria del producto o servicio, conformidad emitida por ENDE DEORURO S.A. y entrega de la siguiente documentación: Nota de Entrega / Conformidad, Solicitud de Pago y Factura oficial." },
+    { num: 14, titulo: "APLICACIÓN DE MULTAS", contenido: getDocPointContent(14) || `Ante el incumplimiento de los plazos y otras condiciones establecidas en la Orden de Compra y Especificaciones Técnicas, se aplicará la multa del ${docData.multa_diaria_porcentaje || 0.25}% por cada día de retraso injustificado.` },
   ]);
 
-  // Sincronizar respetando: Si la plantilla oficial tiene contenido personalizado se respeta; sino copia fiel del markdown
+  // Sincronizar: Si el documento tiene contenido literal se prioriza al 100%
   useEffect(() => {
     const tplSecs = activeTemplate?.secciones_prompt || tplData.seccionesPrompt || [];
     setPuntosOficiales((prev) =>
       prev.map((p) => {
+        const userContent = getDocPointContent(p.num);
+        if (userContent) {
+          return { ...p, contenido: userContent };
+        }
         const matchingTpl = tplSecs.find((s: any) => s.numero === p.num);
         const tplContent = matchingTpl?.contenido_default?.trim();
-
-        if (p.num === 1) {
-          return { ...p, contenido: docData.antecedentes_texto || tplContent || p.contenido };
-        }
-        if (p.num === 2) {
-          return { ...p, contenido: docData.justificacion_texto || tplContent || p.contenido };
-        }
-        if (p.num === 4 && docData.calidad_texto) {
-          return { ...p, contenido: docData.calidad_texto };
-        }
-        if (p.num === 9 && docData.lugar_entrega) {
-          return { ...p, contenido: docData.lugar_entrega };
-        }
-        if (p.num === 13 && docData.forma_pago_texto) {
-          return { ...p, contenido: docData.forma_pago_texto };
-        }
         return {
           ...p,
           titulo: matchingTpl?.titulo || p.titulo,
@@ -394,13 +416,49 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
         };
       })
     );
-  }, [activeTemplate, docData.antecedentes_texto, docData.justificacion_texto, docData.calidad_texto, docData.lugar_entrega, docData.forma_pago_texto]);
+  }, [
+    activeTemplate,
+    docData.antecedentes_texto,
+    docData.justificacion_texto,
+    docData.calidad_texto,
+    docData.ambito_aplicacion,
+    docData.metodo_seleccion_texto,
+    docData.vigencia_propuesta_texto,
+    docData.categoria_texto,
+    docData.lugar_entrega,
+    docData.tiempo_entrega_texto,
+    docData.forma_adjudicacion,
+    docData.aceptacion_lote,
+    docData.forma_pago_texto,
+    docData.multas_texto,
+    docData.puntos_14_texto,
+  ]);
 
   // Actualizar contenido de un punto
   const handlePuntoChange = (num: number, field: "titulo" | "contenido", val: string) => {
     setPuntosOficiales((prev) =>
       prev.map((p) => (p.num === num ? { ...p, [field]: val } : p))
     );
+    if (field === "contenido") {
+      setDocData((prev) => {
+        const nextPuntos = { ...(prev.puntos_14_texto || {}), [num]: val };
+        const updated: any = { ...prev, puntos_14_texto: nextPuntos };
+        if (num === 1) updated.antecedentes_texto = val;
+        if (num === 2) updated.justificacion_texto = val;
+        if (num === 4) updated.calidad_texto = val;
+        if (num === 5) updated.ambito_aplicacion = val;
+        if (num === 6) updated.metodo_seleccion_texto = val;
+        if (num === 7) updated.vigencia_propuesta_texto = val;
+        if (num === 8) updated.categoria_texto = val;
+        if (num === 9) updated.lugar_entrega = val;
+        if (num === 10) updated.tiempo_entrega_texto = val;
+        if (num === 11) updated.forma_adjudicacion = val;
+        if (num === 12) updated.aceptacion_lote = val;
+        if (num === 13) updated.forma_pago_texto = val;
+        if (num === 14) updated.multas_texto = val;
+        return updated;
+      });
+    }
   };
 
   const items = docData.items || [];
@@ -793,6 +851,20 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
                   <button
                     type="button"
                     onClick={() => {
+                      setTipoTablaTdr("MATRIZ_SERVICIOS");
+                      handleTextChange("tipo_tabla_tdr", "MATRIZ_SERVICIOS");
+                    }}
+                    className={`px-2.5 py-1 rounded text-xs font-bold font-mono transition-all ${
+                      tipoTablaTdr === "MATRIZ_SERVICIOS"
+                        ? "bg-primary text-white shadow-sm ring-1 ring-primary"
+                        : "bg-white text-on-surface-variant hover:bg-surface-container-high border border-outline-variant"
+                    }`}
+                  >
+                    📋 Matriz de Servicios (4 Cols: Ítem | Componente | Especificación | Entregable)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
                       setTipoTablaTdr("BIENES_3_COLS");
                       handleTextChange("tipo_tabla_tdr", "BIENES_3_COLS");
                     }}
@@ -830,7 +902,21 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
                         : "bg-white text-on-surface-variant hover:bg-surface-container-high border border-outline-variant"
                     }`}
                   >
-                    🩺 Tabla Salud / Laboratorio (Examen, Metodología y Propuesto)
+                    🩺 Tabla Salud / Laboratorio
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTipoTablaTdr("TABLA_DINAMICA");
+                      handleTextChange("tipo_tabla_tdr", "TABLA_DINAMICA");
+                    }}
+                    className={`px-2.5 py-1 rounded text-xs font-bold font-mono transition-all ${
+                      tipoTablaTdr === "TABLA_DINAMICA"
+                        ? "bg-primary text-white shadow-sm ring-1 ring-primary"
+                        : "bg-white text-on-surface-variant hover:bg-surface-container-high border border-outline-variant"
+                    }`}
+                  >
+                    ⚡ Tabla Dinámica
                   </button>
                   <button
                     type="button"
@@ -844,12 +930,159 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
                         : "bg-white text-on-surface-variant hover:bg-surface-container-high border border-outline-variant"
                     }`}
                   >
-                    📑 Fichas Técnicas Individuales
+                    📑 Fichas Técnicas
                   </button>
                 </div>
               </div>
 
+              {/* Párrafo Introductorio de Sección 3 si existe */}
+              <div className="text-xs text-gray-700 leading-relaxed bg-blue-50/30 p-2 border border-blue-100 rounded">
+                <div className="text-[10px] font-bold text-primary mb-1 uppercase tracking-wide">
+                  Instrucción / Estructuración de la Propuesta Técnica:
+                </div>
+                <div
+                  contentEditable
+                  suppressContentEditableWarning
+                  onBlur={(e) => handleTextChange("seccion3_introduccion_texto", e.currentTarget.textContent || "")}
+                  className="focus:bg-white focus:outline-none p-1 rounded hover:bg-white border border-transparent focus:border-blue-300 font-sans"
+                >
+                  {docData.seccion3_introduccion_texto || "El proponente debe estructurar su propuesta técnica en base a los siguientes componentes obligatorios:"}
+                </div>
+              </div>
+
               {/* RENDERIZADO SEGÚN EL TIPO DE TABLA SELECCIONADO */}
+
+              {/* 0. MATRIZ DE SERVICIOS ESPECIALIZADOS / 4 COLUMNAS */}
+              {tipoTablaTdr === "MATRIZ_SERVICIOS" && (
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse border border-gray-400 text-xs text-left">
+                    <thead>
+                      <tr className="bg-gray-100 font-bold uppercase text-gray-900 border-b border-gray-400">
+                        <th className="border border-gray-400 p-2 text-center w-12">ÍTEM</th>
+                        <th className="border border-gray-400 p-2 w-1/4">DESCRIPCIÓN DE COMPONENTE / SERVICIO</th>
+                        <th className="border border-gray-400 p-2 w-2/5">CARACTERÍSTICAS / ESPECIFICACIÓN TÉCNICA MÍNIMA REQUERIDA</th>
+                        <th className="border border-gray-400 p-2 w-1/4">PRODUCTO ENTREGABLE</th>
+                        <th className="border border-gray-400 p-1 text-center w-14 no-print">ACCIÓN</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map((item) => (
+                        <tr key={item.id} className="hover:bg-blue-50/20 border-b border-gray-300">
+                          <td className="border border-gray-400 p-2 font-mono font-bold text-center bg-gray-50/50">
+                            {item.item}
+                          </td>
+                          <td className="border border-gray-400 p-2 font-bold text-primary">
+                            <div
+                              contentEditable
+                              suppressContentEditableWarning
+                              onBlur={(e) => handleItemTextChange(item.id, "descripcion", e.currentTarget.textContent || "")}
+                              className="focus:bg-white focus:outline-none p-1 rounded hover:bg-blue-50/50"
+                            >
+                              {item.descripcion}
+                            </div>
+                          </td>
+                          <td className="border border-gray-400 p-2 text-gray-800 leading-relaxed">
+                            <div
+                              contentEditable
+                              suppressContentEditableWarning
+                              onBlur={(e) => handleItemTextChange(item.id, "caracteristicasTecnicas", e.currentTarget.textContent || "")}
+                              className="focus:bg-white focus:outline-none p-1 rounded hover:bg-blue-50/50 whitespace-pre-wrap"
+                            >
+                              {item.caracteristicasTecnicas || item.especificacionMinima || "Especificaciones técnicas y alcance requerido por ENDE Deoruro S.A."}
+                            </div>
+                          </td>
+                          <td className="border border-gray-400 p-2 text-gray-800 leading-relaxed bg-gray-50/30">
+                            <div
+                              contentEditable
+                              suppressContentEditableWarning
+                              onBlur={(e) => handleItemTextChange(item.id, "productoEntregable", e.currentTarget.textContent || "")}
+                              className="focus:bg-white focus:outline-none p-1 rounded hover:bg-blue-50/50 whitespace-pre-wrap"
+                            >
+                              {item.productoEntregable || item.propuestoOferente || "Informe final y producto entregable oficial"}
+                            </div>
+                          </td>
+                          <td className="border border-gray-400 p-1 text-center no-print">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveItem(item.id)}
+                              className="text-red-500 hover:text-red-700 p-1"
+                              title="Eliminar ítem"
+                            >
+                              <Trash2 className="w-4 h-4 mx-auto" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* 0.B TABLA DINÁMICA PERSONALIZADA */}
+              {tipoTablaTdr === "TABLA_DINAMICA" && (
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse border border-gray-400 text-xs text-left">
+                    <thead>
+                      <tr className="bg-gray-100 font-bold uppercase text-gray-900 border-b border-gray-400">
+                        {(docData.columnas_tabla_tdr || ["ÍTEM", "DESCRIPCIÓN", "ESPECIFICACIONES", "ENTREGABLE"]).map((col, cIdx) => (
+                          <th key={cIdx} className={`border border-gray-400 p-2 ${cIdx === 0 ? "text-center w-12" : ""}`}>
+                            {col}
+                          </th>
+                        ))}
+                        <th className="border border-gray-400 p-1 text-center w-14 no-print">ACCIÓN</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map((item) => {
+                        const cols = docData.columnas_tabla_tdr || ["ÍTEM", "DESCRIPCIÓN", "ESPECIFICACIONES", "ENTREGABLE"];
+                        const vals = item.valores_columnas && item.valores_columnas.length === cols.length
+                          ? item.valores_columnas
+                          : [String(item.item), item.descripcion, item.caracteristicasTecnicas || "", item.productoEntregable || ""];
+
+                        return (
+                          <tr key={item.id} className="hover:bg-blue-50/20 border-b border-gray-300">
+                            {cols.map((_, cIdx) => (
+                              <td
+                                key={cIdx}
+                                className={`border border-gray-400 p-2 ${
+                                  cIdx === 0 ? "font-mono font-bold text-center bg-gray-50/50" : cIdx === 1 ? "font-bold text-primary" : "text-gray-800"
+                                }`}
+                              >
+                                <div
+                                  contentEditable
+                                  suppressContentEditableWarning
+                                  onBlur={(e) => {
+                                    const newText = e.currentTarget.textContent || "";
+                                    const updatedVals = [...vals];
+                                    updatedVals[cIdx] = newText;
+                                    handleItemTextChange(item.id, "valores_columnas" as any, updatedVals);
+                                    if (cIdx === 1) handleItemTextChange(item.id, "descripcion", newText);
+                                    if (cIdx === 2) handleItemTextChange(item.id, "caracteristicasTecnicas", newText);
+                                    if (cIdx === 3) handleItemTextChange(item.id, "productoEntregable", newText);
+                                  }}
+                                  className="focus:bg-white focus:outline-none p-1 rounded hover:bg-blue-50/50 whitespace-pre-wrap"
+                                >
+                                  {vals[cIdx] || ""}
+                                </div>
+                              </td>
+                            ))}
+                            <td className="border border-gray-400 p-1 text-center no-print">
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveItem(item.id)}
+                                className="text-red-500 hover:text-red-700 p-1"
+                                title="Eliminar ítem"
+                              >
+                                <Trash2 className="w-4 h-4 mx-auto" />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
 
               {/* 1. TABLA 3 COLUMNAS DE BIENES (ÍTEM, DESCRIPCIÓN, CARACTERÍSTICAS) */}
               {tipoTablaTdr === "BIENES_3_COLS" && (
@@ -1311,7 +1544,33 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
             <span className="font-bold text-on-surface text-xs block">
               Formato de Tabla de Especificaciones Técnicas deseado:
             </span>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+              <button
+                type="button"
+                onClick={() => setTipoTablaTdr("MATRIZ_SERVICIOS")}
+                className={`p-2 rounded text-left border text-xs transition-all ${
+                  tipoTablaTdr === "MATRIZ_SERVICIOS"
+                    ? "border-primary bg-white ring-2 ring-primary text-primary font-bold shadow-sm"
+                    : "border-outline-variant bg-surface text-on-surface-variant hover:bg-white"
+                }`}
+              >
+                <div className="font-bold">📋 Matriz de Servicios</div>
+                <div className="text-[10px] text-outline font-normal">4 Cols: Ítem, Componente, Alcance, Entregable</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTipoTablaTdr("BIENES_3_COLS")}
+                className={`p-2 rounded text-left border text-xs transition-all ${
+                  tipoTablaTdr === "BIENES_3_COLS"
+                    ? "border-primary bg-white ring-2 ring-primary text-primary font-bold shadow-sm"
+                    : "border-outline-variant bg-surface text-on-surface-variant hover:bg-white"
+                }`}
+              >
+                <div className="font-bold">📦 Bienes 3 Cols</div>
+                <div className="text-[10px] text-outline font-normal">Ítem, Descripción, Características</div>
+              </button>
+
               <button
                 type="button"
                 onClick={() => setTipoTablaTdr("BIENES_SIMPLE")}
@@ -1321,8 +1580,8 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
                     : "border-outline-variant bg-surface text-on-surface-variant hover:bg-white"
                 }`}
               >
-                <div className="font-bold">📦 Bienes General</div>
-                <div className="text-[10px] text-outline font-normal">Descripción y Características</div>
+                <div className="font-bold">📦 Bienes 5 Cols</div>
+                <div className="text-[10px] text-outline font-normal">Unidad, Cantidad y Características</div>
               </button>
 
               <button
@@ -1334,21 +1593,8 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
                     : "border-outline-variant bg-surface text-on-surface-variant hover:bg-white"
                 }`}
               >
-                <div className="font-bold">🩺 Salud / Laboratorio</div>
+                <div className="font-bold">🩺 Salud / Lab</div>
                 <div className="text-[10px] text-outline font-normal">Examen, Metodología y Propuesto</div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setTipoTablaTdr("FICHAS_DINAMICAS")}
-                className={`p-2 rounded text-left border text-xs transition-all ${
-                  tipoTablaTdr === "FICHAS_DINAMICAS"
-                    ? "border-primary bg-white ring-2 ring-primary text-primary font-bold shadow-sm"
-                    : "border-outline-variant bg-surface text-on-surface-variant hover:bg-white"
-                }`}
-              >
-                <div className="font-bold">📑 Fichas Técnicas</div>
-                <div className="text-[10px] text-outline font-normal">Tarjetas individuales con foto</div>
               </button>
             </div>
           </div>

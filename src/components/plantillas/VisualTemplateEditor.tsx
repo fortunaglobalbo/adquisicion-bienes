@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Plantilla, CampoMoldeLibre } from "@/types";
+import { Plantilla, CampoMoldeLibre, TipoTablaTDR } from "@/types";
 import {
   Save,
   CheckCircle2,
@@ -277,8 +277,8 @@ export const VisualTemplateEditor: React.FC<VisualTemplateEditorProps> = ({
   );
 
   // --- CAMPOS TÉCNICOS DEL MOLDE (100% EDITABLES) ---
-  const [tipoTablaMolde, setTipoTablaMolde] = useState<"BIENES_SIMPLE" | "SALUD_OCUPACIONAL" | "FICHAS_DINAMICAS">(
-    savedData.tipoTabla || "BIENES_SIMPLE"
+  const [tipoTablaMolde, setTipoTablaMolde] = useState<TipoTablaTDR>(
+    savedData.tipoTabla || "MATRIZ_SERVICIOS"
   );
   const [incluirFotoItem, setIncluirFotoItem] = useState<boolean>(
     savedData.incluirFotoItem !== undefined ? savedData.incluirFotoItem : plantilla.incluir_foto_item !== undefined ? plantilla.incluir_foto_item : true
@@ -1114,7 +1114,33 @@ export const VisualTemplateEditor: React.FC<VisualTemplateEditorProps> = ({
                       <span className="font-bold text-primary text-xs block font-mono">
                         ⚙️ FORMATO DE TABLA / ESPECIFICACIONES TÉCNICAS POR DEFECTO:
                       </span>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setTipoTablaMolde("MATRIZ_SERVICIOS")}
+                          className={`p-2 rounded text-left border text-xs transition-all ${
+                            tipoTablaMolde === "MATRIZ_SERVICIOS"
+                              ? "border-primary bg-white ring-2 ring-primary text-primary font-bold shadow-sm"
+                              : "border-outline-variant bg-surface text-on-surface-variant hover:bg-white"
+                          }`}
+                        >
+                          <div className="font-bold">📋 Matriz de Servicios</div>
+                          <div className="text-[10px] text-outline font-normal">Ítem | Componente | Alcance | Entregable</div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setTipoTablaMolde("BIENES_3_COLS")}
+                          className={`p-2 rounded text-left border text-xs transition-all ${
+                            tipoTablaMolde === "BIENES_3_COLS"
+                              ? "border-primary bg-white ring-2 ring-primary text-primary font-bold shadow-sm"
+                              : "border-outline-variant bg-surface text-on-surface-variant hover:bg-white"
+                          }`}
+                        >
+                          <div className="font-bold">📦 Bienes 3 Columnas</div>
+                          <div className="text-[10px] text-outline font-normal">Ítem | Descripción | Características</div>
+                        </button>
+
                         <button
                           type="button"
                           onClick={() => setTipoTablaMolde("BIENES_SIMPLE")}
@@ -1124,7 +1150,7 @@ export const VisualTemplateEditor: React.FC<VisualTemplateEditorProps> = ({
                               : "border-outline-variant bg-surface text-on-surface-variant hover:bg-white"
                           }`}
                         >
-                          <div className="font-bold">📦 Tabla Simple de Bienes</div>
+                          <div className="font-bold">📦 Bienes 5 Columnas</div>
                           <div className="text-[10px] text-outline font-normal">Ítem | Descripción | Unidad | Cantidad | Características</div>
                         </button>
 
@@ -1137,21 +1163,8 @@ export const VisualTemplateEditor: React.FC<VisualTemplateEditorProps> = ({
                               : "border-outline-variant bg-surface text-on-surface-variant hover:bg-white"
                           }`}
                         >
-                          <div className="font-bold">🩺 Tabla Salud / Laboratorio</div>
+                          <div className="font-bold">🩺 Salud / Laboratorio</div>
                           <div className="text-[10px] text-outline font-normal">Ítem | Examen | Metodología Mínima | Propuesto</div>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setTipoTablaMolde("FICHAS_DINAMICAS")}
-                          className={`p-2 rounded text-left border text-xs transition-all ${
-                            tipoTablaMolde === "FICHAS_DINAMICAS"
-                              ? "border-primary bg-white ring-2 ring-primary text-primary font-bold shadow-sm"
-                              : "border-outline-variant bg-surface text-on-surface-variant hover:bg-white"
-                          }`}
-                        >
-                          <div className="font-bold">📑 Fichas Técnicas</div>
-                          <div className="text-[10px] text-outline font-normal">Tarjetas individuales con foto opcional</div>
                         </button>
                       </div>
                     </div>
