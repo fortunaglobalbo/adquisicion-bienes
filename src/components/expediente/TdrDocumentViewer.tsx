@@ -205,8 +205,22 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
 
         setTipoTablaTdr(detectedTabla);
 
-        // Actualizar los 14 puntos inmediatamente en pantalla
-        if (updated.antecedentes_texto || updated.justificacion_texto) {
+        // Actualizar todos los 14 puntos inmediatamente en pantalla y en updated
+        if (directParsed?.puntos_detectados) {
+          setPuntosOficiales((prev) =>
+            prev.map((p) => {
+              const detected = directParsed.puntos_detectados[p.num];
+              if (detected) return { ...p, contenido: detected };
+              if (p.num === 1 && updated.antecedentes_texto) return { ...p, contenido: updated.antecedentes_texto };
+              if (p.num === 2 && updated.justificacion_texto) return { ...p, contenido: updated.justificacion_texto };
+              return p;
+            })
+          );
+
+          if (directParsed.puntos_detectados[4]) updated.calidad_texto = directParsed.puntos_detectados[4];
+          if (directParsed.puntos_detectados[9]) updated.lugar_entrega = directParsed.puntos_detectados[9];
+          if (directParsed.puntos_detectados[13]) updated.forma_pago_texto = directParsed.puntos_detectados[13];
+        } else if (updated.antecedentes_texto || updated.justificacion_texto) {
           setPuntosOficiales((prev) =>
             prev.map((p) => {
               if (p.num === 1 && updated.antecedentes_texto) return { ...p, contenido: updated.antecedentes_texto };
@@ -333,16 +347,16 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
       contenido: docData.justificacion_texto || "La presente contratación se justifica en la necesidad operativa de contar oportunamente con los bienes y servicios requeridos para el adecuado funcionamiento de las áreas de ENDE DEORURO S.A.",
     },
     { num: 3, titulo: "ESPECIFICACION TECNICA", contenido: "Detalle técnico y especificaciones de los requerimientos:" },
-    { num: 4, titulo: "CALIDAD", contenido: isSaludDomain ? "El proponente o laboratorio debe cumplir con los estándares de calidad y credenciales sanitarias vigentes ante las autoridades competentes." : "Los bienes deberán ser nuevos, de primer uso y fabricados bajo normas de calidad aplicables, con garantía oficial." },
+    { num: 4, titulo: "CALIDAD", contenido: docData.calidad_texto || (isSaludDomain ? "El proponente o laboratorio debe cumplir con los estándares de calidad y credenciales sanitarias vigentes ante las autoridades competentes." : "Los bienes deberán ser nuevos, de primer uso y fabricados bajo normas de calidad aplicables, con garantía oficial.") },
     { num: 5, titulo: "ÁMBITO DE APLICACIÓN", contenido: "Personal institucional y áreas operativas/administrativas de la Distribuidora de Electricidad ENDE DEORURO S.A." },
     { num: 6, titulo: "MÉTODO DE SELECCIÓN", contenido: "Menor Precio (Art. 31 del Reglamento SBC)." },
     { num: 7, titulo: "VIGENCIA DE LA PROPUESTA", contenido: "Tendrá una validez mínima de 30 días calendario computables a partir de la fecha de presentación de la propuesta." },
     { num: 8, titulo: "CATEGORÍA", contenido: isSaludDomain ? "Salud Ocupacional y Medicina del Trabajo." : "Bienes y Suministros Oficiales." },
-    { num: 9, titulo: "LUGAR DE ENTREGA", contenido: "Instalaciones / Almacén de ENDE DEORURO S.A., Oruro - Bolivia." },
+    { num: 9, titulo: "LUGAR DE ENTREGA", contenido: docData.lugar_entrega || "Instalaciones / Almacén de ENDE DEORURO S.A., Oruro - Bolivia." },
     { num: 10, titulo: "TIEMPO DE ENTREGA", contenido: `Máximo ${docData.plazo_entrega_dias || 30} días calendario computables a partir del día siguiente hábil de la recepción de la Orden de Compra.` },
     { num: 11, titulo: "FORMA DE ADJUDICACIÓN", contenido: "Por Ítem requerido, formalizada por Orden de Compra (Art. 31 SBC)." },
     { num: 12, titulo: "PARA LA ACEPTACIÓN DEL LOTE / SERVICIO", contenido: "El personal técnico de ENDE DEORURO realizará una evaluación técnica de conformidad el día de la entrega." },
-    { num: 13, titulo: "FORMA DE PAGO", contenido: "El pago se realizará contra entrega satisfactoria del producto o servicio, conformidad emitida por ENDE DEORURO S.A. y entrega de la siguiente documentación: Nota de Entrega / Conformidad, Solicitud de Pago y Factura oficial." },
+    { num: 13, titulo: "FORMA DE PAGO", contenido: docData.forma_pago_texto || "El pago se realizará contra entrega satisfactoria del producto o servicio, conformidad emitida por ENDE DEORURO S.A. y entrega de la siguiente documentación: Nota de Entrega / Conformidad, Solicitud de Pago y Factura oficial." },
     { num: 14, titulo: "APLICACIÓN DE MULTAS", contenido: `Ante el incumplimiento de los plazos y otras condiciones establecidas en la Orden de Compra y Especificaciones Técnicas, se aplicará la multa del ${docData.multa_diaria_porcentaje || 0.25}% por cada día de retraso injustificado.` },
   ]);
 
@@ -360,6 +374,15 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
         if (p.num === 2) {
           return { ...p, contenido: docData.justificacion_texto || tplContent || p.contenido };
         }
+        if (p.num === 4 && docData.calidad_texto) {
+          return { ...p, contenido: docData.calidad_texto };
+        }
+        if (p.num === 9 && docData.lugar_entrega) {
+          return { ...p, contenido: docData.lugar_entrega };
+        }
+        if (p.num === 13 && docData.forma_pago_texto) {
+          return { ...p, contenido: docData.forma_pago_texto };
+        }
         return {
           ...p,
           titulo: matchingTpl?.titulo || p.titulo,
@@ -367,7 +390,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
         };
       })
     );
-  }, [activeTemplate, docData.antecedentes_texto, docData.justificacion_texto]);
+  }, [activeTemplate, docData.antecedentes_texto, docData.justificacion_texto, docData.calidad_texto, docData.lugar_entrega, docData.forma_pago_texto]);
 
   // Actualizar contenido de un punto
   const handlePuntoChange = (num: number, field: "titulo" | "contenido", val: string) => {
