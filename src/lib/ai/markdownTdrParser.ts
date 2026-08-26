@@ -12,7 +12,7 @@ export interface ParsedTdrResult {
 }
 
 /**
- * Limpia tags HTML y asteriscos Markdown, formateando viñetas limpias
+ * Limpia tags HTML y asteriscos Markdown
  */
 function cleanFormatting(text: string): string {
   if (!text) return "";
@@ -26,7 +26,7 @@ function cleanFormatting(text: string): string {
 }
 
 /**
- * Formatea un bloque de texto que contiene viñetas (* o - o •) en párrafos limpios con '❖'
+ * Formatea un bloque de texto que contiene viñetas (* o - o • o ❖) en párrafos limpios con '❖'
  */
 function formatBulletParagraphs(text: string): string {
   if (!text) return "";
@@ -44,8 +44,7 @@ function formatBulletParagraphs(text: string): string {
 }
 
 /**
- * Parser de ultra-fidelidad literal para documentos TDR y Markdown.
- * Extrae fielmente los 14 puntos y preserva el 100% de las viñetas y características técnicas multilínea.
+ * Parser universal de ultra-fidelidad literal para documentos TDR, Markdown y Tablas copiadas.
  */
 export function parseMarkdownTdrLiteral(rawMarkdown: string): ParsedTdrResult {
   if (!rawMarkdown || typeof rawMarkdown !== "string") {
@@ -63,7 +62,7 @@ export function parseMarkdownTdrLiteral(rawMarkdown: string): ParsedTdrResult {
   // =========================================================================
   // 1. EXTRAER TÍTULO PRINCIPAL DEL PROCESO
   // =========================================================================
-  for (let i = 0; i < Math.min(lines.length, 15); i++) {
+  for (let i = 0; i < Math.min(lines.length, 20); i++) {
     const cleanL = cleanFormatting(lines[i]).toUpperCase();
     if (
       cleanL.startsWith("ESPECIFICACIONES TÉCNICAS") ||
@@ -71,7 +70,9 @@ export function parseMarkdownTdrLiteral(rawMarkdown: string): ParsedTdrResult {
       cleanL.startsWith("ADQUISICIÓN") ||
       cleanL.startsWith("CONTRATACIÓN") ||
       cleanL.startsWith("COMPRA DE") ||
-      cleanL.startsWith("PROVISIÓN")
+      cleanL.startsWith("PROVISIÓN") ||
+      cleanL.startsWith("SERVICIO DE") ||
+      cleanL.startsWith("CONSULTORÍA")
     ) {
       result.titulo_proceso = cleanL.replace(/^["'“]|["'”]$/g, "").trim();
       break;
@@ -84,7 +85,7 @@ export function parseMarkdownTdrLiteral(rawMarkdown: string): ParsedTdrResult {
   const sectionKeywords: { [num: number]: string[] } = {
     1: ["ANTECEDENTES"],
     2: ["JUSTIFICACIÓN", "JUSTIFICACION", "NECESIDAD"],
-    3: ["ESPECIFICACIÓN", "ESPECIFICACION", "ESPECIFICACIONES", "ITEMS", "ÍTEMS", "CUADRO TÉCNICO"],
+    3: ["ESPECIFICACIÓN", "ESPECIFICACION", "ESPECIFICACIONES", "ITEMS", "ÍTEMS", "CUADRO TÉCNICO", "MATRIZ DE SERVICIOS"],
     4: ["CALIDAD"],
     5: ["ÁMBITO", "AMBITO", "APLICACIÓN", "APLICACION"],
     6: ["MÉTODO", "METODO", "SELECCIÓN", "SELECCION"],
@@ -111,8 +112,8 @@ export function parseMarkdownTdrLiteral(rawMarkdown: string): ParsedTdrResult {
     if (!cleanL || cleanL.length > 90) continue;
     if (line.startsWith("|")) continue;
 
-    // Buscar encabezado como "### 4. CALIDAD", "#### **4. CALIDAD**", "4. CALIDAD"
-    const matchNum = cleanL.match(/^(?:#+\s*)?(\d+)[\.\-\)]\s*([A-ZÁÉÍÓÚÑ\s\/\-_]+)/i);
+    // Encabezado tipo "3. ESPECIFICACIÓN TÉCNICA (OPCIÓN A...)", "### 4. CALIDAD", "4. CALIDAD"
+    const matchNum = cleanL.match(/^(?:#+\s*)?(\d+)[\.\-\)]\s*([A-ZÁÉÍÓÚÑ\s\/\-_\(\)]+)/i);
     if (matchNum) {
       const num = parseInt(matchNum[1], 10);
       if (num >= 1 && num <= 14) {
@@ -121,7 +122,7 @@ export function parseMarkdownTdrLiteral(rawMarkdown: string): ParsedTdrResult {
       }
     }
 
-    // Si no tiene número, buscar por palabra clave
+    // Por palabra clave
     for (const [numStr, kwList] of Object.entries(sectionKeywords)) {
       const num = parseInt(numStr, 10);
       if (kwList.some((kw) => cleanL === kw || cleanL.startsWith(kw + ":") || cleanL.startsWith(kw + " -") || cleanL.endsWith(kw))) {
@@ -157,11 +158,14 @@ export function parseMarkdownTdrLiteral(rawMarkdown: string): ParsedTdrResult {
   if (result.puntos_detectados[2]) result.justificacion_texto = result.puntos_detectados[2];
 
   // =========================================================================
-  // 3. EXTRAER Y RECONSTRUIR LA TABLA DE ÍTEMS Y CARACTERÍSTICAS TÉCNICAS
+  // 3. EXTRAER Y RECONSTRUIR LA TABLA DE ÍTEMS (MARKDOWN O TEXTO PLANO)
   // =========================================================================
   const section3Raw = sectionTexts[3] || rawText;
   const s3Lines = section3Raw.split("\n");
 
+  const parsedItems: ItemAdquisicion[] = [];
+
+  // 3.A. Intento 1: Tabla Markdown con Pipes |
   let tableSeparatorIdx = -1;
   let tableHeaderIdx = -1;
 
@@ -187,10 +191,8 @@ export function parseMarkdownTdrLiteral(rawMarkdown: string): ParsedTdrResult {
 
     const tableDataLines = s3Lines.slice(tableSeparatorIdx + 1);
 
-    // Agrupar filas: cada fila inicia con '|' seguido de un número (con o sin asteriscos: | 1 |, | **1** |, | 1. |)
     const itemChunks: string[] = [];
     let currentItemChunk = "";
-
     const rowStartRegex = /^\|\s*(?:\*{1,2})?\s*\d+[\.\-\)]?\s*(?:\*{1,2})?\s*\|/i;
 
     for (let i = 0; i < tableDataLines.length; i++) {
@@ -203,15 +205,12 @@ export function parseMarkdownTdrLiteral(rawMarkdown: string): ParsedTdrResult {
         }
         currentItemChunk = trimmed;
       } else if (currentItemChunk) {
-        // Continuación multilínea del ítem
         currentItemChunk += "\n" + line;
       }
     }
     if (currentItemChunk) {
       itemChunks.push(currentItemChunk);
     }
-
-    const parsedItems: ItemAdquisicion[] = [];
 
     itemChunks.forEach((chunk, chunkIdx) => {
       const normalizedChunk = chunk
@@ -231,10 +230,8 @@ export function parseMarkdownTdrLiteral(rawMarkdown: string): ParsedTdrResult {
         let cantidad = 1;
 
         if (pipeParts.length === 4) {
-          // 3 columnas: | Item | Descripción | Características |
           caracteristicasRaw = pipeParts[3].trim();
         } else if (pipeParts.length >= 5) {
-          // 4 o 5 columnas: | Item | Descripción | Características | Cantidad |
           cantidadStr = cleanFormatting(pipeParts[pipeParts.length - 2]).trim();
           caracteristicasRaw = pipeParts.slice(3, pipeParts.length - 2).join("|").trim();
 
@@ -290,11 +287,103 @@ export function parseMarkdownTdrLiteral(rawMarkdown: string): ParsedTdrResult {
         });
       }
     });
+  }
 
-    if (parsedItems.length > 0) {
-      result.items = parsedItems;
-      result.tipo_tabla_sugerido = isSalud ? "SALUD_OCUPACIONAL" : "BIENES_3_COLS";
+  // 3.B. Intento 2: Parser para Tablas en Texto Plano o Copiadas de Word / PDF
+  if (parsedItems.length === 0) {
+    const isHeaderLine = (l: string) => {
+      const up = cleanFormatting(l).toUpperCase();
+      return (
+        up === "ÍTEM" ||
+        up === "ITEM" ||
+        up === "NO." ||
+        up === "N°" ||
+        up.startsWith("DESCRIPCIÓN") ||
+        up.startsWith("DESCRIPCION") ||
+        up.startsWith("CARACTERÍSTICAS") ||
+        up.startsWith("CARACTERISTICAS") ||
+        up.startsWith("PRODUCTO ENTREGABLE") ||
+        up.startsWith("ESPECIFICACIÓN") ||
+        up.startsWith("ESPECIFICACION") ||
+        up.startsWith("CANT.") ||
+        up.startsWith("CANTIDAD") ||
+        up.startsWith("UNIDAD") ||
+        up.startsWith("EL PROPONENTE DEBE")
+      );
+    };
+
+    const itemBlocks: Array<{ num: number; lines: string[] }> = [];
+    let currentBlock: { num: number; lines: string[] } | null = null;
+
+    for (let i = 0; i < s3Lines.length; i++) {
+      const line = s3Lines[i].trim();
+      if (!line) continue;
+      if (isHeaderLine(line)) continue;
+
+      // Buscar número de ítem aislado (ej. "1", "2", "3") o con prefijo (ej. "1.", "ÍTEM 1:")
+      const matchNumOnly = line.match(/^(\d+)$/);
+      const matchNumPrefix = line.match(/^(?:ÍTEM|ITEM)?\s*(\d+)[\.\-\)]\s*(.*)$/i);
+
+      if (matchNumOnly) {
+        const num = parseInt(matchNumOnly[1], 10);
+        if (num >= 1 && num <= 50) {
+          if (currentBlock) itemBlocks.push(currentBlock);
+          currentBlock = { num, lines: [] };
+          continue;
+        }
+      } else if (matchNumPrefix) {
+        const num = parseInt(matchNumPrefix[1], 10);
+        if (num >= 1 && num <= 50) {
+          if (currentBlock) itemBlocks.push(currentBlock);
+          currentBlock = { num, lines: matchNumPrefix[2] ? [matchNumPrefix[2].trim()] : [] };
+          continue;
+        }
+      }
+
+      if (currentBlock) {
+        currentBlock.lines.push(line);
+      }
     }
+    if (currentBlock) itemBlocks.push(currentBlock);
+
+    itemBlocks.forEach((block, bIdx) => {
+      if (block.lines.length > 0) {
+        const desc = cleanFormatting(block.lines[0]).toUpperCase();
+        const rest = block.lines.slice(1).map((l) => cleanFormatting(l)).filter(Boolean);
+
+        const caracs =
+          rest.length > 0
+            ? rest.map((l) => `❖  ${l.replace(/^[\•\-\*\❖]\s*/, "")}`).join("\n\n")
+            : desc;
+
+        parsedItems.push({
+          id: `item-plain-${Date.now()}-${bIdx}`,
+          item: block.num || bIdx + 1,
+          descripcion: desc || `COMPONENTE #${bIdx + 1}`,
+          unidad: "SRV",
+          cantidad: 1,
+          precioUnitarioEstimado: 0,
+          precioTotalEstimado: 0,
+          caracteristicasTecnicas: caracs,
+          especificacionMinima: caracs,
+          propuestoOferente: "Cumple con la totalidad de especificaciones técnicas y entregables requeridos",
+          fichaTecnica: {
+            uso: "Servicios Especializados / Requerimiento Institucional",
+            normaCertificacion: "Normativa Nacional Vigente Aplicable",
+            material: "Informes Técnicos, Matrices y Documentación Oficial",
+            color: "Estándar",
+            dimensiones: "Según alcance técnico",
+            categoriaItem: "Servicios Especializados",
+            caracteristicasDetalle: rest,
+          },
+        });
+      }
+    });
+  }
+
+  if (parsedItems.length > 0) {
+    result.items = parsedItems;
+    result.tipo_tabla_sugerido = "BIENES_3_COLS";
   }
 
   return result;

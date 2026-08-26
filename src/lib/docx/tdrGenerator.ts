@@ -61,6 +61,34 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
   const FONT_SMALL = 20; // 10pt
   const FONT_TINY = 18; // 9pt
 
+  function formatSectionParagraphs(text?: string, defaultText: string = ""): Paragraph[] {
+    const clean = (text || defaultText).trim();
+    if (!clean) return [];
+
+    const rawLines = clean
+      .replace(/❖/g, "\n❖")
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
+
+    return rawLines.map((line) => {
+      const isBullet = line.startsWith("❖") || line.startsWith("•") || line.startsWith("-") || line.startsWith("*");
+      const cleanLine = line.replace(/^\*+\s*/, "").replace(/\*\*/g, "");
+
+      return new Paragraph({
+        alignment: AlignmentType.JUSTIFIED,
+        spacing: { before: isBullet ? 50 : 30, after: isBullet ? 60 : 40 },
+        children: [
+          new TextRun({
+            text: cleanLine,
+            size: FONT_BODY,
+            font: "Inter",
+          }),
+        ],
+      });
+    });
+  }
+
   const doc = new Document({
     sections: [
       // ============================================================
@@ -337,17 +365,10 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
               new TextRun({ text: "1.   ANTECEDENTES", bold: true, size: FONT_HEADING, font: "Inter" }),
             ],
           }),
-          new Paragraph({
-            alignment: AlignmentType.JUSTIFIED,
-            spacing: { after: 250 },
-            children: [
-              new TextRun({
-                text: adquisicion.antecedentes_texto || "De acuerdo a la legislación vigente, normas y políticas internas se inicia el proceso de adquisición de herramientas y equipos para mantenimiento redes MT, enmarcados en el manual de procedimientos y Reglamento de Adquisición de Bienes, Construcción de Obras y Contratación de Servicios.",
-                size: FONT_BODY, // 12 pt
-                font: "Inter",
-              }),
-            ],
-          }),
+          ...formatSectionParagraphs(
+            adquisicion.antecedentes_texto,
+            "De acuerdo a la legislación vigente, normas y políticas internas se inicia el proceso de contratación, enmarcados en el manual de procedimientos y Reglamento de Adquisición de Bienes, Construcción de Obras y Contratación de Servicios."
+          ),
 
           new Paragraph({
             spacing: { before: 100, after: 100 },
@@ -355,17 +376,10 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
               new TextRun({ text: "2.   JUSTIFICACIÓN / NECESIDAD", bold: true, size: FONT_HEADING, font: "Inter" }),
             ],
           }),
-          new Paragraph({
-            alignment: AlignmentType.JUSTIFIED,
-            spacing: { after: 300 },
-            children: [
-              new TextRun({
-                text: adquisicion.justificacion_texto || "Con la adquisición de herramientas de zapa para mantenimiento redes MT, tiene el objetivo de prevenir accidentes que pueden ser producto del uso de herramientas de zapa en mal estado también o a la ausencia de estas herramientas.",
-                size: FONT_BODY, // 12 pt
-                font: "Inter",
-              }),
-            ],
-          }),
+          ...formatSectionParagraphs(
+            adquisicion.justificacion_texto,
+            "La presente contratación tiene el objetivo fundamental de garantizar la continuidad operativa, el cumplimiento normativo institucional y la mitigación de riesgos."
+          ),
 
           new Paragraph({
             spacing: { before: 100, after: 180 },
@@ -708,128 +722,100 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
             spacing: { before: 100, after: 80 },
             children: [new TextRun({ text: "4.   CALIDAD", bold: true, size: FONT_HEADING, font: "Inter" })],
           }),
-          new Paragraph({
-            alignment: AlignmentType.JUSTIFIED,
-            spacing: { after: 160 },
-            children: [
-              new TextRun({
-                text: adquisicion.calidad_texto || "Los bienes deberán ser nuevos, de primer uso y fabricados bajo normas de calidad aplicables, o el proponente/laboratorio deberá contar con las acreditaciones y credenciales sanitarias vigentes ante las autoridades competentes.",
-                size: FONT_BODY,
-                font: "Inter",
-              }),
-            ],
-          }),
+          ...formatSectionParagraphs(
+            adquisicion.calidad_texto,
+            "Los bienes deberán ser nuevos, de primer uso y fabricados bajo normas de calidad aplicables, o el proponente/laboratorio deberá contar con las acreditaciones y credenciales sanitarias vigentes ante las autoridades competentes."
+          ),
 
           new Paragraph({
             spacing: { before: 60, after: 80 },
             children: [new TextRun({ text: "5.   ÁMBITO DE APLICACIÓN", bold: true, size: FONT_HEADING, font: "Inter" })],
           }),
-          new Paragraph({
-            spacing: { after: 160 },
-            children: [new TextRun({ text: "Personal institucional y áreas operativas/administrativas de la Distribuidora de Electricidad ENDE DEORURO S.A.", size: FONT_BODY, font: "Inter" })],
-          }),
+          ...formatSectionParagraphs(
+            adquisicion.ambito_aplicacion,
+            "Personal institucional y áreas operativas/administrativas de la Distribuidora de Electricidad ENDE DEORURO S.A."
+          ),
 
           new Paragraph({
             spacing: { before: 60, after: 80 },
             children: [new TextRun({ text: "6.   MÉTODO DE SELECCIÓN", bold: true, size: FONT_HEADING, font: "Inter" })],
           }),
-          new Paragraph({
-            spacing: { after: 160 },
-            children: [new TextRun({ text: "Menor Precio (Art. 31 del Reglamento SBC).", size: FONT_BODY, font: "Inter" })],
-          }),
+          ...formatSectionParagraphs(
+            adquisicion.metodo_seleccion,
+            "Menor Precio (Art. 31 del Reglamento SBC)."
+          ),
 
           new Paragraph({
             spacing: { before: 60, after: 80 },
             children: [new TextRun({ text: "7.   VIGENCIA DE LA PROPUESTA", bold: true, size: FONT_HEADING, font: "Inter" })],
           }),
-          new Paragraph({
-            spacing: { after: 160 },
-            children: [new TextRun({ text: "Tendrá una validez mínima de 30 días calendario computables a partir de la fecha de presentación de la propuesta.", size: FONT_BODY, font: "Inter" })],
-          }),
+          ...formatSectionParagraphs(
+            adquisicion.vigencia_propuesta,
+            "Tendrá una validez mínima de 30 días calendario computables a partir de la fecha de presentación de la propuesta."
+          ),
 
           new Paragraph({
             spacing: { before: 60, after: 80 },
             children: [new TextRun({ text: "8.   CATEGORÍA", bold: true, size: FONT_HEADING, font: "Inter" })],
           }),
-          new Paragraph({
-            spacing: { after: 160 },
-            children: [new TextRun({ text: adquisicion.categoria || "Bienes y Suministros Oficiales / Servicios Ocupacionales.", size: FONT_BODY, font: "Inter" })],
-          }),
+          ...formatSectionParagraphs(
+            adquisicion.categoria,
+            "Bienes y Suministros Oficiales / Servicios Ocupacionales."
+          ),
 
           new Paragraph({
             spacing: { before: 60, after: 80 },
             children: [new TextRun({ text: "9.   LUGAR DE ENTREGA", bold: true, size: FONT_HEADING, font: "Inter" })],
           }),
-          new Paragraph({
-            spacing: { after: 160 },
-            children: [new TextRun({ text: adquisicion.lugar_entrega || "Instalaciones / Almacén Central de ENDE DEORURO S.A., ubicado en la ciudad de Oruro - Bolivia.", size: FONT_BODY, font: "Inter" })],
-          }),
+          ...formatSectionParagraphs(
+            adquisicion.lugar_entrega,
+            "Instalaciones / Almacén Central de ENDE DEORURO S.A., ubicado en la ciudad de Oruro - Bolivia."
+          ),
 
           new Paragraph({
             spacing: { before: 60, after: 80 },
             children: [new TextRun({ text: "10.   TIEMPO DE ENTREGA", bold: true, size: FONT_HEADING, font: "Inter" })],
           }),
-          new Paragraph({
-            spacing: { after: 160 },
-            children: [new TextRun({ text: `Máximo ${adquisicion.plazo_entrega_dias || 30} días calendario computables a partir del día siguiente hábil de la recepción formal de la Orden de Compra.`, size: FONT_BODY, font: "Inter" })],
-          }),
+          ...formatSectionParagraphs(
+            `Máximo ${adquisicion.plazo_entrega_dias || 30} días calendario computables a partir del día siguiente hábil de la recepción formal de la Orden de Compra.`,
+            "30 días calendario."
+          ),
 
           new Paragraph({
             spacing: { before: 60, after: 80 },
             children: [new TextRun({ text: "11.   FORMA DE ADJUDICACIÓN", bold: true, size: FONT_HEADING, font: "Inter" })],
           }),
-          new Paragraph({
-            spacing: { after: 160 },
-            children: [new TextRun({ text: "Por ítem requerido, formalizada mediante Orden de Compra (Art. 31 SBC).", size: FONT_BODY, font: "Inter" })],
-          }),
+          ...formatSectionParagraphs(
+            adquisicion.forma_adjudicacion,
+            "Por ítem requerido, formalizada mediante Orden de Compra (Art. 31 SBC)."
+          ),
 
           new Paragraph({
             spacing: { before: 60, after: 80 },
             children: [new TextRun({ text: "12.   PARA LA ACEPTACIÓN DEL LOTE / SERVICIO", bold: true, size: FONT_HEADING, font: "Inter" })],
           }),
-          new Paragraph({
-            alignment: AlignmentType.JUSTIFIED,
-            spacing: { after: 160 },
-            children: [
-              new TextRun({
-                text: "El personal técnico de ENDE DEORURO realizará una evaluación técnica de conformidad el día de la entrega; en caso de existir observaciones, se hará conocer inmediatamente.",
-                size: FONT_BODY,
-                font: "Inter",
-              }),
-            ],
-          }),
+          ...formatSectionParagraphs(
+            adquisicion.aceptacion_lote,
+            "El personal técnico de ENDE DEORURO realizará una evaluación técnica de conformidad el día de la entrega; en caso de existir observaciones, se hará conocer inmediatamente."
+          ),
 
           new Paragraph({
             spacing: { before: 60, after: 80 },
             children: [new TextRun({ text: "13.   FORMA DE PAGO", bold: true, size: FONT_HEADING, font: "Inter" })],
           }),
-          new Paragraph({
-            alignment: AlignmentType.JUSTIFIED,
-            spacing: { after: 160 },
-            children: [
-              new TextRun({
-                text: adquisicion.forma_pago_texto || "El pago se realizará contra entrega satisfactoria del producto o servicio, conformidad emitida por ENDE DEORURO S.A. y entrega de la siguiente documentación: Nota de Entrega / Acta de Recepción, Solicitud de Pago y Factura oficial original.",
-                size: FONT_BODY,
-                font: "Inter",
-              }),
-            ],
-          }),
+          ...formatSectionParagraphs(
+            adquisicion.forma_pago_texto,
+            "El pago se realizará contra entrega satisfactoria del producto o servicio, conformidad emitida por ENDE DEORURO S.A. y entrega de la siguiente documentación: Nota de Entrega / Acta de Recepción, Solicitud de Pago y Factura oficial original."
+          ),
 
           new Paragraph({
             spacing: { before: 60, after: 80 },
             children: [new TextRun({ text: "14.   APLICACIÓN DE MULTAS", bold: true, size: FONT_HEADING, font: "Inter" })],
           }),
-          new Paragraph({
-            alignment: AlignmentType.JUSTIFIED,
-            spacing: { after: 300 },
-            children: [
-              new TextRun({
-                text: `Ante el incumplimiento de los plazos y otras condiciones establecidas en la Orden de Compra y Especificaciones Técnicas, se aplicará la multa del ${adquisicion.multa_diaria_porcentaje || 0.25}% por cada día de retraso injustificado.`,
-                size: FONT_BODY,
-                font: "Inter",
-              }),
-            ],
-          }),
+          ...formatSectionParagraphs(
+            `Ante el incumplimiento de los plazos y otras condiciones establecidas en la Orden de Compra y Especificaciones Técnicas, se aplicará la multa del ${adquisicion.multa_diaria_porcentaje || 0.25}% por cada día de retraso injustificado.`,
+            "Multa del 0.25% por cada día de retraso injustificado."
+          ),
         ],
       },
     ],
