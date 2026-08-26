@@ -78,9 +78,18 @@ export class DataStore {
         this.saveAdquisiciones(mappedAdqs);
       }
 
-      // 2. Cargar Carpetas reales desde Supabase
+      // 2. Cargar Carpetas y Documentos reales desde Supabase
       if (Array.isArray(result.carpetas)) {
-        this.saveAllCarpetas(result.carpetas);
+        const allDocs = Array.isArray(result.documentos) ? result.documentos : [];
+        const mappedCarpetas = result.carpetas.map((c: any) => ({
+          ...c,
+          documentos: allDocs.filter(
+            (d: any) =>
+              d.carpeta_id === c.id ||
+              (d.adquisicion_id === c.adquisicion_id && d.metadata?.carpeta_numero === c.numero)
+          ),
+        }));
+        this.saveAllCarpetas(mappedCarpetas);
       }
 
       // 3. Cargar Plantillas reales desde Supabase
@@ -329,17 +338,19 @@ export class DataStore {
         action: "INSERT",
         table: "documentos",
         data: {
-          id: doc.id.startsWith("doc-") ? undefined : doc.id,
           adquisicion_id: doc.adquisicion_id,
           carpeta_id: folder.id,
-          tipo: doc.tipo,
+          tipo: doc.tipo || "GENERADO_DOCX",
           nombre_original: doc.nombre_original,
-          mime: doc.mime,
-          tamano: doc.tamano,
-          estado: doc.estado,
-          version: doc.version,
-          creado_por: doc.creado_por,
-          metadata: doc.metadata || {},
+          mime: doc.mime || "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          tamano: doc.tamano || 48000,
+          estado: doc.estado || "Borrador",
+          version: doc.version || 1,
+          creado_por: doc.creado_por || "admin@ende-deoruro.bo",
+          metadata: {
+            ...(doc.metadata || {}),
+            carpeta_numero: folder.numero,
+          },
         },
       }),
     }).catch(console.error);

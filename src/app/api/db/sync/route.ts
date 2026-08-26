@@ -38,11 +38,12 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: true, data: data || [] });
     }
 
-    // Consulta del dataset institucional completo
-    const [adqsRes, plantillasRes, carpetasRes, logsRes] = await Promise.all([
+    // Consulta del dataset institucional completo incluyendo la tabla documentos
+    const [adqsRes, plantillasRes, carpetasRes, docsRes, logsRes] = await Promise.all([
       supabaseAdmin.from("adquisiciones").select("*").order("fecha_creacion", { ascending: false }),
       supabaseAdmin.from("plantillas").select("*").order("fk_carpeta", { ascending: true }),
       supabaseAdmin.from("carpetas").select("*").order("numero", { ascending: true }),
+      supabaseAdmin.from("documentos").select("*").order("fecha_creacion", { ascending: false }),
       supabaseAdmin.from("logs_proceso").select("*").order("fecha", { ascending: false }).limit(100),
     ]);
 
@@ -58,6 +59,7 @@ export async function GET(req: NextRequest) {
       adquisiciones: adqsRes.data || [],
       plantillas: plantillasRes.data || [],
       carpetas: carpetasRes.data || [],
+      documentos: docsRes.data || [],
       logs: logsRes.data || [],
     });
   } catch (err: any) {
@@ -80,6 +82,78 @@ export async function POST(req: NextRequest) {
 
     if (!table || !action) {
       return NextResponse.json({ success: false, error: "Parámetros incompletos para base de datos" }, { status: 400 });
+    }
+
+    // Manejo especial para la tabla 'documentos': Resolver UUIDs válidos de adquisicion y carpeta
+    if (table === "documentos" && (action === "INSERT" || action === "UPSERT")) {
+      const docItem = Array.isArray(data) ? data[0] : data;
+      let adqId = docItem.adquisicion_id;
+      let carpId = docItem.carpeta_id;
+
+      // 1. Resolver adquisicion_id si es código
+      if (adqId && !isUuid(adqId)) {
+        const { data: adqFound } = await supabaseAdmin
+          .from("adquisiciones")
+          .select("id")
+          .eq("codigo", adqId)
+          .maybeSingle();
+        if (adqFound) adqId = adqFound.id;
+      }
+
+      // 2. Resolver carpeta_id si no es UUID
+      if (adqId && isUuid(adqId) && (!carpId || !isUuid(carpId))) {
+        const carpetaNum = docItem.metadata?.carpeta_numero || docItem.carpeta_numero || 1;
+        const { data: carpFound } = await supabaseAdmin
+          .from("carpetas")
+          .select("id")
+          .eq("adquisicion_id", adqId)
+          .eq("numero", carpetaNum)
+          .maybeSingle();
+
+        if (carpFound) {
+          carpId = carpFound.id;
+        } else {
+          // Crear carpeta en Supabase si no existiera
+          const { data: newCarp } = await supabaseAdmin
+            .from("carpetas")
+            .insert({
+              adquisicion_id: adqId,
+              numero: carpetaNum,
+              nombre: `Carpeta ${carpetaNum}`,
+              tipo_generacion: carpetaNum === 1 || carpetaNum === 5 || carpetaNum === 6 ? "IA" : "MANUAL",
+              estado: "Completado",
+            })
+            .select()
+            .single();
+          if (newCarp) carpId = newCarp.id;
+        }
+      }
+
+      const payload = {
+        ...(isUuid(docItem.id) ? { id: docItem.id } : {}),
+        adquisicion_id: adqId,
+        carpeta_id: carpId,
+        tipo: docItem.tipo || "GENERADO_DOCX",
+        nombre_original: docItem.nombre_original || "Documento_Oficial.docx",
+        mime: docItem.mime || "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        tamano: docItem.tamano || 48000,
+        estado: docItem.estado || "Borrador",
+        version: docItem.version || 1,
+        creado_por: docItem.creado_por || "admin@ende-deoruro.bo",
+        metadata: docItem.metadata || {},
+      };
+
+      const { data: insertedDoc, error: docError } = await supabaseAdmin
+        .from("documentos")
+        .insert([payload])
+        .select();
+
+      if (docError) {
+        console.error("Error insertando en tabla documentos de Supabase:", docError);
+        return NextResponse.json({ success: false, error: docError.message }, { status: 500 });
+      }
+
+      return NextResponse.json({ success: true, data: insertedDoc });
     }
 
     if (action === "INSERT") {
