@@ -237,9 +237,6 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
         material: isSalud ? "Metodología Analítica Validada" : "Acero al silicio manganeso 2X forjado con pavonado",
         color: "Estándar",
         aceptacionLote: "Evaluación técnica preliminar el día de la entrega",
-        categoriaItem: isSalud ? "Servicios Médicos" : "Herramientas de cuadrilla",
-        dimensiones: isSalud ? "Evaluación individual por persona" : "Corte 9/16 pulg - Largo 36 pulg",
-        pesoAprox: isSalud ? "N/A" : "2.5 kg",
         caracteristicasDetalle: [
           "Requisito técnico mínimo 1 de cumplimiento obligatorio",
           "Requisito técnico mínimo 2 de cumplimiento obligatorio",
@@ -270,6 +267,9 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
     const updated = {
       ...docData,
       prevision_presupuesto: totalPresupuesto > 0 ? totalPresupuesto : docData.prevision_presupuesto,
+      antecedentes_texto: puntosOficiales.find((p) => p.num === 1)?.contenido || docData.antecedentes_texto,
+      justificacion_texto: puntosOficiales.find((p) => p.num === 2)?.contenido || docData.justificacion_texto,
+      tipo_tabla_tdr: tipoTablaTdr,
     };
     onAdquisicionUpdated?.(updated);
     setSavedFeedback(true);
@@ -326,16 +326,28 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
     { num: 14, titulo: "APLICACIÓN DE MULTAS", contenido: `Ante el incumplimiento de los plazos y otras condiciones establecidas en la Orden de Compra y Especificaciones Técnicas, se aplicará la multa del ${docData.multa_diaria_porcentaje || 0.25}% por cada día de retraso injustificado.` },
   ]);
 
-  // Mantener sincronizados los puntos con el documento
+  // Sincronizar respetando: Si la plantilla oficial tiene contenido personalizado se respeta; sino copia fiel del markdown
   useEffect(() => {
+    const tplSecs = activeTemplate?.secciones_prompt || tplData.seccionesPrompt || [];
     setPuntosOficiales((prev) =>
       prev.map((p) => {
-        if (p.num === 1 && docData.antecedentes_texto) return { ...p, contenido: docData.antecedentes_texto };
-        if (p.num === 2 && docData.justificacion_texto) return { ...p, contenido: docData.justificacion_texto };
-        return p;
+        const matchingTpl = tplSecs.find((s: any) => s.numero === p.num);
+        const tplContent = matchingTpl?.contenido_default?.trim();
+
+        if (p.num === 1) {
+          return { ...p, contenido: tplContent || docData.antecedentes_texto || p.contenido };
+        }
+        if (p.num === 2) {
+          return { ...p, contenido: tplContent || docData.justificacion_texto || p.contenido };
+        }
+        return {
+          ...p,
+          titulo: matchingTpl?.titulo || p.titulo,
+          contenido: tplContent || p.contenido,
+        };
       })
     );
-  }, [docData.antecedentes_texto, docData.justificacion_texto]);
+  }, [activeTemplate, docData.antecedentes_texto, docData.justificacion_texto]);
 
   // Actualizar contenido de un punto
   const handlePuntoChange = (num: number, field: "titulo" | "contenido", val: string) => {

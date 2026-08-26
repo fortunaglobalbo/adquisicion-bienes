@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
-import { Adquisicion } from "@/types";
+import { Adquisicion, ItemAdquisicion } from "@/types";
 import {
   Download,
   Save,
@@ -12,8 +11,11 @@ import {
   Sparkles,
   RefreshCw,
   Layers,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { Modal } from "../ui/Modal";
+import { formatCurrencyBs } from "@/lib/docx/formatters";
 
 interface FormS2ViewerProps {
   adquisicion: Adquisicion;
@@ -42,6 +44,65 @@ export const FormS2Viewer: React.FC<FormS2ViewerProps> = ({
     }));
   };
 
+  // Item management with live automatic calculation
+  const handleItemChange = (itemId: string, field: keyof ItemAdquisicion, val: any) => {
+    setDocData((prev) => {
+      const updatedItems = (prev.items || []).map((it) => {
+        if (it.id !== itemId) return it;
+        const updated = { ...it, [field]: val };
+        const cant = Number(field === "cantidad" ? val : updated.cantidad) || 0;
+        const pu = Number(field === "precioUnitarioEstimado" ? val : updated.precioUnitarioEstimado) || 0;
+        updated.precioTotalEstimado = cant * pu;
+        return updated;
+      });
+
+      const totalPresupuesto = updatedItems.reduce(
+        (sum, it) => sum + (Number(it.precioTotalEstimado) || 0),
+        0
+      );
+
+      return {
+        ...prev,
+        items: updatedItems,
+        prevision_presupuesto: totalPresupuesto > 0 ? totalPresupuesto : prev.prevision_presupuesto,
+      };
+    });
+  };
+
+  const handleAddItem = () => {
+    const nextNum = (docData.items?.length || 0) + 1;
+    const newItem: ItemAdquisicion = {
+      id: `item-s2-${Date.now()}`,
+      item: nextNum,
+      descripcion: "NUEVO ÍTEM / SUMINISTRO REQUERIDO",
+      unidad: "PZA",
+      cantidad: 1,
+      precioUnitarioEstimado: 0,
+      precioTotalEstimado: 0,
+      caracteristicasTecnicas: "Según especificaciones técnicas oficiales",
+    };
+    setDocData((prev) => ({
+      ...prev,
+      items: [...(prev.items || []), newItem],
+    }));
+  };
+
+  const handleDeleteItem = (itemId: string) => {
+    if ((docData.items?.length || 0) <= 1) return;
+    setDocData((prev) => {
+      const filtered = (prev.items || []).filter((it) => it.id !== itemId).map((it, idx) => ({ ...it, item: idx + 1 }));
+      const totalPresupuesto = filtered.reduce(
+        (sum, it) => sum + (Number(it.precioTotalEstimado) || 0),
+        0
+      );
+      return {
+        ...prev,
+        items: filtered,
+        prevision_presupuesto: totalPresupuesto,
+      };
+    });
+  };
+
   // Direct 1-Click AI Generation
   const handleConsolidateAndGenerateWithAi = async () => {
     setIsAiProcessing(true);
@@ -64,7 +125,7 @@ export const FormS2Viewer: React.FC<FormS2ViewerProps> = ({
         const updated: Adquisicion = {
           ...docData,
           form_s2_fecha_solicitud: result.data.fecha_solicitud || docData.form_s2_fecha_solicitud || "19/06/2026",
-          form_s2_senores: result.data.senores || docData.form_s2_senores || "ARIOL IMPORT",
+          form_s2_senores: result.data.senores || docData.form_s2_senores || "PROVEEDOR / PROPONENTE",
           form_s2_tiempo_entrega: result.data.tiempo_entrega || docData.form_s2_tiempo_entrega,
           form_s2_validez_oferta: result.data.validez_oferta || docData.form_s2_validez_oferta,
           form_s2_observaciones: result.data.observaciones || docData.form_s2_observaciones,
@@ -85,20 +146,33 @@ export const FormS2Viewer: React.FC<FormS2ViewerProps> = ({
 
   // Save changes
   const handleSave = () => {
-    onAdquisicionUpdated?.(docData);
+    const totalPresupuesto = (docData.items || []).reduce(
+      (sum, it) => sum + (Number(it.precioTotalEstimado) || (Number(it.cantidad) || 1) * (Number(it.precioUnitarioEstimado) || 0)),
+      0
+    );
+    const updated = {
+      ...docData,
+      prevision_presupuesto: totalPresupuesto > 0 ? totalPresupuesto : docData.prevision_presupuesto,
+    };
+    setDocData(updated);
+    onAdquisicionUpdated?.(updated);
     setSavedFeedback(true);
     setTimeout(() => setSavedFeedback(false), 2500);
   };
 
   // Document Fields matching official photo
   const fechaSolicitud = docData.form_s2_fecha_solicitud || "19/06/2026";
-  const senores = docData.form_s2_senores || "ARIOL IMPORT";
-  const tiempoEntrega = docData.form_s2_tiempo_entrega || "";
-  const validezOferta = docData.form_s2_validez_oferta || "";
+  const senores = docData.form_s2_senores || "PROVEEDOR / PROPONENTE";
+  const tiempoEntrega = docData.form_s2_tiempo_entrega || `${docData.plazo_entrega_dias || 30} días calendario`;
+  const validezOferta = docData.form_s2_validez_oferta || "30 días calendario";
   const observaciones = docData.form_s2_observaciones || "SE ADJUNTA ESPECIFICACIONES TECNICAS";
   const notaAdicional = docData.form_s2_nota_adicional || "ADJUNTAR FOTOCOPIA SIMPLE DE SU RNC - NIT";
 
   const items = docData.items || [];
+  const totalCotizacion = items.reduce(
+    (sum, it) => sum + (Number(it.precioTotalEstimado) || (Number(it.cantidad) || 1) * (Number(it.precioUnitarioEstimado) || 0)),
+    0
+  );
 
   return (
     <div className={`flex flex-col space-y-4 ${isFullScreen ? "fixed inset-0 z-50 bg-surface p-4 overflow-y-auto" : "w-full"}`}>
@@ -252,38 +326,109 @@ export const FormS2Viewer: React.FC<FormS2ViewerProps> = ({
               </p>
             </div>
 
-            {/* Official Quotation Table (Exact Grid Borders) */}
-            <div className="border border-gray-900 overflow-hidden mt-2">
-              <table className="w-full text-xs font-sans border-collapse">
-                <thead>
-                  <tr className="border-b border-gray-900 bg-gray-100 text-center font-bold text-gray-900">
-                    <th className="border-r border-gray-900 p-2 w-10">N°</th>
-                    <th className="border-r border-gray-900 p-2 w-20">CANTIDAD</th>
-                    <th className="border-r border-gray-900 p-2 w-20">UNIDAD</th>
-                    <th className="border-r border-gray-900 p-2 text-center">DESCRIPCION</th>
-                    <th className="border-r border-gray-900 p-2 w-28 text-center leading-tight">PRECIO<br />UNITARIO</th>
-                    <th className="p-2 w-28 text-center leading-tight">PRECIO<br />TOTAL</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-900 text-gray-900">
-                  {items.map((item, idx) => (
-                    <tr key={item.id || idx} className="h-10">
-                      <td className="border-r border-gray-900 p-2 text-center font-bold">{item.item || idx + 1}</td>
-                      <td className="border-r border-gray-900 p-2 text-center font-bold">{item.cantidad}</td>
-                      <td className="border-r border-gray-900 p-2 text-center uppercase">{item.unidad || "PZA"}</td>
-                      <td className="border-r border-gray-900 p-2 uppercase font-medium">{item.descripcion}</td>
-                      <td className="border-r border-gray-900 p-2 text-center bg-gray-50/40"></td>
-                      <td className="p-2 text-center bg-gray-50/40"></td>
+            {/* Official Quotation Table (Exact Grid Borders with Full Live Editing & Calculation) */}
+            <div className="space-y-2 mt-2">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-mono text-gray-500 font-bold">
+                  ÍTEMS DE COTIZACIÓN ({items.length}) • EDICIÓN Y CÁLCULO EN VIVO
+                </span>
+                <button
+                  type="button"
+                  onClick={handleAddItem}
+                  className="flex items-center gap-1.5 px-3 py-1 bg-primary text-white hover:bg-primary-container text-xs font-bold rounded shadow-sm transition-all"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+ Añadir Ítem</span>
+                </button>
+              </div>
+
+              <div className="border border-gray-900 overflow-hidden">
+                <table className="w-full text-xs font-sans border-collapse">
+                  <thead>
+                    <tr className="border-b border-gray-900 bg-gray-100 text-center font-bold text-gray-900">
+                      <th className="border-r border-gray-900 p-2 w-10">N°</th>
+                      <th className="border-r border-gray-900 p-2 w-20">CANTIDAD</th>
+                      <th className="border-r border-gray-900 p-2 w-20">UNIDAD</th>
+                      <th className="border-r border-gray-900 p-2 text-center">DESCRIPCION</th>
+                      <th className="border-r border-gray-900 p-2 w-28 text-center leading-tight">PRECIO<br />UNITARIO (Bs)</th>
+                      <th className="border-r border-gray-900 p-2 w-28 text-center leading-tight">PRECIO<br />TOTAL (Bs)</th>
+                      <th className="p-2 w-10 text-center"></th>
                     </tr>
-                  ))}
-                  {/* Total Row */}
-                  <tr className="border-t border-gray-900 h-9 font-bold bg-gray-50">
-                    <td colSpan={4} className="border-r border-gray-900 p-2"></td>
-                    <td className="border-r border-gray-900 p-2 text-center uppercase">TOTAL (Bs)</td>
-                    <td className="p-2 text-center"></td>
-                  </tr>
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-gray-900 text-gray-900">
+                    {items.map((item, idx) => {
+                      const subtotal = (Number(item.cantidad) || 1) * (Number(item.precioUnitarioEstimado) || 0);
+                      return (
+                        <tr key={item.id || idx} className="h-10 hover:bg-blue-50/20 group">
+                          <td className="border-r border-gray-900 p-2 text-center font-bold">{item.item || idx + 1}</td>
+                          <td className="border-r border-gray-900 p-2 text-center font-bold">
+                            <input
+                              type="number"
+                              min="1"
+                              value={item.cantidad || 1}
+                              onChange={(e) => handleItemChange(item.id, "cantidad", parseInt(e.target.value, 10) || 1)}
+                              className="w-14 text-center font-bold bg-transparent focus:bg-white focus:outline-none border-b border-transparent hover:border-gray-400"
+                            />
+                          </td>
+                          <td className="border-r border-gray-900 p-2 text-center uppercase">
+                            <input
+                              type="text"
+                              value={item.unidad || "PZA"}
+                              onChange={(e) => handleItemChange(item.id, "unidad", e.target.value.toUpperCase())}
+                              className="w-14 text-center uppercase font-bold bg-transparent focus:bg-white focus:outline-none border-b border-transparent hover:border-gray-400"
+                            />
+                          </td>
+                          <td className="border-r border-gray-900 p-2 uppercase font-medium">
+                            <input
+                              type="text"
+                              value={item.descripcion}
+                              onChange={(e) => handleItemChange(item.id, "descripcion", e.target.value)}
+                              className="w-full font-medium uppercase bg-transparent focus:bg-white focus:outline-none border-b border-transparent hover:border-primary"
+                            />
+                          </td>
+                          <td className="border-r border-gray-900 p-2 text-center">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={item.precioUnitarioEstimado || ""}
+                              placeholder="0.00"
+                              onChange={(e) => handleItemChange(item.id, "precioUnitarioEstimado", parseFloat(e.target.value) || 0)}
+                              className="w-20 text-center font-mono font-bold bg-transparent focus:bg-white focus:outline-none border-b border-transparent hover:border-gray-400"
+                            />
+                          </td>
+                          <td className="border-r border-gray-900 p-2 text-center font-mono font-bold bg-gray-50/50">
+                            {formatCurrencyBs(subtotal)}
+                          </td>
+                          <td className="p-2 text-center">
+                            {items.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteItem(item.id)}
+                                className="text-red-500 hover:text-red-700 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                title="Eliminar ítem"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {/* Total Row with Live Auto Calculation */}
+                    <tr className="border-t border-gray-900 h-10 font-bold bg-gray-100">
+                      <td colSpan={4} className="border-r border-gray-900 p-2 text-right uppercase font-mono">
+                        TOTAL GENERAL COTIZADO (Bs):
+                      </td>
+                      <td className="border-r border-gray-900 p-2"></td>
+                      <td className="border-r border-gray-900 p-2 text-center font-mono font-black text-primary text-sm bg-yellow-50/80">
+                        {formatCurrencyBs(totalCotizacion)}
+                      </td>
+                      <td></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             {/* Conditions & Observations */}

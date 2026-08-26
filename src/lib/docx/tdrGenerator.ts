@@ -638,7 +638,7 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
 
           new Paragraph({ children: [new PageBreak()] }),
 
-          // PÁGINA 7: CLÁUSULAS INSTITUCIONALES FINALES (12 pt)
+          // PÁGINA FINAL: CLÁUSULAS INSTITUCIONALES OFICIALES (PUNTOS 4 AL 14 - 12 pt)
           new Paragraph({
             spacing: { before: 100, after: 80 },
             children: [new TextRun({ text: "4.   CALIDAD", bold: true, size: FONT_HEADING, font: "Inter" })],
@@ -648,59 +648,7 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
             spacing: { after: 160 },
             children: [
               new TextRun({
-                text: adquisicion.calidad_texto || "El ofertante deberá presentar un certificado en el cual garantice que las herramientas cumplan con todas las características técnicas y los estándares de calidad de acuerdo a normativa vigente.",
-                size: FONT_BODY, // 12 pt
-                font: "Inter",
-              }),
-            ],
-          }),
-
-          new Paragraph({
-            spacing: { before: 60, after: 80 },
-            children: [new TextRun({ text: "5.   CATEGORÍA", bold: true, size: FONT_HEADING, font: "Inter" })],
-          }),
-          new Paragraph({
-            spacing: { after: 160 },
-            children: [new TextRun({ text: adquisicion.categoria || "Herramientas.", size: FONT_BODY, font: "Inter" })],
-          }),
-
-          new Paragraph({
-            spacing: { before: 60, after: 80 },
-            children: [new TextRun({ text: "6.   LUGAR DE ENTREGA", bold: true, size: FONT_HEADING, font: "Inter" })],
-          }),
-          new Paragraph({
-            spacing: { after: 160 },
-            children: [new TextRun({ text: adquisicion.lugar_entrega || "Almacenes ENDE DEORURO S.A.", size: FONT_BODY, font: "Inter" })],
-          }),
-
-          new Paragraph({
-            spacing: { before: 60, after: 80 },
-            children: [new TextRun({ text: "7.   TIEMPO DE ENTREGA", bold: true, size: FONT_HEADING, font: "Inter" })],
-          }),
-          new Paragraph({
-            spacing: { after: 160 },
-            children: [new TextRun({ text: `Máximo ${adquisicion.plazo_entrega_dias || 120} días calendario pudiendo ofertar plazos menores.`, size: FONT_BODY, font: "Inter" })],
-          }),
-
-          new Paragraph({
-            spacing: { before: 60, after: 80 },
-            children: [new TextRun({ text: "8.   FORMA DE ADJUDICACIÓN", bold: true, size: FONT_HEADING, font: "Inter" })],
-          }),
-          new Paragraph({
-            spacing: { after: 160 },
-            children: [new TextRun({ text: "Por ítem requerido (Menor Precio - Art. 31 SBC).", size: FONT_BODY, font: "Inter" })],
-          }),
-
-          new Paragraph({
-            spacing: { before: 60, after: 80 },
-            children: [new TextRun({ text: "9.   PARA LA ACEPTACIÓN DEL LOTE", bold: true, size: FONT_HEADING, font: "Inter" })],
-          }),
-          new Paragraph({
-            alignment: AlignmentType.JUSTIFIED,
-            spacing: { after: 160 },
-            children: [
-              new TextRun({
-                text: "El personal de ENDE DEORURO, realizará una evaluación preliminar el día de la entrega, en caso de existir observaciones, se hará conocer inmediatamente.",
+                text: adquisicion.calidad_texto || "Los bienes deberán ser nuevos, de primer uso y fabricados bajo normas de calidad aplicables, o el proponente/laboratorio deberá contar con las acreditaciones y credenciales sanitarias vigentes ante las autoridades competentes.",
                 size: FONT_BODY,
                 font: "Inter",
               }),
@@ -709,14 +657,77 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
 
           new Paragraph({
             spacing: { before: 60, after: 80 },
-            children: [new TextRun({ text: "10.   FORMA DE PAGO", bold: true, size: FONT_HEADING, font: "Inter" })],
+            children: [new TextRun({ text: "5.   ÁMBITO DE APLICACIÓN", bold: true, size: FONT_HEADING, font: "Inter" })],
+          }),
+          new Paragraph({
+            spacing: { after: 160 },
+            children: [new TextRun({ text: "Personal institucional y áreas operativas/administrativas de la Distribuidora de Electricidad ENDE DEORURO S.A.", size: FONT_BODY, font: "Inter" })],
+          }),
+
+          new Paragraph({
+            spacing: { before: 60, after: 80 },
+            children: [new TextRun({ text: "6.   MÉTODO DE SELECCIÓN", bold: true, size: FONT_HEADING, font: "Inter" })],
+          }),
+          new Paragraph({
+            spacing: { after: 160 },
+            children: [new TextRun({ text: "Menor Precio (Art. 31 del Reglamento SBC).", size: FONT_BODY, font: "Inter" })],
+          }),
+
+          new Paragraph({
+            spacing: { before: 60, after: 80 },
+            children: [new TextRun({ text: "7.   VIGENCIA DE LA PROPUESTA", bold: true, size: FONT_HEADING, font: "Inter" })],
+          }),
+          new Paragraph({
+            spacing: { after: 160 },
+            children: [new TextRun({ text: "Tendrá una validez mínima de 30 días calendario computables a partir de la fecha de presentación de la propuesta.", size: FONT_BODY, font: "Inter" })],
+          }),
+
+          new Paragraph({
+            spacing: { before: 60, after: 80 },
+            children: [new TextRun({ text: "8.   CATEGORÍA", bold: true, size: FONT_HEADING, font: "Inter" })],
+          }),
+          new Paragraph({
+            spacing: { after: 160 },
+            children: [new TextRun({ text: adquisicion.categoria || "Bienes y Suministros Oficiales / Servicios Ocupacionales.", size: FONT_BODY, font: "Inter" })],
+          }),
+
+          new Paragraph({
+            spacing: { before: 60, after: 80 },
+            children: [new TextRun({ text: "9.   LUGAR DE ENTREGA", bold: true, size: FONT_HEADING, font: "Inter" })],
+          }),
+          new Paragraph({
+            spacing: { after: 160 },
+            children: [new TextRun({ text: adquisicion.lugar_entrega || "Instalaciones / Almacén Central de ENDE DEORURO S.A., ubicado en la ciudad de Oruro - Bolivia.", size: FONT_BODY, font: "Inter" })],
+          }),
+
+          new Paragraph({
+            spacing: { before: 60, after: 80 },
+            children: [new TextRun({ text: "10.   TIEMPO DE ENTREGA", bold: true, size: FONT_HEADING, font: "Inter" })],
+          }),
+          new Paragraph({
+            spacing: { after: 160 },
+            children: [new TextRun({ text: `Máximo ${adquisicion.plazo_entrega_dias || 30} días calendario computables a partir del día siguiente hábil de la recepción formal de la Orden de Compra.`, size: FONT_BODY, font: "Inter" })],
+          }),
+
+          new Paragraph({
+            spacing: { before: 60, after: 80 },
+            children: [new TextRun({ text: "11.   FORMA DE ADJUDICACIÓN", bold: true, size: FONT_HEADING, font: "Inter" })],
+          }),
+          new Paragraph({
+            spacing: { after: 160 },
+            children: [new TextRun({ text: "Por ítem requerido, formalizada mediante Orden de Compra (Art. 31 SBC).", size: FONT_BODY, font: "Inter" })],
+          }),
+
+          new Paragraph({
+            spacing: { before: 60, after: 80 },
+            children: [new TextRun({ text: "12.   PARA LA ACEPTACIÓN DEL LOTE / SERVICIO", bold: true, size: FONT_HEADING, font: "Inter" })],
           }),
           new Paragraph({
             alignment: AlignmentType.JUSTIFIED,
             spacing: { after: 160 },
             children: [
               new TextRun({
-                text: adquisicion.forma_pago_texto || "El pago se realizará contra entrega satisfactoria del producto, conformidad de la Distribuidora de Electricidad ENDE DEORURO S.A. y entrega de la siguiente documentación: Nota de Entrega, Solicitud de Pago y Factura.",
+                text: "El personal técnico de ENDE DEORURO realizará una evaluación técnica de conformidad el día de la entrega; en caso de existir observaciones, se hará conocer inmediatamente.",
                 size: FONT_BODY,
                 font: "Inter",
               }),
@@ -725,14 +736,30 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
 
           new Paragraph({
             spacing: { before: 60, after: 80 },
-            children: [new TextRun({ text: "11.   APLICACIÓN DE MULTAS", bold: true, size: FONT_HEADING, font: "Inter" })],
+            children: [new TextRun({ text: "13.   FORMA DE PAGO", bold: true, size: FONT_HEADING, font: "Inter" })],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.JUSTIFIED,
+            spacing: { after: 160 },
+            children: [
+              new TextRun({
+                text: adquisicion.forma_pago_texto || "El pago se realizará contra entrega satisfactoria del producto o servicio, conformidad emitida por ENDE DEORURO S.A. y entrega de la siguiente documentación: Nota de Entrega / Acta de Recepción, Solicitud de Pago y Factura oficial original.",
+                size: FONT_BODY,
+                font: "Inter",
+              }),
+            ],
+          }),
+
+          new Paragraph({
+            spacing: { before: 60, after: 80 },
+            children: [new TextRun({ text: "14.   APLICACIÓN DE MULTAS", bold: true, size: FONT_HEADING, font: "Inter" })],
           }),
           new Paragraph({
             alignment: AlignmentType.JUSTIFIED,
             spacing: { after: 300 },
             children: [
               new TextRun({
-                text: `Ante el incumplimiento de los plazos y otras condiciones establecidas de la Orden de compra y especificaciones técnicas, se aplicará la multa del ${adquisicion.multa_diaria_porcentaje || 0.25}% por día de retraso, que se menciona en los Términos y Condiciones.`,
+                text: `Ante el incumplimiento de los plazos y otras condiciones establecidas en la Orden de Compra y Especificaciones Técnicas, se aplicará la multa del ${adquisicion.multa_diaria_porcentaje || 0.25}% por cada día de retraso injustificado.`,
                 size: FONT_BODY,
                 font: "Inter",
               }),
