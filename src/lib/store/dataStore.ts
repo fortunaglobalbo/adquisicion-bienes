@@ -10,7 +10,6 @@ import {
   Plantilla,
 } from "@/types";
 import { INITIAL_ADQUISICIONES, createInitialFolders, INITIAL_PLANTILLAS } from "./initialData";
-import { supabase, isSupabaseConfigured } from "../supabase/client";
 
 const STORAGE_KEYS = {
   ADQUISICIONES: "ende_adquisiciones_v2026",
@@ -26,25 +25,23 @@ export class DataStore {
     return typeof window !== "undefined";
   }
 
-  // --- SINCRONIZACIÓN CON SUPABASE ---
+  // --- SINCRONIZACIÓN CON SUPABASE VÍA API ROUTE (BYPASS RLS) ---
   static async syncWithSupabase(): Promise<void> {
-    if (!this.isClient() || !isSupabaseConfigured()) return;
+    if (!this.isClient()) return;
     try {
-      // 1. Sincronizar Adquisiciones
-      const { data: remoteAdqs, error: errAdq } = await supabase
-        .from("adquisiciones")
-        .select("*")
-        .order("fecha_creacion", { ascending: false });
+      const res = await fetch("/api/db/sync");
+      if (!res.ok) return;
+      const result = await res.json();
 
-      if (!errAdq && remoteAdqs && remoteAdqs.length > 0) {
+      if (result.success && Array.isArray(result.adquisiciones) && result.adquisiciones.length > 0) {
         const localList = this.getAdquisiciones();
-        // Combinar datos locales con remotos respetando los más recientes
         const mergedMap = new Map<string, Adquisicion>();
         localList.forEach((a) => mergedMap.set(a.codigo, a));
-        remoteAdqs.forEach((r: any) => {
+
+        result.adquisiciones.forEach((r: any) => {
           const existing = mergedMap.get(r.codigo);
           mergedMap.set(r.codigo, {
-            id: r.id,
+            id: r.id || `acq-${r.codigo}`,
             codigo: r.codigo,
             titulo_proceso: r.titulo_proceso,
             categoria: r.categoria,
@@ -125,46 +122,29 @@ export class DataStore {
     // Initial log
     this.addLog(id, `Expediente creado con código ${newAdq.codigo}: "${newAdq.titulo_proceso}".`, newAdq.creado_por, "CREAR");
 
-    // Guardar en Supabase en segundo plano
-    if (this.isClient() && isSupabaseConfigured()) {
-      (async () => {
-        try {
-          const { data: created, error } = await supabase
-            .from("adquisiciones")
-            .insert([
-              {
-                codigo: newAdq.codigo,
-                titulo_proceso: newAdq.titulo_proceso,
-                categoria: newAdq.categoria || "Bienes",
-                modalidad: newAdq.modalidad,
-                partida_presupuestaria: newAdq.partida_presupuestaria,
-                estado: newAdq.estado,
-                prevision_presupuesto: newAdq.prevision_presupuesto,
-                moneda: newAdq.moneda || "BOB",
-                unidad_solicitante: newAdq.unidad_solicitante,
-                responsable_proceso: newAdq.responsable_proceso,
-                creado_por: newAdq.creado_por,
-              },
-            ])
-            .select();
-
-          if (error) {
-            console.error("Error guardando adquisición en Supabase:", error);
-          } else if (created && created[0]) {
-            const dbCarpetas = initialFolders.map((c) => ({
-              adquisicion_id: created[0].id,
-              numero: c.numero,
-              nombre: c.nombre,
-              tipo_generacion: c.tipo_generacion,
-              estado: c.estado,
-              descripcion: c.descripcion,
-            }));
-            await supabase.from("carpetas").insert(dbCarpetas);
-          }
-        } catch (err) {
-          console.error("Error async en Supabase createAdquisicion:", err);
-        }
-      })();
+    // Guardar en Supabase en segundo plano vía API (Bypass RLS)
+    if (this.isClient()) {
+      fetch("/api/db/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "INSERT",
+          table: "adquisiciones",
+          data: {
+            codigo: newAdq.codigo,
+            titulo_proceso: newAdq.titulo_proceso,
+            categoria: newAdq.categoria || "Bienes",
+            modalidad: newAdq.modalidad,
+            partida_presupuestaria: newAdq.partida_presupuestaria,
+            estado: newAdq.estado,
+            prevision_presupuesto: newAdq.prevision_presupuesto,
+            moneda: newAdq.moneda || "BOB",
+            unidad_solicitante: newAdq.unidad_solicitante,
+            responsable_proceso: newAdq.responsable_proceso,
+            creado_por: newAdq.creado_por,
+          },
+        }),
+      }).catch(console.error);
     }
 
     return newAdq;
@@ -182,8 +162,8 @@ export class DataStore {
     };
     this.saveAdquisiciones(list);
 
-    // Actualizar en Supabase en segundo plano
-    if (this.isClient() && isSupabaseConfigured()) {
+    // Actualizar en Supabase en segundo plano vía API
+    if (this.isClient()) {
       const target = list[idx];
       const payload: any = {
         fecha_actualizacion: new Date().toISOString(),
@@ -194,17 +174,16 @@ export class DataStore {
       if (updates.prevision_presupuesto !== undefined) payload.prevision_presupuesto = updates.prevision_presupuesto;
       if (updates.responsable_proceso) payload.responsable_proceso = updates.responsable_proceso;
 
-      (async () => {
-        try {
-          const { error } = await supabase
-            .from("adquisiciones")
-            .update(payload)
-            .or(`id.eq.${target.id},codigo.eq.${target.codigo}`);
-          if (error) console.error("Error actualizando en Supabase:", error);
-        } catch (err) {
-          console.error("Error async en Supabase updateAdquisicion:", err);
-        }
-      })();
+      fetch("/api/db/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "UPDATE",
+          table: "adquisiciones",
+          id: target.codigo,
+          data: payload,
+        }),
+      }).catch(console.error);
     }
 
     return list[idx];
@@ -221,24 +200,21 @@ export class DataStore {
     const allCarpetas = this.getAllCarpetas().filter((c) => c.adquisicion_id !== id);
     this.saveAllCarpetas(allCarpetas);
 
-    // Eliminar en Supabase en segundo plano
-    if (isSupabaseConfigured() && target) {
-      (async () => {
-        try {
-          const { error } = await supabase
-            .from("adquisiciones")
-            .delete()
-            .or(`id.eq.${target.id},codigo.eq.${target.codigo}`);
-          if (error) console.error("Error eliminando de Supabase:", error);
-        } catch (err) {
-          console.error("Error async en Supabase deleteAdquisicion:", err);
-        }
-      })();
+    // Eliminar en Supabase en segundo plano vía API
+    if (target) {
+      fetch("/api/db/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "DELETE",
+          table: "adquisiciones",
+          id: target.codigo,
+        }),
+      }).catch(console.error);
     }
 
     return true;
   }
-
 
   // --- CARPETAS ---
   static getAllCarpetas(): Carpeta[] {
@@ -387,19 +363,20 @@ export class DataStore {
     all.unshift(newLog);
     localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(all));
 
-    // Guardar en Supabase
-    if (isSupabaseConfigured()) {
-      supabase
-        .from("logs_proceso")
-        .insert([
-          {
-            descripcion,
-            usuario,
-            accion,
-          },
-        ])
-        .then();
-    }
+    // Guardar en Supabase vía API
+    fetch("/api/db/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "INSERT",
+        table: "logs_proceso",
+        data: {
+          descripcion,
+          usuario,
+          accion,
+        },
+      }),
+    }).catch(console.error);
   }
 
   // --- PLANTILLAS ---
@@ -429,26 +406,22 @@ export class DataStore {
     list[idx] = { ...list[idx], ...updates };
     this.saveAllPlantillas(list);
 
-    // Guardar en Supabase
-    if (this.isClient() && isSupabaseConfigured()) {
-      const target = list[idx];
-      (async () => {
-        try {
-          const { error } = await supabase
-            .from("plantillas")
-            .update({
-              contenido_plantilla: target.datos_completos || updates,
-              version: target.version || "1.0",
-            })
-            .eq("fk_carpeta", target.fk_carpeta);
-          if (error) console.error("Error actualizando plantilla en Supabase:", error);
-        } catch (err) {
-          console.error("Error async en Supabase updatePlantilla:", err);
-        }
-      })();
-    }
+    // Guardar en Supabase vía API
+    const target = list[idx];
+    fetch("/api/db/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "UPDATE",
+        table: "plantillas",
+        filter: { column: "fk_carpeta", value: target.fk_carpeta },
+        data: {
+          contenido_plantilla: target.datos_completos || updates,
+          version: target.version || "1.0",
+        },
+      }),
+    }).catch(console.error);
 
     return list[idx];
   }
 }
-
