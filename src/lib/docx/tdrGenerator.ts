@@ -18,12 +18,18 @@ import fs from "fs";
 import path from "path";
 import { Adquisicion } from "@/types";
 import { ENDE_COLORS, defaultTableBorders } from "./endeTheme";
+import { getMesAnioActual } from "@/lib/utils/dateUtils";
 
 export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: any): Promise<Buffer> {
   const tpl = templateData || {};
   const revision = tpl.versionDoc || adquisicion.revision || "Rev. N° 1";
-  const mesAnio = tpl.fechaDoc || adquisicion.mes_anio_documento || "Mayo - 2026";
-  const tituloUpper = (tpl.tituloProceso || adquisicion.titulo_proceso || "ADQUISICIÓN DE HERRAMIENTA PARA CUADRILLAS").toUpperCase();
+  const mesAnio =
+    adquisicion.mes_anio_documento && !adquisicion.mes_anio_documento.toLowerCase().includes("mayo")
+      ? adquisicion.mes_anio_documento
+      : (tpl.fechaDoc && !tpl.fechaDoc.toLowerCase().includes("mayo")
+        ? tpl.fechaDoc
+        : getMesAnioActual());
+  const tituloUpper = (tpl.tituloProceso || adquisicion.titulo_proceso || "ADQUISICIÓN DE BIENES Y SUMINISTROS").toUpperCase();
   const elaborado = tpl.firmaNombre || (adquisicion.elaborado_por ? `Ing. ${adquisicion.elaborado_por}` : "Ing. Heydi Canaviri Padilla");
   const elaboradoCargo = tpl.firmaCargo || adquisicion.elaborado_cargo || "SUPERVISORA SEGURIDAD INDUSTRIAL";
   const incluirFirma = tpl.incluirFirmaPortada !== false;
@@ -312,26 +318,33 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
           }),
         },
         children: [
-          // PÁGINA 2: CONTENIDO / ÍNDICE (Texto a 12pt)
+          // PÁGINA 2: ÍNDICE GENERAL DEL DOCUMENTO (14 Puntos Oficiales)
           new Paragraph({
             alignment: AlignmentType.CENTER,
-            spacing: { before: 200, after: 300 },
+            spacing: { before: 200, after: 250 },
             children: [
               new TextRun({
-                text: "Contenido",
+                text: "ÍNDICE GENERAL DEL DOCUMENTO",
                 bold: true,
                 size: FONT_HEADING, // 12pt
                 font: "Inter",
               }),
             ],
           }),
-          new Paragraph({ spacing: { after: 140 }, children: [new TextRun({ text: "1.   ANTECEDENTES ....................................................................................................................... 3", size: FONT_BODY, font: "Inter" })] }),
-          new Paragraph({ spacing: { after: 140 }, children: [new TextRun({ text: "2.   JUSTIFICACIÓN / NECESIDAD ................................................................................................. 3", size: FONT_BODY, font: "Inter" })] }),
-          new Paragraph({ spacing: { after: 140 }, children: [new TextRun({ text: "3.   ESPECIFICACIÓN TÉCNICA ..................................................................................................... 3", size: FONT_BODY, font: "Inter" })] }),
-          new Paragraph({ spacing: { after: 140 }, children: [new TextRun({ text: "4.   CALIDAD ................................................................................................................................. 7", size: FONT_BODY, font: "Inter" })] }),
-          new Paragraph({ spacing: { after: 140 }, children: [new TextRun({ text: "5.   MÉTODO DE SELECCIÓN .......................................................................................................... 7", size: FONT_BODY, font: "Inter" })] }),
-          new Paragraph({ spacing: { after: 140 }, children: [new TextRun({ text: "6.   VIGENCIA DE LA PROPUESTA .................................................................................................. 7", size: FONT_BODY, font: "Inter" })] }),
-          new Paragraph({ spacing: { after: 300 }, children: [new TextRun({ text: "7.   APLICACIÓN DE MULTAS .......................................................................................................... 7", size: FONT_BODY, font: "Inter" })] }),
+          new Paragraph({ spacing: { after: 90 }, children: [new TextRun({ text: "1.   ANTECEDENTES ....................................................................................................................... 3", size: FONT_BODY, font: "Inter" })] }),
+          new Paragraph({ spacing: { after: 90 }, children: [new TextRun({ text: "2.   JUSTIFICACIÓN / NECESIDAD ................................................................................................. 3", size: FONT_BODY, font: "Inter" })] }),
+          new Paragraph({ spacing: { after: 90 }, children: [new TextRun({ text: "3.   ESPECIFICACIÓN TÉCNICA ..................................................................................................... 4", size: FONT_BODY, font: "Inter" })] }),
+          new Paragraph({ spacing: { after: 90 }, children: [new TextRun({ text: "4.   CALIDAD ................................................................................................................................. 4", size: FONT_BODY, font: "Inter" })] }),
+          new Paragraph({ spacing: { after: 90 }, children: [new TextRun({ text: "5.   ÁMBITO DE APLICACIÓN .......................................................................................................... 5", size: FONT_BODY, font: "Inter" })] }),
+          new Paragraph({ spacing: { after: 90 }, children: [new TextRun({ text: "6.   MÉTODO DE SELECCIÓN .......................................................................................................... 5", size: FONT_BODY, font: "Inter" })] }),
+          new Paragraph({ spacing: { after: 90 }, children: [new TextRun({ text: "7.   VIGENCIA DE LA PROPUESTA .................................................................................................. 5", size: FONT_BODY, font: "Inter" })] }),
+          new Paragraph({ spacing: { after: 90 }, children: [new TextRun({ text: "8.   CATEGORÍA ............................................................................................................................. 6", size: FONT_BODY, font: "Inter" })] }),
+          new Paragraph({ spacing: { after: 90 }, children: [new TextRun({ text: "9.   LUGAR DE ENTREGA ............................................................................................................... 6", size: FONT_BODY, font: "Inter" })] }),
+          new Paragraph({ spacing: { after: 90 }, children: [new TextRun({ text: "10. TIEMPO DE ENTREGA .............................................................................................................. 6", size: FONT_BODY, font: "Inter" })] }),
+          new Paragraph({ spacing: { after: 90 }, children: [new TextRun({ text: "11. FORMA DE ADJUDICACIÓN ....................................................................................................... 6", size: FONT_BODY, font: "Inter" })] }),
+          new Paragraph({ spacing: { after: 90 }, children: [new TextRun({ text: "12. PARA LA ACEPTACIÓN DEL LOTE / SERVICIO ......................................................................... 6", size: FONT_BODY, font: "Inter" })] }),
+          new Paragraph({ spacing: { after: 90 }, children: [new TextRun({ text: "13. FORMA DE PAGO .................................................................................................................... 6", size: FONT_BODY, font: "Inter" })] }),
+          new Paragraph({ spacing: { after: 250 }, children: [new TextRun({ text: "14. APLICACIÓN DE MULTAS .......................................................................................................... 6", size: FONT_BODY, font: "Inter" })] }),
 
           new Paragraph({ children: [new PageBreak()] }),
 
