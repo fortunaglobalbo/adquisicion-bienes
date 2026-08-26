@@ -62,7 +62,18 @@ export class DataStore {
           plazo_entrega_dias: r.plazo_entrega_dias || 30,
           multa_diaria_porcentaje: r.multa_diaria_porcentaje || 0.25,
           lugar_entrega: r.lugar_entrega || "Almacén Central ENDE DEORURO S.A., Oruro - Bolivia",
-          items: r.items || [],
+          items: Array.isArray(r.items)
+            ? r.items
+            : typeof r.items === "string"
+            ? (() => {
+                try {
+                  const parsed = JSON.parse(r.items);
+                  return Array.isArray(parsed) ? parsed : [];
+                } catch {
+                  return [];
+                }
+              })()
+            : [],
         }));
         this.saveAdquisiciones(mappedAdqs);
       }

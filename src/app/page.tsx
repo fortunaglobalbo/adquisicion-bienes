@@ -52,7 +52,24 @@ export default function DashboardPage() {
     }
   };
 
-  const nextCodigo = `ENDE-D-2026-${String(adquisiciones.length + 1).padStart(3, "0")}`;
+  const calculateNextCodigo = (list: Adquisicion[]): string => {
+    const currentYear = new Date().getFullYear();
+    let maxNum = 0;
+    (list || []).forEach((adq) => {
+      if (!adq || !adq.codigo) return;
+      const match = adq.codigo.match(/(\d+)$/);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (!isNaN(num) && num > maxNum) {
+          maxNum = num;
+        }
+      }
+    });
+    return `ENDE-D-${currentYear}-${String(maxNum + 1).padStart(3, "0")}`;
+  };
+
+  const nextCodigo = calculateNextCodigo(adquisiciones);
+
 
   return (
     <>
