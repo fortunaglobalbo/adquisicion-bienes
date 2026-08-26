@@ -9,7 +9,7 @@ import {
   LogProceso,
   Plantilla,
 } from "@/types";
-import { INITIAL_ADQUISICIONES, createInitialFolders, INITIAL_PLANTILLAS } from "./initialData";
+import { createInitialFolders } from "./initialData";
 
 const STORAGE_KEYS = {
   ADQUISICIONES: "ende_adquisiciones_v2026",
@@ -25,113 +25,90 @@ export class DataStore {
     return typeof window !== "undefined";
   }
 
-  // --- CARGA DIRECTA DESDE SUPABASE POSTGRESQL ---
-  static async syncWithSupabase(): Promise<void> {
-    if (!this.isClient()) return;
+  // --- CARGA DIRECTA DESDE SUPABASE POSTGRESQL (SIN TEMPORALES NI MOCKS) ---
+  static async syncWithSupabase(): Promise<{ success: boolean; error?: string }> {
+    if (!this.isClient()) return { success: false, error: "Entorno no es cliente" };
     try {
       const res = await fetch("/api/db/sync");
-      if (!res.ok) return;
       const result = await res.json();
 
-      if (result.success) {
-        // 1. Guardar Adquisiciones reales desde Supabase
-        if (Array.isArray(result.adquisiciones) && result.adquisiciones.length > 0) {
-          const mappedAdqs: Adquisicion[] = result.adquisiciones.map((r: any) => ({
-            id: r.id || `acq-${r.codigo}`,
-            codigo: r.codigo,
-            titulo_proceso: r.titulo_proceso,
-            categoria: r.categoria,
-            modalidad: r.modalidad,
-            partida_presupuestaria: r.partida_presupuestaria || "39500",
-            estado: r.estado,
-            prevision_presupuesto: Number(r.prevision_presupuesto) || 0,
-            moneda: r.moneda || "BOB",
-            fecha_inicio: r.fecha_inicio || new Date().toISOString().split("T")[0],
-            fecha_limite: r.fecha_limite,
-            unidad_solicitante: r.unidad_solicitante || "Departamento Técnico de Mantenimiento",
-            responsable_proceso: r.responsable_proceso,
-            creado_por: r.creado_por || "admin@ende-deoruro.bo",
-            fecha_creacion: r.fecha_creacion,
-            fecha_actualizacion: r.fecha_actualizacion,
-            antecedentes_texto: r.antecedentes_texto,
-            justificacion_texto: r.justificacion_texto,
-            plazo_entrega_dias: r.plazo_entrega_dias || 30,
-            multa_diaria_porcentaje: r.multa_diaria_porcentaje || 0.25,
-            lugar_entrega: r.lugar_entrega || "Almacén Central ENDE DEORURO S.A., Oruro - Bolivia",
-            items: r.items || [],
-          }));
-          this.saveAdquisiciones(mappedAdqs);
-        } else if (Array.isArray(result.adquisiciones) && result.adquisiciones.length === 0) {
-          // Si la base de datos está vacía, auto-sembrar registros iniciales en Supabase
-          for (const initAdq of INITIAL_ADQUISICIONES) {
-            await fetch("/api/db/sync", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                action: "UPSERT",
-                table: "adquisiciones",
-                data: {
-                  codigo: initAdq.codigo,
-                  titulo_proceso: initAdq.titulo_proceso,
-                  categoria: initAdq.categoria || "Bienes",
-                  modalidad: initAdq.modalidad,
-                  partida_presupuestaria: initAdq.partida_presupuestaria,
-                  estado: initAdq.estado,
-                  prevision_presupuesto: initAdq.prevision_presupuesto,
-                  moneda: initAdq.moneda || "BOB",
-                  unidad_solicitante: initAdq.unidad_solicitante,
-                  responsable_proceso: initAdq.responsable_proceso,
-                  creado_por: initAdq.creado_por,
-                },
-              }),
-            });
-          }
-          this.saveAdquisiciones(INITIAL_ADQUISICIONES);
-        }
-
-        // 2. Guardar Carpetas reales desde Supabase
-        if (Array.isArray(result.carpetas) && result.carpetas.length > 0) {
-          this.saveAllCarpetas(result.carpetas);
-        }
-
-        // 3. Guardar Plantillas reales desde Supabase
-        if (Array.isArray(result.plantillas) && result.plantillas.length > 0) {
-          const mappedPlantillas: Plantilla[] = result.plantillas.map((p: any) => ({
-            id: p.id || `tpl-${p.fk_carpeta}`,
-            fk_carpeta: p.fk_carpeta,
-            nombre: p.nombre,
-            descripcion: p.descripcion,
-            version: p.version || "1.0",
-            campos_configurables: p.contenido_plantilla?.campos_configurables || [],
-            secciones_fijas: p.contenido_plantilla?.secciones_fijas || [],
-            datos_completos: p.contenido_plantilla || {},
-          }));
-          this.saveAllPlantillas(mappedPlantillas);
-        }
-
-        // 4. Guardar Logs reales desde Supabase
-        if (Array.isArray(result.logs)) {
-          localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(result.logs));
-        }
+      if (!res.ok || !result.success) {
+        const errorMsg = result.error || `Error HTTP ${res.status} al conectar con Supabase`;
+        console.error("Fallo de conexión con base de datos:", errorMsg);
+        return { success: false, error: errorMsg };
       }
-    } catch (e) {
-      console.error("Error en syncWithSupabase:", e);
+
+      // 1. Cargar Adquisiciones reales desde Supabase
+      if (Array.isArray(result.adquisiciones)) {
+        const mappedAdqs: Adquisicion[] = result.adquisiciones.map((r: any) => ({
+          id: r.id || `acq-${r.codigo}`,
+          codigo: r.codigo,
+          titulo_proceso: r.titulo_proceso,
+          categoria: r.categoria,
+          modalidad: r.modalidad,
+          partida_presupuestaria: r.partida_presupuestaria || "39500",
+          estado: r.estado,
+          prevision_presupuesto: Number(r.prevision_presupuesto) || 0,
+          moneda: r.moneda || "BOB",
+          fecha_inicio: r.fecha_inicio || new Date().toISOString().split("T")[0],
+          fecha_limite: r.fecha_limite,
+          unidad_solicitante: r.unidad_solicitante || "Departamento Técnico de Mantenimiento",
+          responsable_proceso: r.responsable_proceso,
+          creado_por: r.creado_por || "admin@ende-deoruro.bo",
+          fecha_creacion: r.fecha_creacion,
+          fecha_actualizacion: r.fecha_actualizacion,
+          antecedentes_texto: r.antecedentes_texto,
+          justificacion_texto: r.justificacion_texto,
+          plazo_entrega_dias: r.plazo_entrega_dias || 30,
+          multa_diaria_porcentaje: r.multa_diaria_porcentaje || 0.25,
+          lugar_entrega: r.lugar_entrega || "Almacén Central ENDE DEORURO S.A., Oruro - Bolivia",
+          items: r.items || [],
+        }));
+        this.saveAdquisiciones(mappedAdqs);
+      }
+
+      // 2. Cargar Carpetas reales desde Supabase
+      if (Array.isArray(result.carpetas)) {
+        this.saveAllCarpetas(result.carpetas);
+      }
+
+      // 3. Cargar Plantillas reales desde Supabase
+      if (Array.isArray(result.plantillas)) {
+        const mappedPlantillas: Plantilla[] = result.plantillas.map((p: any) => ({
+          id: p.id || `tpl-${p.fk_carpeta}`,
+          fk_carpeta: p.fk_carpeta,
+          nombre: p.nombre,
+          descripcion: p.descripcion,
+          version: p.version || "1.0",
+          campos_configurables: p.contenido_plantilla?.campos_configurables || [],
+          secciones_fijas: p.contenido_plantilla?.secciones_fijas || [],
+          datos_completos: p.contenido_plantilla || {},
+        }));
+        this.saveAllPlantillas(mappedPlantillas);
+      }
+
+      // 4. Cargar Logs reales desde Supabase
+      if (Array.isArray(result.logs)) {
+        localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(result.logs));
+      }
+
+      return { success: true };
+    } catch (e: any) {
+      const msg = e?.message || "No se pudo conectar con el servidor de base de datos Supabase";
+      console.error("Error en syncWithSupabase:", msg);
+      return { success: false, error: msg };
     }
   }
 
-  // --- ADQUISICIONES ---
+  // --- ADQUISICIONES REALES ---
   static getAdquisiciones(): Adquisicion[] {
-    if (!this.isClient()) return INITIAL_ADQUISICIONES;
+    if (!this.isClient()) return [];
     const raw = localStorage.getItem(STORAGE_KEYS.ADQUISICIONES);
-    if (!raw) {
-      this.saveAdquisiciones(INITIAL_ADQUISICIONES);
-      return INITIAL_ADQUISICIONES;
-    }
+    if (!raw) return [];
     try {
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_ADQUISICIONES;
+      return JSON.parse(raw);
     } catch {
-      return INITIAL_ADQUISICIONES;
+      return [];
     }
   }
 
@@ -145,7 +122,7 @@ export class DataStore {
     localStorage.setItem(STORAGE_KEYS.ADQUISICIONES, JSON.stringify(list));
   }
 
-  static createAdquisicion(data: Omit<Adquisicion, "id" | "fecha_creacion" | "fecha_actualizacion">): Adquisicion {
+  static async createAdquisicion(data: Omit<Adquisicion, "id" | "fecha_creacion" | "fecha_actualizacion">): Promise<{ success: boolean; data?: Adquisicion; error?: string }> {
     const list = this.getAdquisiciones();
     const id = `acq-${Date.now()}`;
     const now = new Date().toISOString();
@@ -157,18 +134,11 @@ export class DataStore {
       fecha_actualizacion: now,
     };
 
-    list.unshift(newAdq);
-    this.saveAdquisiciones(list);
-
     // Carpetas
     const initialFolders = createInitialFolders(id);
-    const allCarpetas = this.getAllCarpetas();
-    allCarpetas.push(...initialFolders);
-    this.saveAllCarpetas(allCarpetas);
 
-    // Guardado DIRECTO e INMEDIATO en Supabase PostgreSQL
-    if (this.isClient()) {
-      fetch("/api/db/sync", {
+    try {
+      const res = await fetch("/api/db/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -188,63 +158,66 @@ export class DataStore {
             creado_por: newAdq.creado_por,
           },
         }),
-      })
-        .then((r) => r.json())
-        .then((res) => {
-          if (res.data && res.data[0]) {
-            const dbAdqId = res.data[0].id;
-            const dbCarpetas = initialFolders.map((c) => ({
-              adquisicion_id: dbAdqId,
-              numero: c.numero,
-              nombre: c.nombre,
-              tipo_generacion: c.tipo_generacion,
-              estado: c.estado,
-              descripcion: c.descripcion,
-            }));
-            fetch("/api/db/sync", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                action: "INSERT",
-                table: "carpetas",
-                data: dbCarpetas,
-              }),
-            });
-          }
-        })
-        .catch(console.error);
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        return { success: false, error: json.error || "Error al insertar adquisición en Supabase" };
+      }
+
+      if (json.data && json.data[0]) {
+        newAdq.id = json.data[0].id;
+        const dbCarpetas = initialFolders.map((c) => ({
+          adquisicion_id: json.data[0].id,
+          numero: c.numero,
+          nombre: c.nombre,
+          tipo_generacion: c.tipo_generacion,
+          estado: c.estado,
+          descripcion: c.descripcion,
+        }));
+        await fetch("/api/db/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "INSERT",
+            table: "carpetas",
+            data: dbCarpetas,
+          }),
+        });
+      }
+
+      list.unshift(newAdq);
+      this.saveAdquisiciones(list);
+
+      const allCarpetas = this.getAllCarpetas();
+      allCarpetas.push(...initialFolders);
+      this.saveAllCarpetas(allCarpetas);
+
+      this.addLog(newAdq.id, `Expediente creado en base de datos con código ${newAdq.codigo}: "${newAdq.titulo_proceso}".`, newAdq.creado_por, "CREAR");
+
+      return { success: true, data: newAdq };
+    } catch (e: any) {
+      return { success: false, error: e?.message || "Error al comunicarse con Supabase" };
     }
-
-    this.addLog(id, `Expediente creado con código ${newAdq.codigo}: "${newAdq.titulo_proceso}".`, newAdq.creado_por, "CREAR");
-
-    return newAdq;
   }
 
-  static updateAdquisicion(id: string, updates: Partial<Adquisicion>): Adquisicion | undefined {
+  static async updateAdquisicion(id: string, updates: Partial<Adquisicion>): Promise<{ success: boolean; error?: string }> {
     const list = this.getAdquisiciones();
     const idx = list.findIndex((a) => a.id === id || a.codigo === id);
-    if (idx === -1) return undefined;
+    if (idx === -1) return { success: false, error: "Expediente no encontrado" };
 
-    list[idx] = {
-      ...list[idx],
-      ...updates,
+    const target = list[idx];
+    const payload: any = {
       fecha_actualizacion: new Date().toISOString(),
     };
-    this.saveAdquisiciones(list);
+    if (updates.titulo_proceso) payload.titulo_proceso = updates.titulo_proceso;
+    if (updates.categoria) payload.categoria = updates.categoria;
+    if (updates.estado) payload.estado = updates.estado;
+    if (updates.prevision_presupuesto !== undefined) payload.prevision_presupuesto = updates.prevision_presupuesto;
+    if (updates.responsable_proceso) payload.responsable_proceso = updates.responsable_proceso;
 
-    // Actualización DIRECTA en Supabase PostgreSQL
-    if (this.isClient()) {
-      const target = list[idx];
-      const payload: any = {
-        fecha_actualizacion: new Date().toISOString(),
-      };
-      if (updates.titulo_proceso) payload.titulo_proceso = updates.titulo_proceso;
-      if (updates.categoria) payload.categoria = updates.categoria;
-      if (updates.estado) payload.estado = updates.estado;
-      if (updates.prevision_presupuesto !== undefined) payload.prevision_presupuesto = updates.prevision_presupuesto;
-      if (updates.responsable_proceso) payload.responsable_proceso = updates.responsable_proceso;
-
-      fetch("/api/db/sync", {
+    try {
+      const res = await fetch("/api/db/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -253,26 +226,27 @@ export class DataStore {
           id: target.codigo,
           data: payload,
         }),
-      }).catch(console.error);
-    }
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        return { success: false, error: json.error || "Error al actualizar en Supabase" };
+      }
 
-    return list[idx];
+      list[idx] = { ...list[idx], ...updates, fecha_actualizacion: payload.fecha_actualizacion };
+      this.saveAdquisiciones(list);
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e?.message || "Error de red al actualizar en Supabase" };
+    }
   }
 
-  static deleteAdquisicion(id: string): boolean {
-    if (!this.isClient()) return false;
+  static async deleteAdquisicion(id: string): Promise<{ success: boolean; error?: string }> {
     const list = this.getAdquisiciones();
     const target = list.find((a) => a.id === id || a.codigo === id);
-    const filtered = list.filter((a) => a.id !== id && a.codigo !== id);
-    this.saveAdquisiciones(filtered);
+    if (!target) return { success: false, error: "Expediente no encontrado" };
 
-    // Carpetas
-    const allCarpetas = this.getAllCarpetas().filter((c) => c.adquisicion_id !== id);
-    this.saveAllCarpetas(allCarpetas);
-
-    // Eliminación DIRECTA en Supabase PostgreSQL
-    if (target) {
-      fetch("/api/db/sync", {
+    try {
+      const res = await fetch("/api/db/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -280,10 +254,22 @@ export class DataStore {
           table: "adquisiciones",
           id: target.codigo,
         }),
-      }).catch(console.error);
-    }
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        return { success: false, error: json.error || "Error al eliminar en Supabase" };
+      }
 
-    return true;
+      const filtered = list.filter((a) => a.id !== id && a.codigo !== id);
+      this.saveAdquisiciones(filtered);
+
+      const allCarpetas = this.getAllCarpetas().filter((c) => c.adquisicion_id !== id && c.adquisicion_id !== target.id);
+      this.saveAllCarpetas(allCarpetas);
+
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e?.message || "Error de red al eliminar en Supabase" };
+    }
   }
 
   // --- CARPETAS ---
@@ -314,7 +300,7 @@ export class DataStore {
     localStorage.setItem(STORAGE_KEYS.CARPETAS, JSON.stringify(carpetas));
   }
 
-  static addDocumentToCarpeta(carpetaId: string, doc: Documento): Carpeta | undefined {
+  static async addDocumentToCarpeta(carpetaId: string, doc: Documento): Promise<Carpeta | undefined> {
     const all = this.getAllCarpetas();
     const folder = all.find((c) => c.id === carpetaId);
     if (!folder) return undefined;
@@ -324,7 +310,7 @@ export class DataStore {
     folder.fecha_proceso = new Date().toISOString();
     this.saveAllCarpetas(all);
 
-    // Guardar documento en Supabase PostgreSQL
+    // Guardar en Supabase
     fetch("/api/db/sync", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -464,16 +450,13 @@ export class DataStore {
 
   // --- PLANTILLAS ---
   static getPlantillas(): Plantilla[] {
-    if (!this.isClient()) return INITIAL_PLANTILLAS;
+    if (!this.isClient()) return [];
     const raw = localStorage.getItem(STORAGE_KEYS.PLANTILLAS);
-    if (!raw) {
-      localStorage.setItem(STORAGE_KEYS.PLANTILLAS, JSON.stringify(INITIAL_PLANTILLAS));
-      return INITIAL_PLANTILLAS;
-    }
+    if (!raw) return [];
     try {
       return JSON.parse(raw);
     } catch {
-      return INITIAL_PLANTILLAS;
+      return [];
     }
   }
 
@@ -482,29 +465,36 @@ export class DataStore {
     localStorage.setItem(STORAGE_KEYS.PLANTILLAS, JSON.stringify(list));
   }
 
-  static updatePlantilla(id: string, updates: Partial<Plantilla>): Plantilla | undefined {
+  static async updatePlantilla(id: string, updates: Partial<Plantilla>): Promise<{ success: boolean; error?: string }> {
     const list = this.getPlantillas();
     const idx = list.findIndex((p) => p.id === id);
-    if (idx === -1) return undefined;
-    list[idx] = { ...list[idx], ...updates };
-    this.saveAllPlantillas(list);
+    if (idx === -1) return { success: false, error: "Plantilla no encontrada" };
 
-    // Guardar en Supabase PostgreSQL
     const target = list[idx];
-    fetch("/api/db/sync", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "UPDATE",
-        table: "plantillas",
-        filter: { column: "fk_carpeta", value: target.fk_carpeta },
-        data: {
-          contenido_plantilla: target.datos_completos || updates,
-          version: target.version || "1.0",
-        },
-      }),
-    }).catch(console.error);
+    try {
+      const res = await fetch("/api/db/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "UPDATE",
+          table: "plantillas",
+          filter: { column: "fk_carpeta", value: target.fk_carpeta },
+          data: {
+            contenido_plantilla: target.datos_completos || updates,
+            version: target.version || "1.0",
+          },
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        return { success: false, error: json.error || "Error al actualizar plantilla en Supabase" };
+      }
 
-    return list[idx];
+      list[idx] = { ...list[idx], ...updates };
+      this.saveAllPlantillas(list);
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e?.message || "Error de red al actualizar plantilla" };
+    }
   }
 }

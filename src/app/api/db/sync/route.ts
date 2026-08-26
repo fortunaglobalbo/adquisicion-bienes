@@ -26,17 +26,26 @@ export async function GET(req: NextRequest) {
         q = q.eq("adquisicion_id", adquisicionId);
       }
       const { data, error } = await q;
-      if (error) throw error;
+      if (error) {
+        return NextResponse.json({ success: false, error: `Error en tabla ${table}: ${error.message}` }, { status: 500 });
+      }
       return NextResponse.json({ success: true, data: data || [] });
     }
 
-    // Si no se especifica tabla, devuelve el dataset completo de la base de datos
+    // Consulta del dataset institucional completo
     const [adqsRes, plantillasRes, carpetasRes, logsRes] = await Promise.all([
       supabaseAdmin.from("adquisiciones").select("*").order("fecha_creacion", { ascending: false }),
       supabaseAdmin.from("plantillas").select("*").order("fk_carpeta", { ascending: true }),
       supabaseAdmin.from("carpetas").select("*").order("numero", { ascending: true }),
       supabaseAdmin.from("logs_proceso").select("*").order("fecha", { ascending: false }).limit(100),
     ]);
+
+    if (adqsRes.error) {
+      return NextResponse.json({ success: false, error: `Error en adquisiciones: ${adqsRes.error.message}` }, { status: 500 });
+    }
+    if (plantillasRes.error) {
+      return NextResponse.json({ success: false, error: `Error en plantillas: ${plantillasRes.error.message}` }, { status: 500 });
+    }
 
     return NextResponse.json({
       success: true,
@@ -47,7 +56,7 @@ export async function GET(req: NextRequest) {
     });
   } catch (err: any) {
     console.error("Error en GET /api/db/sync:", err);
-    return NextResponse.json({ error: err.message || "Error al consultar Supabase" }, { status: 500 });
+    return NextResponse.json({ success: false, error: err.message || "Error al conectar con la base de datos Supabase" }, { status: 500 });
   }
 }
 
@@ -64,18 +73,22 @@ export async function POST(req: NextRequest) {
     };
 
     if (!table || !action) {
-      return NextResponse.json({ error: "Parámetros incompletos" }, { status: 400 });
+      return NextResponse.json({ success: false, error: "Parámetros incompletos para base de datos" }, { status: 400 });
     }
 
     if (action === "INSERT") {
       const { data: inserted, error } = await supabaseAdmin.from(table).insert(Array.isArray(data) ? data : [data]).select();
-      if (error) throw error;
+      if (error) {
+        return NextResponse.json({ success: false, error: `Error insertando en ${table}: ${error.message}` }, { status: 500 });
+      }
       return NextResponse.json({ success: true, data: inserted });
     }
 
     if (action === "UPSERT") {
       const { data: upserted, error } = await supabaseAdmin.from(table).upsert(Array.isArray(data) ? data : [data]).select();
-      if (error) throw error;
+      if (error) {
+        return NextResponse.json({ success: false, error: `Error en upsert ${table}: ${error.message}` }, { status: 500 });
+      }
       return NextResponse.json({ success: true, data: upserted });
     }
 
@@ -87,7 +100,9 @@ export async function POST(req: NextRequest) {
         query = query.eq(filter.column, filter.value);
       }
       const { data: updated, error } = await query.select();
-      if (error) throw error;
+      if (error) {
+        return NextResponse.json({ success: false, error: `Error actualizando ${table}: ${error.message}` }, { status: 500 });
+      }
       return NextResponse.json({ success: true, data: updated });
     }
 
@@ -99,13 +114,15 @@ export async function POST(req: NextRequest) {
         query = query.eq(filter.column, filter.value);
       }
       const { error } = await query;
-      if (error) throw error;
+      if (error) {
+        return NextResponse.json({ success: false, error: `Error eliminando de ${table}: ${error.message}` }, { status: 500 });
+      }
       return NextResponse.json({ success: true });
     }
 
-    return NextResponse.json({ error: "Acción no soportada" }, { status: 400 });
+    return NextResponse.json({ success: false, error: "Acción de base de datos no soportada" }, { status: 400 });
   } catch (err: any) {
     console.error("Error en POST /api/db/sync:", err);
-    return NextResponse.json({ error: err.message || "Error al escribir en Supabase" }, { status: 500 });
+    return NextResponse.json({ success: false, error: err.message || "Error al escribir en Supabase" }, { status: 500 });
   }
 }

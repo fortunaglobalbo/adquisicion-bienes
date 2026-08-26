@@ -47,13 +47,27 @@ export default function ExpedienteDetailPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const loadData = () => {
+  const [dbError, setDbError] = useState<string | null>(null);
+
+  const loadData = async () => {
     if (!id) return;
-    const adq = DataStore.getAdquisicionById(id);
+    setLoading(true);
+    setDbError(null);
+
+    let adq = DataStore.getAdquisicionById(id);
+    if (!adq) {
+      const syncRes = await DataStore.syncWithSupabase();
+      if (!syncRes.success) {
+        setDbError(syncRes.error || "Error al conectar con la base de datos Supabase");
+      }
+      adq = DataStore.getAdquisicionById(id);
+    }
+
     if (!adq) {
       setLoading(false);
       return;
     }
+
     setAdquisicion(adq);
     const folders = DataStore.getCarpetasByAdquisicion(adq.id);
     setCarpetas(folders);
@@ -67,6 +81,7 @@ export default function ExpedienteDetailPage() {
   useEffect(() => {
     loadData();
   }, [id]);
+
 
   if (loading) {
     return (
