@@ -31,15 +31,71 @@ export interface ParsedTdrResult {
 /**
  * Limpia tags HTML y asteriscos Markdown pero preserva el texto literal y saltos de párrafo
  */
-function cleanFormatting(text: string): string {
+export function cleanFormatting(text: string): string {
   if (!text) return "";
   return text
     .replace(/<br\s*\/?>/gi, " ")
     .replace(/<\/?[^>]+(>|$)/g, "")
     .replace(/\*\*/g, "")
+    .replace(/\*/g, "")
     .replace(/__/g, "")
+    .replace(/_/g, "")
     .replace(/^#+\s*/, "")
     .trim();
+}
+
+/**
+ * Limpia caracteres raros de Markdown (###, **, *, _) convirtiéndolo a texto institucional limpio y elegante
+ */
+export function cleanInstitutionalText(text: string): string {
+  if (!text) return "";
+
+  let res = text
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/?[^>]+(>|$)/g, "");
+
+  const lines = res.split("\n");
+  const cleanedLines: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i].trim();
+    if (!line) {
+      if (cleanedLines.length > 0 && cleanedLines[cleanedLines.length - 1] !== "") {
+        cleanedLines.push("");
+      }
+      continue;
+    }
+
+    // Encabezados tipo "### 4.1. Perfil..." -> "4.1. Perfil..."
+    if (line.startsWith("#")) {
+      line = line.replace(/^#+\s*/, "").trim();
+      cleanedLines.push(line);
+      continue;
+    }
+
+    // Viñetas tipo "* **Texto:**" o "* *Texto:*" o "- **Texto:**" o "* Texto"
+    if (/^[\*\-\•\+\❖]\s*/.test(line)) {
+      let content = line.replace(/^[\*\-\•\+\❖]\s*/, "").trim();
+      content = content
+        .replace(/\*\*/g, "")
+        .replace(/\*/g, "")
+        .replace(/__/g, "")
+        .replace(/_/g, "");
+      cleanedLines.push(`•  ${content}`);
+      continue;
+    }
+
+    // Párrafos normales: limpiar asteriscos de negrita/cursiva markdown
+    line = line
+      .replace(/\*\*/g, "")
+      .replace(/\*/g, "")
+      .replace(/__/g, "")
+      .replace(/_/g, "");
+
+    cleanedLines.push(line);
+  }
+
+  return cleanedLines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
 /**
@@ -242,16 +298,17 @@ export function parseMarkdownTdrLiteral(rawMarkdown: string): ParsedTdrResult {
     const nextLineIdx = i < detectedSections.length - 1 ? detectedSections[i + 1].lineIdx : lines.length;
     const bodyLines = lines.slice(current.lineIdx + 1, nextLineIdx);
 
-    // Extraer texto 100% literal preservando saltos de línea originales, viñetas y formato
+    // Extraer texto limpio y ordenado sin caracteres raros de markdown
     const rawBodyText = bodyLines
       .join("\n")
       .replace(/^---\s*$/gm, "")
       .replace(/^[\r\n]+|[\r\n]+$/g, "")
       .trim();
 
-    sectionTexts[current.num] = rawBodyText;
-    if (current.num !== 3 && rawBodyText) {
-      result.puntos_detectados[current.num] = rawBodyText;
+    const cleanedSection = cleanInstitutionalText(rawBodyText);
+    sectionTexts[current.num] = cleanedSection;
+    if (current.num !== 3 && cleanedSection) {
+      result.puntos_detectados[current.num] = cleanedSection;
     }
   }
 

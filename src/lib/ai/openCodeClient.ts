@@ -206,27 +206,35 @@ DEBES DEVOLVER ESTRICTAMENTE UN OBJETO JSON VÁLIDO con la siguiente estructura:
       const cleanJson = aiRaw.replace(/```json/gi, "").replace(/```/g, "").trim();
       const parsed = JSON.parse(cleanJson);
       if (parsed.items && Array.isArray(parsed.items) && parsed.items.length > 0) {
-        const mergedPuntos14 = {
+        const { cleanInstitutionalText } = require("./markdownTdrParser");
+        const rawPuntos14 = {
           ...(literalParsed?.puntos_detectados || {}),
           ...(parsed.puntos_14 || {}),
         };
 
+        const mergedPuntos14: { [num: number]: string } = {};
+        for (const [k, v] of Object.entries(rawPuntos14)) {
+          if (v && typeof v === "string") {
+            mergedPuntos14[Number(k)] = cleanInstitutionalText(v);
+          }
+        }
+
         return {
           titulo_proceso: literalParsed?.titulo_proceso || parsed.titulo_proceso || adquisicion.titulo_proceso,
-          antecedentes_texto: literalParsed?.antecedentes_texto || parsed.antecedentes_texto || parsed.puntos_14?.["1"] || adquisicion.antecedentes_texto,
-          justificacion_texto: literalParsed?.justificacion_texto || parsed.justificacion_texto || parsed.puntos_14?.["2"] || adquisicion.justificacion_texto,
-          calidad_texto: literalParsed?.calidad_texto || parsed.calidad_texto || parsed.puntos_14?.["4"] || adquisicion.calidad_texto,
-          ambito_aplicacion: literalParsed?.ambito_aplicacion || parsed.ambito_aplicacion || parsed.puntos_14?.["5"] || adquisicion.ambito_aplicacion,
-          metodo_seleccion_texto: literalParsed?.metodo_seleccion_texto || parsed.metodo_seleccion_texto || parsed.puntos_14?.["6"] || adquisicion.metodo_seleccion_texto,
-          vigencia_propuesta_texto: literalParsed?.vigencia_propuesta_texto || parsed.vigencia_propuesta_texto || parsed.puntos_14?.["7"] || adquisicion.vigencia_propuesta_texto,
-          categoria_texto: literalParsed?.categoria_texto || parsed.categoria_texto || parsed.puntos_14?.["8"] || adquisicion.categoria_texto,
-          lugar_entrega: literalParsed?.lugar_entrega || parsed.lugar_entrega || parsed.puntos_14?.["9"] || adquisicion.lugar_entrega,
-          tiempo_entrega_texto: literalParsed?.tiempo_entrega_texto || parsed.tiempo_entrega_texto || parsed.puntos_14?.["10"] || adquisicion.tiempo_entrega_texto,
-          forma_adjudicacion: literalParsed?.forma_adjudicacion || parsed.forma_adjudicacion || parsed.puntos_14?.["11"] || adquisicion.forma_adjudicacion,
-          aceptacion_lote: literalParsed?.aceptacion_lote || parsed.aceptacion_lote || parsed.puntos_14?.["12"] || adquisicion.aceptacion_lote,
-          forma_pago_texto: literalParsed?.forma_pago_texto || parsed.forma_pago_texto || parsed.puntos_14?.["13"] || adquisicion.forma_pago_texto,
-          multas_texto: literalParsed?.multas_texto || parsed.multas_texto || parsed.puntos_14?.["14"] || adquisicion.multas_texto,
-          seccion3_introduccion_texto: literalParsed?.seccion3_introduccion_texto || parsed.seccion3_introduccion_texto || adquisicion.seccion3_introduccion_texto,
+          antecedentes_texto: cleanInstitutionalText(literalParsed?.antecedentes_texto || parsed.antecedentes_texto || parsed.puntos_14?.["1"] || adquisicion.antecedentes_texto),
+          justificacion_texto: cleanInstitutionalText(literalParsed?.justificacion_texto || parsed.justificacion_texto || parsed.puntos_14?.["2"] || adquisicion.justificacion_texto),
+          calidad_texto: cleanInstitutionalText(literalParsed?.calidad_texto || parsed.calidad_texto || parsed.puntos_14?.["4"] || adquisicion.calidad_texto),
+          ambito_aplicacion: cleanInstitutionalText(literalParsed?.ambito_aplicacion || parsed.ambito_aplicacion || parsed.puntos_14?.["5"] || adquisicion.ambito_aplicacion),
+          metodo_seleccion_texto: cleanInstitutionalText(literalParsed?.metodo_seleccion_texto || parsed.metodo_seleccion_texto || parsed.puntos_14?.["6"] || adquisicion.metodo_seleccion_texto),
+          vigencia_propuesta_texto: cleanInstitutionalText(literalParsed?.vigencia_propuesta_texto || parsed.vigencia_propuesta_texto || parsed.puntos_14?.["7"] || adquisicion.vigencia_propuesta_texto),
+          categoria_texto: cleanInstitutionalText(literalParsed?.categoria_texto || parsed.categoria_texto || parsed.puntos_14?.["8"] || adquisicion.categoria_texto),
+          lugar_entrega: cleanInstitutionalText(literalParsed?.lugar_entrega || parsed.lugar_entrega || parsed.puntos_14?.["9"] || adquisicion.lugar_entrega),
+          tiempo_entrega_texto: cleanInstitutionalText(literalParsed?.tiempo_entrega_texto || parsed.tiempo_entrega_texto || parsed.puntos_14?.["10"] || adquisicion.tiempo_entrega_texto),
+          forma_adjudicacion: cleanInstitutionalText(literalParsed?.forma_adjudicacion || parsed.forma_adjudicacion || parsed.puntos_14?.["11"] || adquisicion.forma_adjudicacion),
+          aceptacion_lote: cleanInstitutionalText(literalParsed?.aceptacion_lote || parsed.aceptacion_lote || parsed.puntos_14?.["12"] || adquisicion.aceptacion_lote),
+          forma_pago_texto: cleanInstitutionalText(literalParsed?.forma_pago_texto || parsed.forma_pago_texto || parsed.puntos_14?.["13"] || adquisicion.forma_pago_texto),
+          multas_texto: cleanInstitutionalText(literalParsed?.multas_texto || parsed.multas_texto || parsed.puntos_14?.["14"] || adquisicion.multas_texto),
+          seccion3_introduccion_texto: cleanInstitutionalText(literalParsed?.seccion3_introduccion_texto || parsed.seccion3_introduccion_texto || adquisicion.seccion3_introduccion_texto),
           tipo_tabla_sugerido: literalParsed?.tipo_tabla_sugerido || parsed.tipo_tabla_sugerido || adquisicion.tipo_tabla_tdr,
           columnas_tabla_tdr: literalParsed?.columnas_tabla_tdr || parsed.columnas_tabla || adquisicion.columnas_tabla_tdr,
           puntos_detectados: mergedPuntos14,

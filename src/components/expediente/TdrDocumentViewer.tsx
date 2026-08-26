@@ -24,7 +24,7 @@ import { Adquisicion, ItemAdquisicion, Plantilla, CampoMoldeLibre, TipoTablaTDR 
 import { Modal } from "@/components/ui/Modal";
 import { InstitutionalLogo } from "../layout/InstitutionalLogo";
 import { DataStore } from "@/lib/store/dataStore";
-import { parseMarkdownTdrLiteral } from "@/lib/ai/markdownTdrParser";
+import { parseMarkdownTdrLiteral, cleanInstitutionalText } from "@/lib/ai/markdownTdrParser";
 import { getMesAnioActual } from "@/lib/utils/dateUtils";
 
 
@@ -356,21 +356,23 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
   const isSaludDomain = ((docData.categoria as any) === "Salud Ocupacional") || docData.titulo_proceso.toLowerCase().includes("oftalmo") || docData.titulo_proceso.toLowerCase().includes("laboratorio");
 
   const getDocPointContent = (num: number): string | undefined => {
-    if (docData.puntos_14_texto?.[num]) return docData.puntos_14_texto[num];
-    if (num === 1 && docData.antecedentes_texto) return docData.antecedentes_texto;
-    if (num === 2 && docData.justificacion_texto) return docData.justificacion_texto;
-    if (num === 4 && docData.calidad_texto) return docData.calidad_texto;
-    if (num === 5 && docData.ambito_aplicacion) return docData.ambito_aplicacion;
-    if (num === 6 && docData.metodo_seleccion_texto) return docData.metodo_seleccion_texto;
-    if (num === 7 && docData.vigencia_propuesta_texto) return docData.vigencia_propuesta_texto;
-    if (num === 8 && docData.categoria_texto) return docData.categoria_texto;
-    if (num === 9 && docData.lugar_entrega) return docData.lugar_entrega;
-    if (num === 10 && docData.tiempo_entrega_texto) return docData.tiempo_entrega_texto;
-    if (num === 11 && docData.forma_adjudicacion) return docData.forma_adjudicacion;
-    if (num === 12 && docData.aceptacion_lote) return docData.aceptacion_lote;
-    if (num === 13 && docData.forma_pago_texto) return docData.forma_pago_texto;
-    if (num === 14 && docData.multas_texto) return docData.multas_texto;
-    return undefined;
+    let raw: string | undefined = undefined;
+    if (docData.puntos_14_texto?.[num]) raw = docData.puntos_14_texto[num];
+    else if (num === 1 && docData.antecedentes_texto) raw = docData.antecedentes_texto;
+    else if (num === 2 && docData.justificacion_texto) raw = docData.justificacion_texto;
+    else if (num === 4 && docData.calidad_texto) raw = docData.calidad_texto;
+    else if (num === 5 && docData.ambito_aplicacion) raw = docData.ambito_aplicacion;
+    else if (num === 6 && docData.metodo_seleccion_texto) raw = docData.metodo_seleccion_texto;
+    else if (num === 7 && docData.vigencia_propuesta_texto) raw = docData.vigencia_propuesta_texto;
+    else if (num === 8 && docData.categoria_texto) raw = docData.categoria_texto;
+    else if (num === 9 && docData.lugar_entrega) raw = docData.lugar_entrega;
+    else if (num === 10 && docData.tiempo_entrega_texto) raw = docData.tiempo_entrega_texto;
+    else if (num === 11 && docData.forma_adjudicacion) raw = docData.forma_adjudicacion;
+    else if (num === 12 && docData.aceptacion_lote) raw = docData.aceptacion_lote;
+    else if (num === 13 && docData.forma_pago_texto) raw = docData.forma_pago_texto;
+    else if (num === 14 && docData.multas_texto) raw = docData.multas_texto;
+
+    return raw ? cleanInstitutionalText(raw) : undefined;
   };
 
   const [puntosOficiales, setPuntosOficiales] = useState([
