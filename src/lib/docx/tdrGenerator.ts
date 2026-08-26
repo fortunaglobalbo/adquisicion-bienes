@@ -47,13 +47,15 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
     console.warn("Could not read logo image from disk:", e);
   }
 
-  // Standarized Font Sizes:
-  // Body text = 12 pt -> size: 24 in docx half-points
-  // Section Titles = 14 pt -> size: 28 in docx half-points
-  // Document Main Header = 16 pt -> size: 32 in docx half-points
+  // Standarized Font Sizes: Máximo 12 pt en todo el documento oficial
+  // 12 pt = 24 half-points en la especificación docx
+  // 10 pt = 20 half-points
+  // 9 pt  = 18 half-points
   const FONT_BODY = 24; // 12pt
-  const FONT_HEADING = 28; // 14pt
+  const FONT_HEADING = 24; // 12pt (Máximo 12pt)
+  const FONT_TITLE = 24; // 12pt (Máximo 12pt)
   const FONT_SMALL = 20; // 10pt
+  const FONT_TINY = 18; // 9pt
 
   const doc = new Document({
     sections: [
@@ -83,7 +85,7 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
                   new TextRun({
                     text: "ENDE DEORURO",
                     bold: true,
-                    size: 48,
+                    size: FONT_TITLE,
                     color: ENDE_COLORS.primary,
                     font: "Inter",
                   }),
@@ -93,12 +95,12 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
           // Título Portada
           new Paragraph({
             alignment: AlignmentType.CENTER,
-            spacing: { before: 400, after: 200 },
+            spacing: { before: 300, after: 150 },
             children: [
               new TextRun({
                 text: "ESPECIFICACIONES TÉCNICAS",
                 bold: true,
-                size: 32, // 16pt
+                size: FONT_TITLE, // 12pt
                 color: ENDE_COLORS.primary,
                 font: "Inter",
               }),
@@ -106,12 +108,12 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
           }),
           new Paragraph({
             alignment: AlignmentType.CENTER,
-            spacing: { after: 500 },
+            spacing: { after: 400 },
             children: [
               new TextRun({
                 text: tituloUpper,
                 bold: true,
-                size: FONT_HEADING, // 14pt
+                size: FONT_TITLE, // 12pt
                 color: ENDE_COLORS.darkText,
                 font: "Inter",
               }),
@@ -318,7 +320,7 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
               new TextRun({
                 text: "Contenido",
                 bold: true,
-                size: 28, // 14pt
+                size: FONT_HEADING, // 12pt
                 font: "Inter",
               }),
             ],

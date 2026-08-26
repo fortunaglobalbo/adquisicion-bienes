@@ -382,14 +382,15 @@ export const FormS2Viewer: React.FC<FormS2ViewerProps> = ({
                               className="w-14 text-center uppercase font-bold bg-transparent focus:bg-white focus:outline-none border-b border-transparent hover:border-gray-400"
                             />
                           </td>
-                          <td className="border-r border-gray-900 p-2 uppercase font-medium">
-                            <textarea
-                              rows={2}
-                              value={item.descripcion}
-                              onChange={(e) => handleItemChange(item.id, "descripcion", e.target.value)}
-                              className="w-full font-medium uppercase bg-transparent focus:bg-white focus:outline-none border-b border-transparent hover:border-primary resize-y leading-snug whitespace-pre-wrap text-xs md:text-sm"
-                              placeholder="DESCRIPCIÓN DEL BIEN / SUMINISTRO..."
-                            />
+                          <td className="border-r border-gray-900 p-2.5 uppercase font-medium">
+                            <div
+                              contentEditable
+                              suppressContentEditableWarning
+                              onBlur={(e) => handleItemChange(item.id, "descripcion", e.currentTarget.textContent || "")}
+                              className="w-full font-medium uppercase min-h-[44px] focus:bg-white focus:outline-none p-1 rounded hover:bg-blue-50/50 leading-relaxed whitespace-pre-wrap text-xs md:text-sm text-left select-text cursor-text"
+                            >
+                              {item.descripcion}
+                            </div>
                           </td>
                           <td className="border-r border-gray-900 p-2 text-center">
                             <input
