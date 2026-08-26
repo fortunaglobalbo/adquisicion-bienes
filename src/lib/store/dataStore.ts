@@ -9,7 +9,7 @@ import {
   LogProceso,
   Plantilla,
 } from "@/types";
-import { createInitialFolders, INITIAL_PLANTILLAS } from "./initialData";
+import { INITIAL_ADQUISICIONES, createInitialFolders, INITIAL_PLANTILLAS } from "./initialData";
 
 const STORAGE_KEYS = {
   ADQUISICIONES: "ende_adquisiciones_v2026",
@@ -35,7 +35,7 @@ export class DataStore {
 
       if (result.success) {
         // 1. Guardar Adquisiciones reales desde Supabase
-        if (Array.isArray(result.adquisiciones)) {
+        if (Array.isArray(result.adquisiciones) && result.adquisiciones.length > 0) {
           const mappedAdqs: Adquisicion[] = result.adquisiciones.map((r: any) => ({
             id: r.id || `acq-${r.codigo}`,
             codigo: r.codigo,
@@ -61,6 +61,32 @@ export class DataStore {
             items: r.items || [],
           }));
           this.saveAdquisiciones(mappedAdqs);
+        } else if (Array.isArray(result.adquisiciones) && result.adquisiciones.length === 0) {
+          // Si la base de datos está vacía, auto-sembrar registros iniciales en Supabase
+          for (const initAdq of INITIAL_ADQUISICIONES) {
+            await fetch("/api/db/sync", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                action: "UPSERT",
+                table: "adquisiciones",
+                data: {
+                  codigo: initAdq.codigo,
+                  titulo_proceso: initAdq.titulo_proceso,
+                  categoria: initAdq.categoria || "Bienes",
+                  modalidad: initAdq.modalidad,
+                  partida_presupuestaria: initAdq.partida_presupuestaria,
+                  estado: initAdq.estado,
+                  prevision_presupuesto: initAdq.prevision_presupuesto,
+                  moneda: initAdq.moneda || "BOB",
+                  unidad_solicitante: initAdq.unidad_solicitante,
+                  responsable_proceso: initAdq.responsable_proceso,
+                  creado_por: initAdq.creado_por,
+                },
+              }),
+            });
+          }
+          this.saveAdquisiciones(INITIAL_ADQUISICIONES);
         }
 
         // 2. Guardar Carpetas reales desde Supabase
@@ -93,15 +119,19 @@ export class DataStore {
     }
   }
 
-  // --- ADQUISICIONES (100% PERSISTENCIA EN BASE DE DATOS) ---
+  // --- ADQUISICIONES ---
   static getAdquisiciones(): Adquisicion[] {
-    if (!this.isClient()) return [];
+    if (!this.isClient()) return INITIAL_ADQUISICIONES;
     const raw = localStorage.getItem(STORAGE_KEYS.ADQUISICIONES);
-    if (!raw) return [];
+    if (!raw) {
+      this.saveAdquisiciones(INITIAL_ADQUISICIONES);
+      return INITIAL_ADQUISICIONES;
+    }
     try {
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_ADQUISICIONES;
     } catch {
-      return [];
+      return INITIAL_ADQUISICIONES;
     }
   }
 
