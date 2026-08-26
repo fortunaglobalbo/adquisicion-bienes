@@ -86,34 +86,48 @@ export async function extractTdrFromDocumentOrImageWithAI(
   }
 
   const systemPrompt = `Eres el Especialista Principal en Contrataciones y Adquisiciones de la DISTRIBUIDORA DE ELECTRICIDAD ENDE DEORURO S.A.
-Tu tarea es estructurar con FIDELIDAD LITERAL 100% (COPIA FIEL) el documento, texto en Markdown o imagen proporcionada en las Especificaciones Técnicas Oficiales (TDR).
+Tu tarea es leer y procesar TODO el documento, texto o Markdown proporcionado por el usuario, comprendiendo cada sección y estructurándolo con FIDELIDAD LITERAL 100% (COPIA FIEL) en la plantilla oficial de TDR.
 
-REGLAS OBLIGATORIAS DE COPIA FIEL (CERO ALUCINACIONES Y CERO PROMPTS CREATIVOS):
+REGLAS ESTRICTAS DE EXTRACCIÓN CON IA:
 1. FIDELIDAD TOTAL Y LITERAL:
-   - Extrae EXACTAMENTE el texto del usuario sin aumentar, inventar o eliminar ningún requisito, tabla o especificación.
-   - PROHIBIDO inventar herramientas, marcas o líneas de tensión si no están en el texto provisto.
-2. ANTECEDENTES Y JUSTIFICACIÓN:
-   - Si el usuario provee antecedentes o justificación en su texto/markdown, CÓPIALOS VERBATIM sin modificarlos.
-3. TABLAS DE ESPECIFICACIONES TÉCNICAS:
-   - Para cada ítem, extrae su descripción, cantidad, unidad y características técnicas o metodología exacta.
+   - Extrae el texto del usuario sin aumentar, inventar ni omitir ninguna especificación.
+2. CARACTERÍSTICAS TÉCNICAS COMPLETAS:
+   - En cada ítem, debes extraer en "caracteristicasTecnicas" TODAS las viñetas, especificaciones mecánicas, eléctricas, de materiales y normas (por ejemplo: Caña, Puntera, Protección Eléctrica EH, Impermeabilidad, Planta y Entresuela, Plantilla, Cordones, Taco, etc.) con sus viñetas completas. NUNCA resumas ni dejes solo el título del ítem.
+3. 14 PUNTOS OFICIALES:
+   - Extrae fielmente el texto de cada punto provisto (1. Antecedentes, 2. Justificación, 4. Calidad, 5. Ámbito, 6. Método, 7. Vigencia, 8. Categoría, 9. Lugar, 10. Tiempo, 11. Adjudicación, 12. Aceptación, 13. Pago, 14. Multas).
 
 DEBES DEVOLVER ESTRICTAMENTE UN OBJETO JSON VÁLIDO con la siguiente estructura:
 {
   "categoria_detectada": "Bienes" | "Servicios" | "Salud Ocupacional" | "Obras",
   "titulo_proceso": "TÍTULO EXACTO DEL PROCESO EN MAYÚSCULAS",
-  "tipo_tabla_sugerido": "BIENES_SIMPLE" | "SALUD_OCUPACIONAL" | "FICHAS_DINAMICAS",
+  "tipo_tabla_sugerido": "BIENES_3_COLS" | "BIENES_SIMPLE" | "SALUD_OCUPACIONAL" | "FICHAS_DINAMICAS",
   "antecedentes_texto": "Texto exacto de antecedentes...",
-  "justificacion_texto": "Texto exacto de justificación de la necesidad...",
+  "justificacion_texto": "Texto exacto de justificación...",
+  "puntos_14": {
+    "1": "Texto exacto de antecedentes",
+    "2": "Texto exacto de justificación / necesidad",
+    "4": "Texto exacto de calidad",
+    "5": "Texto exacto de ámbito de aplicación",
+    "6": "Texto exacto de método de selección",
+    "7": "Texto exacto de vigencia de propuesta",
+    "8": "Texto exacto de categoría",
+    "9": "Texto exacto de lugar de entrega",
+    "10": "Texto exacto de tiempo de entrega",
+    "11": "Texto exacto de forma de adjudicación",
+    "12": "Texto exacto de aceptación del lote",
+    "13": "Texto exacto de forma de pago",
+    "14": "Texto exacto de aplicación de multas"
+  },
   "items": [
     {
       "item": 1,
-      "descripcion": "NOMBRE O EXAMEN EXACTO DEL ÍTEM",
+      "descripcion": "NOMBRE DEL ÍTEM EN MAYÚSCULAS",
       "cantidad": 1,
-      "unidad": "PZA" | "ESTUDIO" | "PAR" | "JGO",
+      "unidad": "PZA" | "PAR" | "LOTE" | "ESTUDIO" | "JGO",
       "precioUnitarioEstimado": 0,
-      "caracteristicasTecnicas": "Requisitos y características técnicas completas...",
-      "especificacionMinima": "Metodología mínima o requisito técnico para salud/servicio...",
-      "propuestoOferente": "A informar por el proponente..."
+      "caracteristicasTecnicas": "• Caña: ...\n• Puntera: ...\n• Protección Eléctrica: ...\n• Impermeabilidad: ...",
+      "especificacionMinima": "Mismas características o metodología requerida...",
+      "propuestoOferente": "Cumple con las especificaciones técnicas requeridas"
     }
   ]
 }`;
@@ -149,9 +163,10 @@ DEBES DEVOLVER ESTRICTAMENTE UN OBJETO JSON VÁLIDO con la siguiente estructura:
       if (parsed.items && Array.isArray(parsed.items) && parsed.items.length > 0) {
         return {
           titulo_proceso: parsed.titulo_proceso || literalParsed?.titulo_proceso || adquisicion.titulo_proceso,
-          antecedentes_texto: parsed.antecedentes_texto || literalParsed?.antecedentes_texto || adquisicion.antecedentes_texto,
-          justificacion_texto: parsed.justificacion_texto || literalParsed?.justificacion_texto || adquisicion.justificacion_texto,
+          antecedentes_texto: parsed.antecedentes_texto || parsed.puntos_14?.["1"] || literalParsed?.antecedentes_texto || adquisicion.antecedentes_texto,
+          justificacion_texto: parsed.justificacion_texto || parsed.puntos_14?.["2"] || literalParsed?.justificacion_texto || adquisicion.justificacion_texto,
           tipo_tabla_sugerido: parsed.tipo_tabla_sugerido || literalParsed?.tipo_tabla_sugerido || adquisicion.tipo_tabla_tdr,
+          puntos_detectados: parsed.puntos_14 || literalParsed?.puntos_detectados || {},
           items: parsed.items.map((it: any, idx: number) => ({
             id: `item-ia-${Date.now()}-${idx}`,
             item: it.item || idx + 1,
