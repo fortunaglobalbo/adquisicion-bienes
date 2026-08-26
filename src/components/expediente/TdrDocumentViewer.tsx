@@ -29,7 +29,7 @@ import { parseMarkdownTdrLiteral } from "@/lib/ai/markdownTdrParser";
 
 interface TdrDocumentViewerProps {
   adquisicion: Adquisicion;
-  onDownloadDocx: () => void;
+  onDownloadDocx: (liveData?: Adquisicion) => void;
   onAdquisicionUpdated?: (updated: Adquisicion) => void;
 }
 
@@ -462,7 +462,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
           )}
 
           <button
-            onClick={onDownloadDocx}
+            onClick={() => onDownloadDocx(docData)}
             className="flex items-center gap-2 px-4 py-2.5 bg-primary text-on-primary hover:bg-primary-container font-sans text-sm font-bold rounded shadow transition-all active:scale-95"
             title="Descargar este documento oficial en formato Microsoft Word (.docx) con los 14 puntos completos"
           >

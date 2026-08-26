@@ -41,10 +41,11 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
   };
 
   // Helper para descargar docx generado
-  const handleDownloadDocx = async (doc?: Documento) => {
+  const handleDownloadDocx = async (doc?: Documento, liveAdquisicion?: Adquisicion) => {
     try {
       setDownloadingDocId(doc?.id || "direct");
       const tipo = getDocType();
+      const currentAdq = liveAdquisicion || adquisicion;
 
       // Obtener datos de plantilla activa
       let templateData: any = undefined;
@@ -65,7 +66,7 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           tipo,
-          adquisicion,
+          adquisicion: currentAdq,
           justificacionTexto: insumoExtra || undefined,
           templateData,
         }),
@@ -167,21 +168,21 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
       {carpeta.numero === 1 ? (
         <TdrDocumentViewer
           adquisicion={adquisicion}
-          onDownloadDocx={() => handleDownloadDocx()}
+          onDownloadDocx={(live) => handleDownloadDocx(undefined, live)}
           onAdquisicionUpdated={handleDocumentUpdate}
         />
       ) : carpeta.numero === 5 ? (
         /* For Carpeta 5: Full-Screen Direct Document Editor & Viewer (Solicitud de Inicio Oficial) */
         <SolicitudInicioViewer
           adquisicion={adquisicion}
-          onDownloadDocx={() => handleDownloadDocx()}
+          onDownloadDocx={(live) => handleDownloadDocx(undefined, live)}
           onAdquisicionUpdated={handleDocumentUpdate}
         />
       ) : carpeta.numero === 6 ? (
         /* For Carpeta 6: Full-Screen Direct Document Editor & Viewer (Formulario S2-N014 Oficial) */
         <FormS2Viewer
           adquisicion={adquisicion}
-          onDownloadDocx={() => handleDownloadDocx()}
+          onDownloadDocx={(live) => handleDownloadDocx(undefined, live)}
           onAdquisicionUpdated={handleDocumentUpdate}
         />
       ) : (

@@ -20,7 +20,7 @@ import { formatCurrencyBs } from "@/lib/docx/formatters";
 
 interface FormS2ViewerProps {
   adquisicion: Adquisicion;
-  onDownloadDocx: () => void;
+  onDownloadDocx: (liveData?: Adquisicion) => void;
   onAdquisicionUpdated?: (updated: Adquisicion) => void;
 }
 
@@ -217,7 +217,7 @@ export const FormS2Viewer: React.FC<FormS2ViewerProps> = ({
           )}
 
           <button
-            onClick={onDownloadDocx}
+            onClick={() => onDownloadDocx(docData)}
             className="flex items-center gap-2 px-4 py-2.5 bg-primary text-on-primary hover:bg-primary-container font-sans text-sm font-bold rounded shadow transition-all active:scale-95"
             title="Descargar el Formulario S2 oficial en formato Microsoft Word (.docx) con texto en tamaño 12"
           >
@@ -379,11 +379,12 @@ export const FormS2Viewer: React.FC<FormS2ViewerProps> = ({
                             />
                           </td>
                           <td className="border-r border-gray-900 p-2 uppercase font-medium">
-                            <input
-                              type="text"
+                            <textarea
+                              rows={2}
                               value={item.descripcion}
                               onChange={(e) => handleItemChange(item.id, "descripcion", e.target.value)}
-                              className="w-full font-medium uppercase bg-transparent focus:bg-white focus:outline-none border-b border-transparent hover:border-primary"
+                              className="w-full font-medium uppercase bg-transparent focus:bg-white focus:outline-none border-b border-transparent hover:border-primary resize-y leading-snug whitespace-pre-wrap text-xs md:text-sm"
+                              placeholder="DESCRIPCIÓN DEL BIEN / SUMINISTRO..."
                             />
                           </td>
                           <td className="border-r border-gray-900 p-2 text-center">

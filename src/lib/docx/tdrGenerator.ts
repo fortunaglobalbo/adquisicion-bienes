@@ -470,11 +470,23 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
                   }),
                   ...adquisicion.items.map((it) => {
                     const carac = it.caracteristicasTecnicas || it.especificacionMinima || "Cumplimiento con especificaciones técnicas requeridas por ENDE Deoruro S.A.";
+                    const caracParagraphs = carac
+                      .split("\n")
+                      .map((line) => line.trim())
+                      .filter(Boolean)
+                      .map(
+                        (line) =>
+                          new Paragraph({
+                            spacing: { before: 30, after: 30 },
+                            children: [new TextRun({ text: line, size: FONT_BODY, font: "Inter" })],
+                          })
+                      );
+
                     return new TableRow({
                       children: [
                         new TableCell({ margins: { top: 80, bottom: 80, left: 60, right: 60 }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: String(it.item), bold: true, size: FONT_BODY, font: "Inter" })] })] }),
                         new TableCell({ margins: { top: 80, bottom: 80, left: 80, right: 80 }, children: [new Paragraph({ children: [new TextRun({ text: it.descripcion, bold: true, size: FONT_BODY, font: "Inter" })] })] }),
-                        new TableCell({ margins: { top: 80, bottom: 80, left: 80, right: 80 }, children: [new Paragraph({ children: [new TextRun({ text: carac, size: FONT_BODY, font: "Inter" })] })] }),
+                        new TableCell({ margins: { top: 80, bottom: 80, left: 80, right: 80 }, children: caracParagraphs.length > 0 ? caracParagraphs : [new Paragraph({ children: [new TextRun({ text: carac, size: FONT_BODY, font: "Inter" })] })] }),
                       ],
                     });
                   }),
@@ -532,13 +544,26 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
                         : "") ||
                       `${ft.material ? `Material: ${ft.material}. ` : ""}${ft.normaCertificacion ? `Norma: ${ft.normaCertificacion}. ` : ""}${ft.dimensiones ? `Dimensiones: ${ft.dimensiones}` : ""}`.trim() ||
                       "Cumplimiento obligatorio de normas de calidad y especificaciones solicitadas";
+
+                    const caracParagraphs = carac
+                      .split("\n")
+                      .map((line) => line.trim())
+                      .filter(Boolean)
+                      .map(
+                        (line) =>
+                          new Paragraph({
+                            spacing: { before: 30, after: 30 },
+                            children: [new TextRun({ text: line, size: FONT_BODY, font: "Inter" })],
+                          })
+                      );
+
                     return new TableRow({
                       children: [
                         new TableCell({ margins: { top: 80, bottom: 80, left: 60, right: 60 }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: String(it.item), bold: true, size: FONT_BODY, font: "Inter" })] })] }),
                         new TableCell({ margins: { top: 80, bottom: 80, left: 80, right: 80 }, children: [new Paragraph({ children: [new TextRun({ text: it.descripcion, bold: true, size: FONT_BODY, font: "Inter" })] })] }),
                         new TableCell({ margins: { top: 80, bottom: 80, left: 60, right: 60 }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: it.unidad || "PZA", size: FONT_BODY, font: "Inter" })] })] }),
                         new TableCell({ margins: { top: 80, bottom: 80, left: 60, right: 60 }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: String(it.cantidad || 1), size: FONT_BODY, font: "Inter" })] })] }),
-                        new TableCell({ margins: { top: 80, bottom: 80, left: 80, right: 80 }, children: [new Paragraph({ children: [new TextRun({ text: carac, size: FONT_BODY, font: "Inter" })] })] }),
+                        new TableCell({ margins: { top: 80, bottom: 80, left: 80, right: 80 }, children: caracParagraphs.length > 0 ? caracParagraphs : [new Paragraph({ children: [new TextRun({ text: carac, size: FONT_BODY, font: "Inter" })] })] }),
                       ],
                     });
                   }),
