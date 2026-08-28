@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   Sparkles,
   Download,
   FileText,
-  Clock,
   RefreshCw,
+  Upload,
+  CheckCircle2,
+  Link2,
 } from "lucide-react";
 import { Adquisicion, Carpeta, Documento } from "@/types";
 import { TdrDocumentViewer } from "./TdrDocumentViewer";
@@ -34,6 +36,10 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [insumoExtra, setInsumoExtra] = useState("");
   const [downloadingDocId, setDownloadingDocId] = useState<string | null>(null);
+  // Estado para subida manual de archivos (Carpetas 2, 3, 4)
+  const [manualUploadName, setManualUploadName] = useState<string | null>(null);
+  const [manualUploadSuccess, setManualUploadSuccess] = useState(false);
+  const manualFileRef = useRef<HTMLInputElement | null>(null);
 
   // Determinar tipo de documento a generar
   const getDocType = (): "TDR" | "SOLICITUD_INICIO" | "FORM_S2" | "INFORME_CONFORMIDAD" | "MEMO_PAGO" => {
@@ -267,112 +273,165 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
           onAdquisicionUpdated={handleDocumentUpdate}
         />
       ) : (
-        /* For Other Folders */
-        <div className="space-y-4 flex-1 flex flex-col">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-3 border-b border-outline-variant gap-3">
-            <div>
-              <h3 className="font-headline-md text-base md:text-lg font-bold text-on-surface flex items-center gap-2.5">
-                <span className="p-1.5 bg-primary/10 text-primary rounded">
-                  <Sparkles className="w-5 h-5 text-secondary-fixed-variant" />
+        /* Carpetas 2, 3, 4 — Subida Manual del Usuario */
+        (() => {
+          const isManualFolder = [2, 3, 4].includes(carpeta.numero);
+          const carpetaDescriptions: Record<number, { from: string; icon: string; hint: string }> = {
+            2: { from: "El usuario sube manualmente", icon: "📋", hint: "Formulario S1-N014, Solicitud de inicio de proceso, partida presupuestaria" },
+            3: { from: "El usuario sube manualmente", icon: "📊", hint: "Cuadro de justificación, previsión de precio aprobada, informe técnico de necesidad" },
+            4: { from: "El usuario sube manualmente", icon: "💼", hint: "Cotizaciones / proformas de proveedores con NIT, precios y especificaciones" },
+          };
+          const meta = carpetaDescriptions[carpeta.numero];
+
+          const handleManualUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+
+            const newDoc: Documento = {
+              id: `doc-manual-${Date.now()}`,
+              carpeta_id: carpeta.id,
+              adquisicion_id: adquisicion.id,
+              tipo: "SUBIDO_OTRO",
+              nombre_original: file.name,
+              mime: file.type || "application/octet-stream",
+              tamano: file.size,
+              estado: "Final",
+              version: (carpeta.documentos?.length || 0) + 1,
+              creado_por: "Usuario",
+              fecha_creacion: new Date().toISOString(),
+              contenido_texto: `Documento subido manualmente para la Carpeta ${carpeta.numero}: ${carpeta.nombre}`,
+              metadata: { subidoManualmente: true },
+            };
+
+            // Guardar en DataStore
+            DataStore.addDocumentToCarpeta(carpeta.id, newDoc);
+            const allC = DataStore.getAllCarpetas();
+            const target = allC.find((c) => c.id === carpeta.id);
+            if (target) {
+              target.estado = "Completado";
+              target.fecha_proceso = new Date().toISOString();
+              DataStore.saveAllCarpetas(allC);
+            }
+
+            onDocumentGenerated(newDoc);
+            setManualUploadName(file.name);
+            setManualUploadSuccess(true);
+            setTimeout(() => setManualUploadSuccess(false), 4000);
+          };
+
+          return (
+            <div className="space-y-5 flex-1 flex flex-col">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-3 border-b border-outline-variant gap-3">
+                <div>
+                  <h3 className="font-headline-md text-base md:text-lg font-bold text-on-surface flex items-center gap-2.5">
+                    <span className="p-1.5 bg-primary/10 text-primary rounded text-xl">
+                      {meta?.icon || "📁"}
+                    </span>
+                    <span>{carpeta.numero}. {carpeta.nombre}</span>
+                  </h3>
+                  <p className="font-sans text-xs text-on-surface-variant mt-0.5">{carpeta.descripcion}</p>
+                </div>
+                <span className="px-3 py-1 bg-surface-container border border-outline-variant text-on-surface-variant text-xs rounded-full font-mono font-bold">
+                  Subida Manual
                 </span>
-                <span>
-                  {carpeta.numero}. {carpeta.nombre}
-                </span>
-              </h3>
-              <p className="font-sans text-xs text-on-surface-variant mt-0.5">
-                {carpeta.descripcion}
-              </p>
-            </div>
-
-            <button
-              onClick={handleGenerateAi}
-              disabled={isGenerating}
-              className="flex items-center gap-2 bg-primary text-on-primary px-4 py-2 rounded font-sans text-xs font-bold hover:bg-primary-container transition-colors shadow-institutional disabled:opacity-50"
-            >
-              {isGenerating ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin text-secondary-container" />
-                  <span>Generando con OpenCode Go...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4 text-secondary-container fill-secondary-container" />
-                  <span>Generar con IA (.docx)</span>
-                </>
-              )}
-            </button>
-          </div>
-
-          {/* Context Banner */}
-          <div className="p-3.5 bg-surface border border-outline-variant rounded text-xs">
-            <p className="font-mono font-bold text-primary mb-1">
-              Consolidación Automática para {carpeta.nombre}:
-            </p>
-            <p className="text-on-surface-variant">
-              Genera el Formulario S2-N014 de invitación y cotización formal a proponentes con especificaciones técnicas del proceso.
-            </p>
-          </div>
-
-          {/* Documents List */}
-          <div className="flex-1">
-            <h4 className="font-mono text-xs text-on-surface-variant uppercase tracking-wider mb-3 flex items-center justify-between">
-              <span>Documentos Oficiales Generados (.docx)</span>
-              <span className="bg-primary-container text-on-primary-container px-2 py-0.5 rounded-full font-mono text-[10px]">
-                {carpeta.documentos.length} Archivos
-              </span>
-            </h4>
-
-            {carpeta.documentos.length === 0 ? (
-              <div className="p-8 border-2 border-dashed border-outline-variant rounded-lg text-center flex flex-col items-center justify-center bg-surface-container-low/50">
-                <Sparkles className="w-8 h-8 text-outline mb-2 opacity-50" />
-                <p className="font-sans text-xs text-on-surface-variant font-medium">
-                  Aún no se ha generado el documento para esta carpeta.
-                </p>
-                <button
-                  onClick={handleGenerateAi}
-                  className="mt-3 px-4 py-1.5 bg-primary text-on-primary rounded font-bold text-xs"
-                >
-                  Generar Ahora con IA
-                </button>
               </div>
-            ) : (
-              <div className="space-y-3">
-                {carpeta.documentos.map((doc) => (
-                  <div
-                    key={doc.id}
-                    className="flex items-start justify-between p-4 bg-surface-container-lowest border border-outline-variant border-l-4 border-l-primary rounded hover:shadow-institutional transition-all"
-                  >
-                    <div className="flex items-start gap-3 min-w-0">
-                      <FileText className="w-6 h-6 text-primary flex-shrink-0 mt-1" />
-                      <div className="min-w-0">
-                        <h5 className="font-bold text-sm text-on-surface truncate">
-                          {doc.nombre_original}
-                        </h5>
-                        <p className="text-xs text-on-surface-variant line-clamp-2 mt-1">
-                          {doc.contenido_texto}
-                        </p>
-                        <div className="flex items-center gap-3 mt-2 font-mono text-[11px] text-outline">
-                          <span>{(doc.tamano / 1024).toFixed(1)} KB</span>
-                          <span>{new Date(doc.fecha_creacion).toLocaleDateString()}</span>
+
+              {/* Info Banner */}
+              <div className="p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-300 dark:border-blue-700 rounded-lg text-xs flex gap-3">
+                <Link2 className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="font-bold text-blue-900 dark:text-blue-200">
+                    Esta carpeta se completa con documentos subidos manualmente.
+                  </p>
+                  <p className="text-blue-700 dark:text-blue-300">
+                    <strong>Documentos típicos:</strong> {meta?.hint}
+                  </p>
+                  {carpeta.numero === 4 && (
+                    <p className="text-blue-700 dark:text-blue-300 font-semibold mt-1">
+                      ⚡ Los documentos de esta carpeta (cotizaciones) serán usados por la IA para generar la Carpeta 7 (Informe de Conformidad).
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Drop Zone / Upload Area */}
+              <div
+                className="flex-1 border-2 border-dashed border-outline-variant hover:border-primary rounded-xl p-8 flex flex-col items-center justify-center gap-4 bg-surface-container-low/50 hover:bg-surface-container-low transition-colors cursor-pointer group"
+                onClick={() => manualFileRef.current?.click()}
+              >
+                <input
+                  ref={manualFileRef}
+                  type="file"
+                  className="hidden"
+                  accept=".pdf,.doc,.docx,.xlsx,.xls,.jpg,.jpeg,.png,.txt,.md"
+                  onChange={handleManualUpload}
+                />
+                {manualUploadSuccess ? (
+                  <>
+                    <CheckCircle2 className="w-14 h-14 text-emerald-500" />
+                    <div className="text-center">
+                      <p className="font-bold text-emerald-700 dark:text-emerald-400 text-sm">
+                        ¡Archivo subido correctamente!
+                      </p>
+                      <p className="text-xs text-emerald-600 dark:text-emerald-500 mt-1 font-mono">
+                        {manualUploadName}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-14 h-14 text-outline group-hover:text-primary transition-colors" />
+                    <div className="text-center space-y-1">
+                      <p className="font-bold text-on-surface text-sm group-hover:text-primary transition-colors">
+                        Haz clic aquí o arrastra tu documento
+                      </p>
+                      <p className="text-xs text-on-surface-variant">
+                        PDF, Word (.docx), Excel, Imágenes, TXT — hasta 50 MB
+                      </p>
+                    </div>
+                    <button
+                      className="px-5 py-2 bg-primary text-on-primary rounded-lg font-bold text-sm shadow hover:bg-primary/90 transition-colors"
+                      onClick={(e) => { e.stopPropagation(); manualFileRef.current?.click(); }}
+                    >
+                      Seleccionar Archivo
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Uploaded Documents */}
+              {carpeta.documentos.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-mono text-xs text-on-surface-variant uppercase tracking-wider flex items-center justify-between">
+                    <span>Documentos Subidos</span>
+                    <span className="bg-primary-container text-on-primary-container px-2 py-0.5 rounded-full font-mono text-[10px]">
+                      {carpeta.documentos.length} archivos
+                    </span>
+                  </h4>
+                  {carpeta.documentos.map((doc) => (
+                    <div key={doc.id} className="flex items-center justify-between p-3 bg-surface-container-lowest border border-outline-variant rounded-lg hover:shadow-sm transition-all">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <FileText className="w-5 h-5 text-primary flex-shrink-0" />
+                        <div className="min-w-0">
+                          <p className="font-semibold text-sm text-on-surface truncate">{doc.nombre_original}</p>
+                          <p className="text-[11px] text-on-surface-variant font-mono">
+                            {(doc.tamano / 1024).toFixed(1)} KB · {new Date(doc.fecha_creacion).toLocaleDateString()}
+                          </p>
                         </div>
                       </div>
+                      <span className="text-[10px] px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full font-bold border border-emerald-300 ml-2 shrink-0">
+                        Subido ✓
+                      </span>
                     </div>
-
-                    <button
-                      onClick={() => handleDownloadDocx(doc)}
-                      className="p-2 border border-outline-variant rounded text-primary hover:bg-surface-container-high transition-colors ml-2"
-                      title="Descargar archivo .docx"
-                    >
-                      <Download className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()
       )}
     </div>
   );
 };
+

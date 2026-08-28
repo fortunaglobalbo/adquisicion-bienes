@@ -45,14 +45,15 @@ export function cleanFormatting(text: string): string {
 }
 
 /**
- * Limpia caracteres raros de Markdown (###, **, *, _) convirtiéndolo a texto institucional limpio y elegante
+ * Limpia SOLO los marcadores de estructura Markdown (###, |, ---)
+ * PRESERVA el contenido de párrafos LITERALMENTE, sin alterar ninguna palabra.
  */
 export function cleanInstitutionalText(text: string): string {
   if (!text) return "";
 
   let res = text
     .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/?[^>]+(>|$)/g, "");
+    .replace(/<\/?[^>]+(>|$)/g, ""); // solo elimina HTML
 
   const lines = res.split("\n");
   const cleanedLines: string[] = [];
@@ -96,6 +97,32 @@ export function cleanInstitutionalText(text: string): string {
   }
 
   return cleanedLines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+/**
+ * Extrae el texto de una sección preservando LITERALMENTE el contenido original.
+ * Solo elimina marcadores de estructura (|, ---, líneas vacías de inicio/fin),
+ * pero NUNCA altera el texto de los párrafos, ni palabras, ni puntuación.
+ * Esta función es para Carpeta 1 (TDR) donde se requiere copia fiel 100%.
+ */
+export function extractRawSectionContent(bodyLines: string[]): string {
+  const meaningful = bodyLines
+    .filter((l) => {
+      const t = l.trim();
+      if (!t) return false;
+      if (/^-{3,}$/.test(t)) return false; // separadores ---
+      if (/^\|\s*[-:]+\s*\|/.test(t)) return false; // separadores de tabla |---|---|
+      if (t.startsWith("|")) return false; // líneas de tabla
+      if (/^#+\s*(\d+\.)?\s*(ANTECEDENTES|JUSTIFICACI|ESPECIFICACI|CALIDAD|ÁMBITO|MÉTODO|VIGENCIA|CATEGORÍA|LUGAR|TIEMPO|PLAZO|FORMA|ACEPTACI|MULTA|ADJUDICACI)/i.test(t)) return false;
+      return true;
+    })
+    .map((l) => {
+      // Solo elimina el "#" de inicio de línea (encabezados Markdown estructurales)
+      // Preserva TODO el contenido textual tal como está
+      return l.trim().replace(/^#+\s*/, "");
+    });
+
+  return meaningful.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
 /**
@@ -298,14 +325,19 @@ export function parseMarkdownTdrLiteral(rawMarkdown: string): ParsedTdrResult {
     const nextLineIdx = i < detectedSections.length - 1 ? detectedSections[i + 1].lineIdx : lines.length;
     const bodyLines = lines.slice(current.lineIdx + 1, nextLineIdx);
 
-    // Extraer texto limpio y ordenado sin caracteres raros de markdown
+    // Extraer texto con FIDELIDAD LITERAL 100% para Carpeta 1
+    // extractRawSectionContent preserva el texto exactamente como el usuario lo escribió
     const rawBodyText = bodyLines
       .join("\n")
       .replace(/^---\s*$/gm, "")
       .replace(/^[\r\n]+|[\r\n]+$/g, "")
       .trim();
 
-    const cleanedSection = cleanInstitutionalText(rawBodyText);
+    // Para secciones de contenido (no la tabla de ítems), usar extracción RAW
+    const cleanedSection = current.num !== 3
+      ? extractRawSectionContent(bodyLines)
+      : cleanInstitutionalText(rawBodyText);
+
     sectionTexts[current.num] = cleanedSection;
     if (current.num !== 3 && cleanedSection) {
       result.puntos_detectados[current.num] = cleanedSection;

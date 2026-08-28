@@ -116,71 +116,105 @@ DIRECTIVAS CRÍTICAS Y OBLIGATORIAS:
      7. Vigencia de la Propuesta
      8. Categoría
      9. Lugar de Entrega
-     10. Tiempo / Plazo de Entrega
-     11. Forma de Adjudicación
-     12. Aceptación del Lote / Servicio
-     13. Forma de Pago
-     14. Aplicación de Multas
-3. TABLAS DE CUALQUIER FORMATO:
-   - Si es una Matriz de Servicios (4 columnas), extrae en "descripcion" el componente, en "caracteristicasTecnicas" la especificación/alcance técnico completo, y en "productoEntregable" el entregable exacto ("tipo_tabla_sugerido": "MATRIZ_SERVICIOS").
-   - Si es una tabla de 3 columnas de Bienes, extrae ítem, descripción y características ("tipo_tabla_sugerido": "BIENES_3_COLS").
-   - Si es una tabla de 5 columnas, extrae ítem, descripción, unidad, cantidad y características ("tipo_tabla_sugerido": "BIENES_SIMPLE").
-   - Si es de Salud Ocupacional o Laboratorio, extrae examen, metodología y propuesto ("tipo_tabla_sugerido": "SALUD_OCUPACIONAL").
+╔══════════════════════════════════════════════════════════════════════╗
+║  MODO: TRANSCRIPCIÓN TEXTUAL ABSOLUTA — NO ERES UN REDACTOR          ║
+║  Eres un CLASIFICADOR ESTRUCTURAL PURO.                               ║
+║  Tu único rol: leer el documento y copiar el texto de cada sección   ║
+║  al campo JSON correspondiente. NADA MÁS.                             ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+REGLAS ABSOLUTAS E INQUEBRANTABLES:
+
+REGLA 1 — COPIA VERBATIM (la más importante):
+  - Copia el texto EXACTO, LITERAL, CARÁCTER POR CARÁCTER de cada sección.
+  - Si el documento dice "El plazo de entrega es de 30 días", el campo debe contener EXACTAMENTE "El plazo de entrega es de 30 días".
+  - NO resumas. NO parafrasees. NO sintetices. NO reescribas. NO "mejores" el texto.
+  - NO agregues palabras que no estén en el original.
+  - NO quites palabras del original.
+  - NO cambies el orden de las oraciones.
+  - Si una sección tiene 5 párrafos, el campo debe tener esos 5 párrafos completos.
+
+REGLA 2 — PROHIBICIONES ABSOLUTAS:
+  ❌ PROHIBIDO inventar texto que no esté en el documento.
+  ❌ PROHIBIDO resumir párrafos largos.
+  ❌ PROHIBIDO "mejorar" la redacción.
+  ❌ PROHIBIDO cambiar términos técnicos (ej: "Bs" por "bolivianos").
+  ❌ PROHIBIDO añadir frases como "Según el reglamento..." si no están en el original.
+  ❌ PROHIBIDO completar secciones que no existen en el documento con texto inventado.
+
+REGLA 3 — SECCIONES FALTANTES:
+  - Si una sección NO existe en el documento, coloca el campo como "" (cadena vacía).
+  - NUNCA completes con texto inventado una sección ausente.
+
+REGLA 4 — TABLAS DE ÍTEMS (Sección 3):
+  - Si es una Matriz de Servicios (4 columnas), extrae: descripcion=componente, caracteristicasTecnicas=especificación completa literal, productoEntregable=entregable literal ("tipo_tabla_sugerido": "MATRIZ_SERVICIOS").
+  - Si es tabla de 3 columnas de Bienes: ítem, descripción, características ("tipo_tabla_sugerido": "BIENES_3_COLS").
+  - Si es tabla de 5 columnas: ítem, descripción, unidad, cantidad, características ("tipo_tabla_sugerido": "BIENES_SIMPLE").
+  - Si es de Salud Ocupacional o Laboratorio: examen, metodología, propuesto ("tipo_tabla_sugerido": "SALUD_OCUPACIONAL").
 
 DEBES DEVOLVER ESTRICTAMENTE UN OBJETO JSON VÁLIDO con la siguiente estructura:
 {
   "categoria_detectada": "Bienes" | "Servicios" | "Salud Ocupacional" | "Obras",
-  "titulo_proceso": "TÍTULO EXACTO DEL PROCESO EN MAYÚSCULAS",
+  "titulo_proceso": "TÍTULO EXACTO DEL PROCESO COPIADO LITERALMENTE EN MAYÚSCULAS",
   "tipo_tabla_sugerido": "MATRIZ_SERVICIOS" | "BIENES_3_COLS" | "BIENES_SIMPLE" | "SALUD_OCUPACIONAL" | "FICHAS_DINAMICAS" | "TABLA_DINAMICA",
-  "seccion3_introduccion_texto": "Texto introductorio previo a la tabla si existe...",
-  "columnas_tabla": ["ÍTEM", "DESCRIPCIÓN DE COMPONENTE", "CARACTERÍSTICAS / ESPECIFICACIÓN TÉCNICA MÍNIMA REQUERIDA", "PRODUCTO ENTREGABLE"],
-  "antecedentes_texto": "Texto exacto y completo de antecedentes...",
-  "justificacion_texto": "Texto exacto y completo de justificación...",
-  "calidad_texto": "Texto exacto de calidad...",
-  "ambito_aplicacion": "Texto exacto de ámbito de aplicación...",
-  "metodo_seleccion_texto": "Texto exacto de método de selección...",
-  "vigencia_propuesta_texto": "Texto exacto de vigencia de propuesta...",
-  "categoria_texto": "Texto exacto de categoría...",
-  "lugar_entrega": "Texto exacto de lugar de entrega...",
-  "tiempo_entrega_texto": "Texto exacto de tiempo/plazo de entrega...",
-  "forma_adjudicacion": "Texto exacto de forma de adjudicación...",
-  "aceptacion_lote": "Texto exacto de aceptación...",
-  "forma_pago_texto": "Texto exacto de forma de pago...",
-  "multas_texto": "Texto exacto de multas...",
+  "seccion3_introduccion_texto": "Texto introductorio previo a la tabla, copiado literalmente si existe, o vacío",
+  "columnas_tabla": ["Encabezados de la tabla tal como aparecen en el documento"],
+  "antecedentes_texto": "TEXTO LITERAL COMPLETO DE ANTECEDENTES — COPIA VERBATIM",
+  "justificacion_texto": "TEXTO LITERAL COMPLETO DE JUSTIFICACIÓN — COPIA VERBATIM",
+  "calidad_texto": "TEXTO LITERAL DE CALIDAD — COPIA VERBATIM",
+  "ambito_aplicacion": "TEXTO LITERAL DE ÁMBITO DE APLICACIÓN — COPIA VERBATIM",
+  "metodo_seleccion_texto": "TEXTO LITERAL DE MÉTODO DE SELECCIÓN — COPIA VERBATIM",
+  "vigencia_propuesta_texto": "TEXTO LITERAL DE VIGENCIA DE PROPUESTA — COPIA VERBATIM",
+  "categoria_texto": "TEXTO LITERAL DE CATEGORÍA — COPIA VERBATIM",
+  "lugar_entrega": "TEXTO LITERAL DE LUGAR DE ENTREGA — COPIA VERBATIM",
+  "tiempo_entrega_texto": "TEXTO LITERAL DE TIEMPO/PLAZO DE ENTREGA — COPIA VERBATIM",
+  "forma_adjudicacion": "TEXTO LITERAL DE FORMA DE ADJUDICACIÓN — COPIA VERBATIM",
+  "aceptacion_lote": "TEXTO LITERAL DE ACEPTACIÓN DEL LOTE — COPIA VERBATIM",
+  "forma_pago_texto": "TEXTO LITERAL DE FORMA DE PAGO — COPIA VERBATIM",
+  "multas_texto": "TEXTO LITERAL DE APLICACIÓN DE MULTAS — COPIA VERBATIM",
   "puntos_14": {
-    "1": "Texto exacto de antecedentes",
-    "2": "Texto exacto de justificación / necesidad",
-    "4": "Texto exacto de calidad",
-    "5": "Texto exacto de ámbito de aplicación",
-    "6": "Texto exacto de método de selección",
-    "7": "Texto exacto de vigencia de propuesta",
-    "8": "Texto exacto de categoría",
-    "9": "Texto exacto de lugar de entrega",
-    "10": "Texto exacto de tiempo de entrega",
-    "11": "Texto exacto de forma de adjudicación",
-    "12": "Texto exacto de aceptación del lote",
-    "13": "Texto exacto de forma de pago",
-    "14": "Texto exacto de aplicación de multas"
+    "1": "Texto literal completo de antecedentes",
+    "2": "Texto literal completo de justificación / necesidad",
+    "4": "Texto literal de calidad",
+    "5": "Texto literal de ámbito de aplicación",
+    "6": "Texto literal de método de selección",
+    "7": "Texto literal de vigencia de propuesta",
+    "8": "Texto literal de categoría",
+    "9": "Texto literal de lugar de entrega",
+    "10": "Texto literal de tiempo de entrega",
+    "11": "Texto literal de forma de adjudicación",
+    "12": "Texto literal de aceptación del lote",
+    "13": "Texto literal de forma de pago",
+    "14": "Texto literal de aplicación de multas"
   },
   "items": [
     {
       "item": 1,
-      "descripcion": "NOMBRE DEL ÍTEM O COMPONENTE EN MAYÚSCULAS",
+      "descripcion": "NOMBRE DEL ÍTEM O COMPONENTE COPIADO LITERALMENTE EN MAYÚSCULAS",
       "cantidad": 1,
       "unidad": "SRV" | "PZA" | "PAR" | "LOTE" | "ESTUDIO" | "GLB",
       "precioUnitarioEstimado": 0,
-      "caracteristicasTecnicas": "Texto completo de especificaciones técnicas o alcance requerido...",
-      "especificacionMinima": "Texto completo de especificaciones...",
-      "productoEntregable": "Informe, documento o entregable requerido...",
-      "propuestoOferente": "Cumple con las especificaciones técnicas requeridas"
+      "caracteristicasTecnicas": "Texto literal completo de especificaciones técnicas o alcance — COPIA VERBATIM",
+      "especificacionMinima": "Texto literal completo de especificaciones mínimas — COPIA VERBATIM",
+      "productoEntregable": "Entregable literal del documento — COPIA VERBATIM",
+      "propuestoOferente": "Texto propuesto por el oferente — COPIA VERBATIM o vacío"
     }
   ]
 }`;
 
-  let userContent: any = `Transfiere este documento/texto para el proceso ${adquisicion.codigo} a la plantilla oficial respetando COPIA FIEL 100% LITERAL (PROHIBIDO RESUMIR O PARAFRASEAR):\n`;
+  // Cuando hay documentText, instruir explícitamente al modelo a copiar verbatim
+  const hasText = !!(input.documentText || input.insumoTexto);
+  let userContent: any = hasText
+    ? `INSTRUCCIÓN CRÍTICA: Tienes a continuación el texto COMPLETO del documento para el proceso ${adquisicion.codigo}.\n` +
+      `Tu única tarea es COPIAR CADA SECCIÓN VERBATIM (carácter por carácter) al campo JSON correspondiente.\n` +
+      `NO reescribas. NO parafrasees. NO resumas. NO inventes nada.\n` +
+      `Si ves "El plazo es de 30 días", pon EXACTAMENTE "El plazo es de 30 días" en el campo tiempo_entrega_texto.\n\n` +
+      `DOCUMENTO A TRANSCRIBIR:\n`
+    : `Analiza y extrae la información del documento para el proceso ${adquisicion.codigo}:\n`;
+
   if (input.nombreArchivo) userContent += `Archivo: ${input.nombreArchivo}\n`;
-  if (input.documentText) userContent += `Texto provisto:\n${input.documentText}\n`;
-  if (input.insumoTexto) userContent += `Instrucción:\n${input.insumoTexto}\n`;
+  if (input.documentText) userContent += `\n${"=".repeat(60)}\n${input.documentText}\n${"=".repeat(60)}\n`;
+  if (input.insumoTexto) userContent += `\nInstrucción adicional: ${input.insumoTexto}\n`;
 
   const messages: ChatMessage[] = [{ role: "system", content: systemPrompt }];
 

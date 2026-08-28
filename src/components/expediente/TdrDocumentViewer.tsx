@@ -162,16 +162,28 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
         nombreArchivo: uploadedAiFile?.name,
       };
 
-      // 1. Si es modo Markdown, realizar parseo literal determinista inmediato
+      // 1. Si es modo Markdown, realizar parseo literal determinista inmediato (PRIORIDAD ABSOLUTA)
       let directParsed = null;
       if (aiInputMode === "markdown" && markdownTdrText.trim()) {
         payload.documentText = markdownTdrText;
+        // Parseo local determinista: garantiza copia fiel sin IA
         directParsed = parseMarkdownTdrLiteral(markdownTdrText);
       } else if (uploadedAiFile?.base64) {
         if (uploadedAiFile.type.startsWith("image/")) {
+          // Imagen: la IA analiza visualmente
           payload.imageBase64 = uploadedAiFile.base64;
         } else {
-          payload.documentText = `Archivo adjunto: ${uploadedAiFile.name}. Insumo adicional: ${aiPrompt}`;
+          // Documento (PDF, Word, TXT): enviar el texto completo del archivo a la IA
+          // para que copie verbatim — NO solo el nombre del archivo
+          const fileText = uploadedAiFile.base64
+            ? atob(uploadedAiFile.base64.split(",")[1] || uploadedAiFile.base64)
+            : "";
+          payload.documentText = fileText || `Archivo adjunto: ${uploadedAiFile.name}. Por favor extrae y copia verbatim todo el texto del documento.`;
+          payload.nombreArchivo = uploadedAiFile.name;
+          // Intentar parseo literal si el archivo es texto plano
+          if (uploadedAiFile.type === "text/plain" || uploadedAiFile.name.endsWith(".md") || uploadedAiFile.name.endsWith(".txt")) {
+            directParsed = parseMarkdownTdrLiteral(payload.documentText);
+          }
         }
       }
 
@@ -182,9 +194,18 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
       });
 
       const result = await res.json();
-      if (!res.ok && !directParsed) throw new Error(result.error || "Error al procesar el documento");
+      // Si el parser local (directParsed) detectó secciones, tiene PRIORIDAD ABSOLUTA
+      // sobre cualquier resultado de IA para garantizar copia fiel 100%
+      const hasDirectContent = directParsed && (
+        directParsed.items?.length > 0 ||
+        directParsed.antecedentes_texto ||
+        directParsed.justificacion_texto ||
+        Object.keys(directParsed.puntos_detectados || {}).length > 0
+      );
+      if (!res.ok && !hasDirectContent) throw new Error(result.error || "Error al procesar el documento");
 
-      const parsedData = result.data || directParsed;
+      // directParsed tiene PRIORIDAD ABSOLUTA cuando tiene contenido — NO se llama a cleanInstitutionalText
+      const parsedData = hasDirectContent ? directParsed : (result.data || directParsed);
       if (parsedData) {
         const detectedTabla = directParsed?.tipo_tabla_sugerido || parsedData.tipo_tabla_sugerido || tipoTablaTdr;
         const detectedPuntos = directParsed?.puntos_14_texto || directParsed?.puntos_detectados || parsedData?.puntos_14_texto || parsedData?.puntos_detectados || {};
@@ -229,8 +250,14 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
         setTipoTablaTdr(detectedTabla);
 
         // Actualizar todos los 14 puntos inmediatamente en pantalla con COPIA FIEL 100%
+        // Si el texto viene del parser directo, usarlo SIN cleanInstitutionalText para no alterar nada
         setPuntosOficiales((prev) =>
           prev.map((p) => {
+            // Para directParsed: usar el texto raw sin ningún procesamiento
+            const rawFromDirect = directParsed?.puntos_detectados?.[p.num];
+            if (rawFromDirect) return { ...p, contenido: rawFromDirect };
+
+            // Para resultado de IA: usar directParsed si existe, si no el resultado AI
             const detected = detectedPuntos[p.num];
             if (detected) return { ...p, contenido: detected };
             if (p.num === 1 && updated.antecedentes_texto) return { ...p, contenido: updated.antecedentes_texto };
