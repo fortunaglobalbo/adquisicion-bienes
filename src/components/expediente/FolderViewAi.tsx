@@ -12,6 +12,8 @@ import { Adquisicion, Carpeta, Documento } from "@/types";
 import { TdrDocumentViewer } from "./TdrDocumentViewer";
 import { SolicitudInicioViewer } from "./SolicitudInicioViewer";
 import { FormS2Viewer } from "./FormS2Viewer";
+import { InformeConformidadViewer } from "./InformeConformidadViewer";
+import { MemoPagoViewer } from "./MemoPagoViewer";
 import { DataStore } from "@/lib/store/dataStore";
 
 interface FolderViewAiProps {
@@ -34,10 +36,12 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
   const [downloadingDocId, setDownloadingDocId] = useState<string | null>(null);
 
   // Determinar tipo de documento a generar
-  const getDocType = (): "TDR" | "SOLICITUD_INICIO" | "FORM_S2" => {
+  const getDocType = (): "TDR" | "SOLICITUD_INICIO" | "FORM_S2" | "INFORME_CONFORMIDAD" | "MEMO_PAGO" => {
     if (carpeta.numero === 1) return "TDR";
     if (carpeta.numero === 5) return "SOLICITUD_INICIO";
-    return "FORM_S2";
+    if (carpeta.numero === 6) return "FORM_S2";
+    if (carpeta.numero === 7) return "INFORME_CONFORMIDAD";
+    return "MEMO_PAGO";
   };
 
   // Helper para descargar docx generado
@@ -71,7 +75,6 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
           templateData,
         }),
       });
-
 
       if (!response.ok) {
         throw new Error("Error en la descarga del archivo");
@@ -118,6 +121,12 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
         };
       } else if (tipo === "FORM_S2") {
         endpoint = "/api/ai/generate-s2";
+        requestBody = { adquisicion };
+      } else if (tipo === "INFORME_CONFORMIDAD") {
+        endpoint = "/api/ai/generate-informe-conformidad";
+        requestBody = { adquisicion };
+      } else if (tipo === "MEMO_PAGO") {
+        endpoint = "/api/ai/generate-memo-pago";
         requestBody = { adquisicion };
       }
 
@@ -167,7 +176,11 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
         ? `TDR_${updated.codigo || "PROCESO"}_Especificaciones_Oficial.docx`
         : tipo === "SOLICITUD_INICIO"
         ? `SOLICITUD_INICIO_${updated.codigo || "PROCESO"}_Oficial.docx`
-        : `FORM_S2_N014_${updated.codigo || "PROCESO"}_Cotizacion_Oficial.docx`;
+        : tipo === "FORM_S2"
+        ? `FORM_S2_N014_${updated.codigo || "PROCESO"}_Cotizacion_Oficial.docx`
+        : tipo === "INFORME_CONFORMIDAD"
+        ? `INFORME_CONFORMIDAD_A6_${updated.codigo || "PROCESO"}_Oficial.docx`
+        : `MEMO_PAGO_${updated.codigo || "PROCESO"}_Oficial.docx`;
 
     const allCarpetas = DataStore.getAllCarpetas();
     const targetFolder = allCarpetas.find((c) => c.id === carpeta.id) || carpeta;
@@ -235,6 +248,20 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
       ) : carpeta.numero === 6 ? (
         /* For Carpeta 6: Full-Screen Direct Document Editor & Viewer (Formulario S2-N014 Oficial) */
         <FormS2Viewer
+          adquisicion={adquisicion}
+          onDownloadDocx={(live?: Adquisicion) => handleDownloadDocx(undefined, live)}
+          onAdquisicionUpdated={handleDocumentUpdate}
+        />
+      ) : carpeta.numero === 7 ? (
+        /* For Carpeta 7: Full-Screen Direct Document Editor & Viewer (Informe de Conformidad A6-N014) */
+        <InformeConformidadViewer
+          adquisicion={adquisicion}
+          onDownloadDocx={(live?: Adquisicion) => handleDownloadDocx(undefined, live)}
+          onAdquisicionUpdated={handleDocumentUpdate}
+        />
+      ) : carpeta.numero === 8 ? (
+        /* For Carpeta 8: Full-Screen Direct Document Editor & Viewer (Memorándum de Solicitud de Pago) */
+        <MemoPagoViewer
           adquisicion={adquisicion}
           onDownloadDocx={(live?: Adquisicion) => handleDownloadDocx(undefined, live)}
           onAdquisicionUpdated={handleDocumentUpdate}

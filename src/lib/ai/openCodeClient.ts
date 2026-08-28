@@ -439,3 +439,261 @@ export async function generateSolicitudInicioContentWithAI(
 ): Promise<string> {
   return `Solicitud de inicio para ${adquisicion.codigo}`;
 }
+
+export async function extractInformeConformidadWithAI(
+  adquisicion: Adquisicion,
+  input: {
+    imageBase64?: string;
+    contextoCarpetas?: any;
+    insumoTexto?: string;
+  }
+): Promise<any> {
+  const systemPrompt = `Eres un auditor legal y técnico experto en compras de ENDE Deoruro S.A. (Bolivia).
+Debes generar o estructurar los datos para el "INFORME DE CONFORMIDAD / INFORME TÉCNICO DE EVALUACIÓN DE COTIZACIONES Y SOLICITUD DE ADJUDICACIÓN (FORMULARIO A6-N014)".
+Responde ÚNICAMENTE con un JSON con los siguientes campos:
+{
+  "formulario": "FORMULARIO A6-N014",
+  "fecha": "Oruro, 29 de julio de 2026",
+  "cite": "INF.DE ORURO N.º 021/2026",
+  "a_nombre": "Lic. VICENTE PAUL VEGA RAMIREZ",
+  "a_cargo": "SUPERINTENDENCIA DE ADMINISTRACIÓN & FINANZAS",
+  "via_nombre": "Lic. RAÚL ALBERTO TORRICO GÓMEZ",
+  "via_cargo": "GERENTE GENERAL",
+  "de_nombre": "Ing. TATIANA TORRES ANDRADE",
+  "de_cargo": "SUPERVISOR SEGURIDAD INDUSTRIAL",
+  "proceso": "REMISIÓN DE INFORME TÉCNICO DE EVALUACIÓN DE COTIZACIONES Y SOLICITUD DE ADJUDICACIÓN - PROCESO \\"${adquisicion.titulo_proceso.toUpperCase()}\\" (${adquisicion.solicitud_inicio_numero ? `Solicitud No. ${adquisicion.solicitud_inicio_numero}` : "Solicitud No. 028/2026 S.I."})",
+  "antecedentes_fecha": "24/06/2026",
+  "antecedentes_nota": "Nota No. 057/2026",
+  "prevision_precio": ${adquisicion.prevision_presupuesto || 109000.0},
+  "proponentes": [
+    {
+      "numero": 1,
+      "empresa": "MULTI ENERGÍA",
+      "cotizacion_detalle": "Fechas solicitud de cotización: 10/07/2026\\nCotización cumple con lo solicitado, de acuerdo a las especificaciones técnicas enviadas",
+      "precio": "Bs 70.000,00",
+      "actividad_economica": "No envía NIT",
+      "cumple_tecnico": true,
+      "cumple_legal": false,
+      "es_ganador": false,
+      "observacion": "No acreditó NIT"
+    },
+    {
+      "numero": 2,
+      "empresa": "HERRACRUZ",
+      "cotizacion_detalle": "Fechas solicitud de cotización: 10/07/2026\\nNo envía cotización.",
+      "precio": "No envía propuesta",
+      "actividad_economica": "-",
+      "cumple_tecnico": false,
+      "cumple_legal": false,
+      "es_ganador": false,
+      "observacion": "No presentó propuesta"
+    },
+    {
+      "numero": 3,
+      "empresa": "ARIOL",
+      "cotizacion_detalle": "Fechas solicitud de cotización: 10/07/2026\\nCotización cumple con lo solicitado, de acuerdo a las especificaciones técnicas enviadas",
+      "precio": "Bs 67.240,00",
+      "actividad_economica": "NIT: 6119531015\\nActividad Económica: Comercialización y provisión de bienes",
+      "cumple_tecnico": true,
+      "cumple_legal": true,
+      "es_ganador": true,
+      "observacion": "Oferta habilitada con menor precio ofertado"
+    },
+    {
+      "numero": 4,
+      "empresa": "FEMCO",
+      "cotizacion_detalle": "Fechas solicitud de cotización: 10/07/2026\\nNo envía cotización.",
+      "precio": "No envía propuesta",
+      "actividad_economica": "-",
+      "cumple_tecnico": false,
+      "cumple_legal": false,
+      "es_ganador": false,
+      "observacion": "No presentó propuesta"
+    }
+  ],
+  "empresa_ganadora": "ARIOL",
+  "monto_adjudicado": 67240.0,
+  "monto_adjudicado_literal": "Sesenta y Siete Mil Doscientos Cuarenta 00/100 Bolivianos"
+}`;
+
+  const userContent = `Datos del proceso:
+- Título: ${adquisicion.titulo_proceso}
+- Código: ${adquisicion.codigo}
+- Presupuesto referencial: ${adquisicion.prevision_presupuesto}
+- Insumo extra: ${input.insumoTexto || "Ninguno"}
+- Contexto de carpetas previas: ${JSON.stringify(input.contextoCarpetas || {})}`;
+
+  const messages: ChatMessage[] = [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: userContent },
+  ];
+
+  const aiRaw = await callOpenCodeGo(messages, 0.2);
+  if (aiRaw) {
+    try {
+      const cleanJson = aiRaw.replace(/```json/gi, "").replace(/```/g, "").trim();
+      const parsed = JSON.parse(cleanJson);
+      if (parsed.proceso || parsed.empresa_ganadora) {
+        return parsed;
+      }
+    } catch (e) {
+      console.warn("Could not parse JSON for Informe Conformidad:", e);
+    }
+  }
+
+  // Fallback
+  return {
+    formulario: adquisicion.informe_conf_formulario || "FORMULARIO A6-N014",
+    fecha: adquisicion.informe_conf_fecha || "Oruro, 29 de julio de 2026",
+    cite: adquisicion.informe_conf_cite || "INF.DE ORURO N.º 021/2026",
+    a_nombre: adquisicion.informe_conf_a_nombre || "Lic. VICENTE PAUL VEGA RAMIREZ",
+    a_cargo: adquisicion.informe_conf_a_cargo || "SUPERINTENDENCIA DE ADMINISTRACIÓN & FINANZAS",
+    via_nombre: adquisicion.informe_conf_via_nombre || "Lic. RAÚL ALBERTO TORRICO GÓMEZ",
+    via_cargo: adquisicion.informe_conf_via_cargo || "GERENTE GENERAL",
+    de_nombre: adquisicion.informe_conf_de_nombre || "Ing. TATIANA TORRES ANDRADE",
+    de_cargo: adquisicion.informe_conf_de_cargo || "SUPERVISOR SEGURIDAD INDUSTRIAL",
+    proceso: `REMISIÓN DE INFORME TÉCNICO DE EVALUACIÓN DE COTIZACIONES Y SOLICITUD DE ADJUDICACIÓN - PROCESO "${adquisicion.titulo_proceso.toUpperCase()}" (${adquisicion.solicitud_inicio_numero ? `Solicitud No. ${adquisicion.solicitud_inicio_numero}` : "Solicitud No. 028/2026 S.I."})`,
+    antecedentes_fecha: "24/06/2026",
+    antecedentes_nota: "Nota No. 057/2026",
+    prevision_precio: adquisicion.prevision_presupuesto || 109000.0,
+    proponentes: [
+      {
+        numero: 1,
+        empresa: "MULTI ENERGÍA",
+        cotizacion_detalle: "Fechas solicitud de cotización: 10/07/2026\nCotización cumple con lo solicitado, de acuerdo a las especificaciones técnicas enviadas",
+        precio: "Bs 70.000,00",
+        actividad_economica: "No envía NIT",
+        cumple_tecnico: true,
+        cumple_legal: false,
+        es_ganador: false,
+        observacion: "No acreditó NIT",
+      },
+      {
+        numero: 2,
+        empresa: "HERRACRUZ",
+        cotizacion_detalle: "Fechas solicitud de cotización: 10/07/2026\nNo envía cotización.",
+        precio: "No envía propuesta",
+        actividad_economica: "-",
+        cumple_tecnico: false,
+        cumple_legal: false,
+        es_ganador: false,
+        observacion: "No presentó propuesta",
+      },
+      {
+        numero: 3,
+        empresa: "ARIOL",
+        cotizacion_detalle: "Fechas solicitud de cotización: 10/07/2026\nCotización cumple con lo solicitado, de acuerdo a las especificaciones técnicas enviadas",
+        precio: "Bs 67.240,00",
+        actividad_economica: "NIT: 6119531015\nActividad Económica: Comercialización y provisión de bienes",
+        cumple_tecnico: true,
+        cumple_legal: true,
+        es_ganador: true,
+        observacion: "Oferta habilitada con menor precio ofertado",
+      },
+      {
+        numero: 4,
+        empresa: "FEMCO",
+        cotizacion_detalle: "Fechas solicitud de cotización: 10/07/2026\nNo envía cotización.",
+        precio: "No envía propuesta",
+        actividad_economica: "-",
+        cumple_tecnico: false,
+        cumple_legal: false,
+        es_ganador: false,
+        observacion: "No presentó propuesta",
+      },
+    ],
+    empresa_ganadora: "ARIOL",
+    monto_adjudicado: 67240.0,
+    monto_adjudicado_literal: "Sesenta y Siete Mil Doscientos Cuarenta 00/100 Bolivianos",
+  };
+}
+
+export async function extractMemoPagoWithAI(
+  adquisicion: Adquisicion,
+  input: {
+    imageBase64?: string;
+    contextoCarpetas?: any;
+    insumoTexto?: string;
+  }
+): Promise<any> {
+  const systemPrompt = `Eres un auditor contable y administrativo de ENDE Deoruro S.A.
+Debes estructurar el "MEMORÁNDUM DE SOLICITUD DE PAGO" oficial.
+Responde ÚNICAMENTE con un JSON con los siguientes campos:
+{
+  "cite": "GG-SPA-26/070002",
+  "fecha": "Oruro, 23 de Julio de 2026",
+  "a_nombre": "LIC. VICENTE PAUL VEGA RAMIREZ",
+  "a_cargo": "SUPERINTENDENTE DE ADMINISTRACIÓN Y FINANZAS a.i.",
+  "de_nombre": "ING. TATIANA TORRES ANDRADE",
+  "de_cargo": "SUPERVISOR DE SEGURIDAD INDUSTRIAL a.i.",
+  "objeto": "SOLICITUD DE PAGO ${adquisicion.titulo_proceso.toUpperCase()} DE MOVICLEAN S.R.L.",
+  "nro_factura": "2",
+  "proveedor": "MOVICLEAN S.R.L.",
+  "monto_total": 58333.0,
+  "monto_literal": "Cincuenta y ocho mil trescientos treinta y tres 00/100 Bolivianos",
+  "items": [
+    {
+      "cantidad": "1.00",
+      "unidad": "Unidad (Servicios)",
+      "descripcion": "${adquisicion.titulo_proceso.toUpperCase()}"
+    }
+  ],
+  "banco_cite_solicitud": "CITE: MOVICLEAN-LIM-ADM-No113/2026",
+  "banco_nombre": "Banco Económico",
+  "banco_titular": "Moviclean SRL",
+  "banco_cuenta": "1041-505958",
+  "conformidad_texto": "Así mismo, informamos que el proveedor ha cumplido satisfactoriamente con la prestación del servicio contratado."
+}`;
+
+  const userContent = `Datos del proceso:
+- Título: ${adquisicion.titulo_proceso}
+- Código: ${adquisicion.codigo}
+- Proveedor / Ganador: ${adquisicion.informe_conf_empresa_ganadora || adquisicion.proveedor_adjudicado || "MOVICLEAN S.R.L."}
+- Insumo extra: ${input.insumoTexto || "Ninguno"}`;
+
+  const messages: ChatMessage[] = [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: userContent },
+  ];
+
+  const aiRaw = await callOpenCodeGo(messages, 0.2);
+  if (aiRaw) {
+    try {
+      const cleanJson = aiRaw.replace(/```json/gi, "").replace(/```/g, "").trim();
+      const parsed = JSON.parse(cleanJson);
+      if (parsed.cite || parsed.proveedor) {
+        return parsed;
+      }
+    } catch (e) {
+      console.warn("Could not parse JSON for Memo Pago:", e);
+    }
+  }
+
+  // Fallback
+  return {
+    cite: adquisicion.memo_pago_cite || "GG-SPA-26/070002",
+    fecha: adquisicion.memo_pago_fecha || "Oruro, 23 de Julio de 2026",
+    a_nombre: adquisicion.memo_pago_a_nombre || "LIC. VICENTE PAUL VEGA RAMIREZ",
+    a_cargo: adquisicion.memo_pago_a_cargo || "SUPERINTENDENTE DE ADMINISTRACIÓN Y FINANZAS a.i.",
+    de_nombre: adquisicion.memo_pago_de_nombre || "ING. TATIANA TORRES ANDRADE",
+    de_cargo: adquisicion.memo_pago_de_cargo || "SUPERVISOR DE SEGURIDAD INDUSTRIAL a.i.",
+    objeto: `SOLICITUD DE PAGO ${adquisicion.titulo_proceso.toUpperCase()} DE MOVICLEAN S.R.L.`,
+    nro_factura: "2",
+    proveedor: adquisicion.informe_conf_empresa_ganadora || adquisicion.proveedor_adjudicado || "MOVICLEAN S.R.L.",
+    monto_total: 58333.0,
+    monto_literal: "Cincuenta y ocho mil trescientos treinta y tres 00/100 Bolivianos",
+    items: [
+      {
+        cantidad: "1.00",
+        unidad: "Unidad (Servicios)",
+        descripcion: adquisicion.titulo_proceso.toUpperCase(),
+      },
+    ],
+    banco_cite_solicitud: "CITE: MOVICLEAN-LIM-ADM-No113/2026",
+    banco_nombre: "Banco Económico",
+    banco_titular: "Moviclean SRL",
+    banco_cuenta: "1041-505958",
+    conformidad_texto: "Así mismo, informamos que el proveedor ha cumplido satisfactoriamente con la prestación del servicio contratado.",
+  };
+}
+

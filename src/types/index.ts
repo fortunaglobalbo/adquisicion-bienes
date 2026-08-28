@@ -82,6 +82,7 @@ export interface Adquisicion {
   plazo_entrega_dias: number;
   multa_diaria_porcentaje: number; // 0.25
   lugar_entrega: string;
+  proveedor_adjudicado?: string;
 
   // Campos específicos de la Plantilla Institucional (PDF ENDE Deoruro)
   revision?: string; // ej. "Rev. N° 1"
@@ -131,6 +132,61 @@ export interface Adquisicion {
   form_s2_validez_oferta?: string; // ej. "30 días calendario"
   form_s2_observaciones?: string; // ej. "SE ADJUNTA ESPECIFICACIONES TECNICAS"
   form_s2_nota_adicional?: string; // ej. "ADJUNTAR FOTOCOPIA SIMPLE DE SU RNC - NIT"
+
+  // Campos específicos de la Carpeta 7 (Informe de Conformidad y Evaluación - Formulario A6-N014)
+  informe_conf_formulario?: string; // ej. "FORMULARIO A6-N014"
+  informe_conf_fecha?: string; // ej. "Oruro, 29 de julio de 2026"
+  informe_conf_cite?: string; // ej. "INF.DE ORURO N.º 021/2026"
+  informe_conf_a_nombre?: string; // ej. "Lic. VICENTE PAUL VEGA RAMIREZ"
+  informe_conf_a_cargo?: string; // ej. "SUPERINTENDENCIA DE ADMINISTRACIÓN & FINANZAS"
+  informe_conf_via_nombre?: string; // ej. "Lic. RAÚL ALBERTO TORRICO GÓMEZ"
+  informe_conf_via_cargo?: string; // ej. "GERENTE GENERAL"
+  informe_conf_de_nombre?: string; // ej. "Ing. TATIANA TORRES ANDRADE"
+  informe_conf_de_cargo?: string; // ej. "SUPERVISOR SEGURIDAD INDUSTRIAL"
+  informe_conf_proceso?: string;
+  informe_conf_antecedentes_fecha?: string; // ej. "24/06/2026"
+  informe_conf_antecedentes_nota?: string; // ej. "Nota No. 057/2026"
+  informe_conf_prevision_precio?: number; // ej. 109000.00
+  informe_conf_proponentes?: Array<{
+    numero: number;
+    empresa: string;
+    cotizacion_detalle: string;
+    precio: number | string;
+    actividad_economica: string;
+    cumple_tecnico: boolean;
+    cumple_legal: boolean;
+    es_ganador?: boolean;
+    observacion?: string;
+  }>;
+  informe_conf_conclusiones?: string[];
+  informe_conf_recomendaciones?: string[];
+  informe_conf_empresa_ganadora?: string;
+  informe_conf_monto_adjudicado?: number;
+  informe_conf_monto_adjudicado_literal?: string;
+
+  // Campos específicos de la Carpeta 8 (Memorándum de Solicitud de Pago)
+  memo_pago_cite?: string; // ej. "GG-SPA-26/070002"
+  memo_pago_fecha?: string; // ej. "Oruro, 23 de Julio de 2026"
+  memo_pago_a_nombre?: string; // ej. "LIC. VICENTE PAUL VEGA RAMIREZ"
+  memo_pago_a_cargo?: string; // ej. "SUPERINTENDENTE DE ADMINISTRACIÓN Y FINANZAS a.i."
+  memo_pago_de_nombre?: string; // ej. "ING. TATIANA TORRES ANDRADE"
+  memo_pago_de_cargo?: string; // ej. "SUPERVISOR DE SEGURIDAD INDUSTRIAL a.i."
+  memo_pago_objeto?: string;
+  memo_pago_nro_factura?: string; // ej. "2"
+  memo_pago_proveedor?: string; // ej. "MOVICLEAN S.R.L."
+  memo_pago_monto_total?: number; // ej. 58333.00
+  memo_pago_monto_literal?: string; // ej. "Cincuenta y ocho mil trescientos treinta y tres 00/100 Bolivianos"
+  memo_pago_concepto?: string;
+  memo_pago_items?: Array<{
+    cantidad: number | string;
+    unidad: string;
+    descripcion: string;
+  }>;
+  memo_pago_banco_cite_solicitud?: string; // ej. "CITE: MOVICLEAN-LIM-ADM-No113/2026"
+  memo_pago_banco_nombre?: string; // ej. "Banco Económico"
+  memo_pago_banco_titular?: string; // ej. "Moviclean SRL"
+  memo_pago_banco_cuenta?: string; // ej. "1041-505958"
+  memo_pago_conformidad_texto?: string;
 }
 
 export interface Carpeta {

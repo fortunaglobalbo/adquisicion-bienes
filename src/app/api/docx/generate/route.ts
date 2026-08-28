@@ -2,13 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateTdrDocx } from "@/lib/docx/tdrGenerator";
 import { generateSolicitudInicioDocx } from "@/lib/docx/solicitudInicioGenerator";
 import { generateFormS2Docx } from "@/lib/docx/formS2Generator";
+import { generateInformeConformidadDocx } from "@/lib/docx/informeConformidadGenerator";
+import { generateMemoPagoDocx } from "@/lib/docx/memoPagoGenerator";
 import { Adquisicion } from "@/types";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { tipo, adquisicion, justificacionTexto, templateData } = body as {
-      tipo: "TDR" | "SOLICITUD_INICIO" | "FORM_S2";
+      tipo: "TDR" | "SOLICITUD_INICIO" | "FORM_S2" | "INFORME_CONFORMIDAD" | "MEMO_PAGO";
       adquisicion: Adquisicion;
       justificacionTexto?: string;
       templateData?: any;
@@ -30,8 +32,13 @@ export async function POST(req: NextRequest) {
     } else if (tipo === "FORM_S2") {
       buffer = await generateFormS2Docx(adquisicion);
       fileName = `FORM_S2_N014_${adquisicion.codigo}_Cotizacion.docx`;
+    } else if (tipo === "INFORME_CONFORMIDAD") {
+      buffer = await generateInformeConformidadDocx(adquisicion, templateData);
+      fileName = `INFORME_CONFORMIDAD_A6_${adquisicion.codigo}.docx`;
+    } else if (tipo === "MEMO_PAGO") {
+      buffer = await generateMemoPagoDocx(adquisicion, templateData);
+      fileName = `MEMO_PAGO_${adquisicion.codigo}.docx`;
     } else {
-
       return NextResponse.json({ error: "Tipo de documento no soportado" }, { status: 400 });
     }
 
