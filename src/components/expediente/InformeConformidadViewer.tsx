@@ -14,6 +14,8 @@ import {
   CheckCircle2,
   FileCheck,
   Building2,
+  Check,
+  Layers,
 } from "lucide-react";
 import { getFechaTextoActual } from "@/lib/utils/dateUtils";
 
@@ -31,7 +33,6 @@ export const InformeConformidadViewer: React.FC<InformeConformidadViewerProps> =
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [savedFeedback, setSavedFeedback] = useState(false);
   const [isAiProcessing, setIsAiProcessing] = useState(false);
-  const [activeTab, setActiveTab] = useState<"preview" | "edit">("preview");
 
   const [docData, setDocData] = useState<Adquisicion>({
     ...adquisicion,
@@ -128,12 +129,29 @@ export const InformeConformidadViewer: React.FC<InformeConformidadViewerProps> =
     setDocData((prev) => ({ ...prev, informe_conf_proponentes: list }));
   };
 
+  const handleSetGanador = (index: number) => {
+    const list = (docData.informe_conf_proponentes || []).map((p, idx) => ({
+      ...p,
+      es_ganador: idx === index,
+    }));
+    const ganador = list[index];
+    setDocData((prev) => ({
+      ...prev,
+      informe_conf_proponentes: list,
+      informe_conf_empresa_ganadora: ganador ? ganador.empresa : prev.informe_conf_empresa_ganadora,
+      informe_conf_monto_adjudicado:
+        typeof ganador?.precio === "number"
+          ? ganador.precio
+          : parseFloat(String(ganador?.precio || "").replace(/[^0-9.]/g, "")) || prev.informe_conf_monto_adjudicado,
+    }));
+  };
+
   const handleAddProponente = () => {
     const list = [...(docData.informe_conf_proponentes || [])];
     list.push({
       numero: list.length + 1,
-      empresa: "NUEVA EMPRESA",
-      cotizacion_detalle: "Cotización cumple con especificaciones técnicas",
+      empresa: "NUEVA EMPRESA S.R.L.",
+      cotizacion_detalle: "Cotización cumple con especificaciones técnicas enviadas",
       precio: "Bs 0.00",
       actividad_economica: "NIT: 0000000000",
       cumple_tecnico: true,
@@ -144,7 +162,9 @@ export const InformeConformidadViewer: React.FC<InformeConformidadViewerProps> =
   };
 
   const handleRemoveProponente = (index: number) => {
-    const list = (docData.informe_conf_proponentes || []).filter((_, idx) => idx !== index);
+    const list = (docData.informe_conf_proponentes || [])
+      .filter((_, idx) => idx !== index)
+      .map((p, i) => ({ ...p, numero: i + 1 }));
     setDocData((prev) => ({ ...prev, informe_conf_proponentes: list }));
   };
 
@@ -181,7 +201,7 @@ export const InformeConformidadViewer: React.FC<InformeConformidadViewerProps> =
           informe_conf_monto_adjudicado_literal: result.data.monto_adjudicado_literal || docData.informe_conf_monto_adjudicado_literal,
         };
         setDocData(updated);
-        if (onAdquisicionUpdated) onAdquisicionUpdated(updated);
+        onAdquisicionUpdated?.(updated);
         setSavedFeedback(true);
         setTimeout(() => setSavedFeedback(false), 3000);
       }
@@ -193,102 +213,95 @@ export const InformeConformidadViewer: React.FC<InformeConformidadViewerProps> =
   };
 
   const handleSave = () => {
-    if (onAdquisicionUpdated) {
-      onAdquisicionUpdated(docData);
-    }
+    onAdquisicionUpdated?.(docData);
     setSavedFeedback(true);
-    setTimeout(() => setSavedFeedback(false), 3000);
+    setTimeout(() => setSavedFeedback(false), 2500);
   };
 
   return (
     <div
-      className={`bg-slate-900 border border-slate-800 rounded-2xl flex flex-col transition-all duration-300 ${
-        isFullScreen ? "fixed inset-4 z-50 shadow-2xl" : "h-[850px]"
+      className={`flex flex-col space-y-4 ${
+        isFullScreen ? "fixed inset-0 z-50 bg-surface p-4 overflow-y-auto" : "w-full"
       }`}
     >
-      {/* Header Bar */}
-      <div className="px-6 py-4 border-b border-slate-800 flex flex-wrap items-center justify-between gap-4 bg-slate-950/40 rounded-t-2xl">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-blue-500/10 text-blue-400 rounded-xl border border-blue-500/20">
-            <FileCheck className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-slate-100 text-base">
-                Carpeta 7: Informe de Conformidad y Evaluación (Form. A6-N014)
-              </h3>
-              <span className="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-medium">
-                Word Oficial
-              </span>
-            </div>
-            <p className="text-xs text-slate-400">
-              Evaluación técnica de ofertas, cuadro comparativo y recomendación formal de adjudicación
-            </p>
-          </div>
-        </div>
-
-        {/* Tab switcher */}
-        <div className="flex items-center gap-1 bg-slate-800/80 p-1 rounded-xl border border-slate-700/50 text-xs">
-          <button
-            onClick={() => setActiveTab("preview")}
-            className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
-              activeTab === "preview"
-                ? "bg-blue-600 text-white shadow-sm"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            Vista Previa (A4)
-          </button>
-          <button
-            onClick={() => setActiveTab("edit")}
-            className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
-              activeTab === "edit"
-                ? "bg-blue-600 text-white shadow-sm"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            Editar Datos
-          </button>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2">
+      {/* Friendly Toolbar matching App Design Tokens */}
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-lg p-3 shadow-md sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3">
+        {/* Left: Action buttons */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Direct 1-Click AI Generation */}
           <button
             onClick={handleGenerateWithAi}
             disabled={isAiProcessing}
-            className="flex items-center gap-2 px-3.5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-purple-900/20 transition-all disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white font-sans text-sm font-bold rounded shadow transition-all active:scale-95 disabled:opacity-50"
+            title="Generar y redactar automáticamente el Informe de Conformidad con IA"
           >
             {isAiProcessing ? (
-              <RefreshCw className="w-4 h-4 animate-spin" />
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin text-yellow-100" />
+                <span>Analizando ofertas con IA...</span>
+              </>
             ) : (
-              <Sparkles className="w-4 h-4 text-yellow-300" />
+              <>
+                <Sparkles className="w-4 h-4 text-yellow-100" />
+                <span>Generar con IA (1-Clic)</span>
+              </>
             )}
-            <span>{isAiProcessing ? "Analizando..." : "Generar con IA"}</span>
           </button>
 
-          <button
-            onClick={handleSave}
-            className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-medium border border-slate-700 transition-colors"
-          >
-            {savedFeedback ? (
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            ) : (
-              <Save className="w-4 h-4 text-slate-400" />
-            )}
-            <span>{savedFeedback ? "¡Guardado!" : "Guardar"}</span>
-          </button>
-
+          {/* Direct Word Export Button */}
           <button
             onClick={() => onDownloadDocx(docData)}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-emerald-900/20 transition-all"
+            className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary/90 text-on-primary font-sans text-sm font-semibold rounded shadow transition-all active:scale-95"
+            title="Descargar documento Word (.docx) oficial"
           >
             <Download className="w-4 h-4" />
             <span>Descargar Word (.docx)</span>
           </button>
 
+          {/* Save Button */}
+          <button
+            onClick={handleSave}
+            className="flex items-center gap-1.5 px-3.5 py-2.5 bg-surface-container hover:bg-surface-container-high text-on-surface font-sans text-sm font-medium rounded border border-outline-variant transition-colors"
+            title="Guardar cambios realizados en el documento"
+          >
+            {savedFeedback ? (
+              <>
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span className="text-emerald-700 dark:text-emerald-300 font-semibold">
+                  ¡Guardado!
+                </span>
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4 text-on-surface-variant" />
+                <span>Guardar Cambios</span>
+              </>
+            )}
+          </button>
+
+          {/* Add Proponente Button */}
+          <button
+            onClick={handleAddProponente}
+            className="flex items-center gap-1.5 px-3.5 py-2.5 bg-secondary-fixed hover:bg-secondary-fixed-dim text-on-secondary-fixed font-sans text-sm font-medium rounded transition-colors"
+            title="Añadir una empresa proponente al cuadro comparativo"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Añadir Proponente</span>
+          </button>
+        </div>
+
+        {/* Right: Badges & View Controls */}
+        <div className="flex items-center gap-2 text-xs">
+          <span className="hidden sm:inline-flex px-2.5 py-1 bg-primary-container text-on-primary-container font-mono text-[11px] rounded font-semibold border border-primary/20">
+            Tamaño Carta (Letter)
+          </span>
+          <span className="hidden md:inline-flex px-2.5 py-1 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-medium rounded border border-emerald-500/20">
+            100% Editable
+          </span>
+
           <button
             onClick={() => setIsFullScreen(!isFullScreen)}
-            className="p-2 hover:bg-slate-800 text-slate-400 hover:text-slate-200 rounded-xl border border-slate-800 transition-colors"
+            className="p-2 hover:bg-surface-container text-on-surface-variant rounded border border-outline-variant transition-colors"
             title={isFullScreen ? "Salir de pantalla completa" : "Pantalla completa"}
           >
             {isFullScreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -296,13 +309,13 @@ export const InformeConformidadViewer: React.FC<InformeConformidadViewerProps> =
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto p-6 bg-slate-950/50">
-        {activeTab === "preview" ? (
-          /* A4 Sheet Preview */
-          <div className="max-w-4xl mx-auto bg-white text-slate-900 shadow-2xl rounded-sm p-10 font-sans text-sm border border-slate-300">
-            {/* Header Document */}
-            <div className="flex justify-between items-start border-b border-slate-300 pb-4 mb-6">
+      {/* Central Workbench with Realistic Carta Sheet */}
+      <div className="flex-1 bg-surface-container-low p-4 md:p-8 rounded-xl border border-outline-variant/60 overflow-x-auto flex justify-center shadow-inner">
+        {/* Exact Carta Paper Sheet (8.5in x 11in standard scale) */}
+        <div className="w-full max-w-[816px] min-h-[1056px] bg-white text-slate-900 shadow-2xl p-[40px] md:p-[56px] font-sans text-[13px] leading-relaxed border border-slate-300 relative rounded-sm flex flex-col justify-between">
+          <div>
+            {/* Header Document & Logo */}
+            <div className="flex justify-between items-start border-b border-slate-300 pb-3 mb-5">
               <div className="flex items-center gap-3">
                 <img
                   src="/logo-ende-deoruro.png"
@@ -313,108 +326,175 @@ export const InformeConformidadViewer: React.FC<InformeConformidadViewerProps> =
                   }}
                 />
                 <div>
-                  <h2 className="text-sm font-bold text-[#001E40] tracking-wide">
+                  <h2 className="text-xs font-bold text-[#001E40] tracking-wide">
                     DISTRIBUIDORA DE ELECTRICIDAD ENDE DEORURO S.A.
                   </h2>
-                  <p className="text-xs text-slate-500">Sistema Oficial de Adquisiciones</p>
+                  <p className="text-[10px] text-slate-500">Sistema Oficial de Contrataciones</p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-xs font-bold text-slate-700">{docData.informe_conf_formulario}</p>
-                <p className="text-xs text-slate-600">{docData.informe_conf_fecha}</p>
-                <p className="text-xs font-bold text-[#003366]">{docData.informe_conf_cite}</p>
+              <div className="text-right space-y-1">
+                <input
+                  type="text"
+                  value={docData.informe_conf_formulario || ""}
+                  onChange={(e) => handleFieldChange("informe_conf_formulario", e.target.value)}
+                  className="text-right text-xs font-bold text-slate-700 border-b border-dashed border-transparent hover:border-slate-400 focus:border-blue-500 focus:bg-blue-50/50 outline-none w-48 transition-colors"
+                  placeholder="FORMULARIO A6-N014"
+                />
+                <div>
+                  <input
+                    type="text"
+                    value={docData.informe_conf_fecha || ""}
+                    onChange={(e) => handleFieldChange("informe_conf_fecha", e.target.value)}
+                    className="text-right text-xs text-slate-600 border-b border-dashed border-transparent hover:border-slate-400 focus:border-blue-500 focus:bg-blue-50/50 outline-none w-48 transition-colors"
+                    placeholder="Oruro, 29 de julio de 2026"
+                  />
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    value={docData.informe_conf_cite || ""}
+                    onChange={(e) => handleFieldChange("informe_conf_cite", e.target.value)}
+                    className="text-right text-xs font-bold text-[#003366] border-b border-dashed border-transparent hover:border-slate-400 focus:border-blue-500 focus:bg-blue-50/50 outline-none w-48 transition-colors"
+                    placeholder="INF.DE ORURO N.º 021/2026"
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Title */}
-            <div className="text-center my-6">
-              <h1 className="text-base font-extrabold text-[#001E40] uppercase tracking-wider">
+            {/* Document Title */}
+            <div className="text-center my-4">
+              <h1 className="text-[15px] font-extrabold text-[#001E40] uppercase tracking-wider">
                 INFORME DE CONFORMIDAD
               </h1>
               <p className="text-xs font-bold text-slate-600 tracking-wide">(CONTRATACIONES)</p>
             </div>
 
-            {/* Destinatarios Box */}
-            <div className="grid grid-cols-[80px_1fr] gap-y-2 text-xs mb-6 bg-slate-50 p-4 rounded border border-slate-200">
-              <span className="font-bold text-slate-800">A:</span>
-              <div>
-                <p className="font-bold text-slate-900">{docData.informe_conf_a_nombre}</p>
-                <p className="text-slate-600">{docData.informe_conf_a_cargo}</p>
+            {/* Destinatarios Table (A, VIA, DE, PROCESO) - Fully Editable */}
+            <div className="grid grid-cols-[70px_1fr] gap-y-2 text-xs mb-5 bg-slate-50/80 p-3.5 rounded border border-slate-200">
+              <span className="font-bold text-slate-800 pt-1">A:</span>
+              <div className="space-y-0.5">
+                <input
+                  type="text"
+                  value={docData.informe_conf_a_nombre || ""}
+                  onChange={(e) => handleFieldChange("informe_conf_a_nombre", e.target.value)}
+                  className="w-full font-bold text-slate-900 border-b border-dashed border-transparent hover:border-slate-400 focus:border-blue-500 focus:bg-white outline-none px-1 py-0.5 rounded transition-colors"
+                  placeholder="Lic. VICENTE PAUL VEGA RAMIREZ"
+                />
+                <input
+                  type="text"
+                  value={docData.informe_conf_a_cargo || ""}
+                  onChange={(e) => handleFieldChange("informe_conf_a_cargo", e.target.value)}
+                  className="w-full text-slate-600 text-[11px] border-b border-dashed border-transparent hover:border-slate-400 focus:border-blue-500 focus:bg-white outline-none px-1 py-0.5 rounded transition-colors"
+                  placeholder="SUPERINTENDENCIA DE ADMINISTRACIÓN & FINANZAS"
+                />
               </div>
 
-              <span className="font-bold text-slate-800">VIA:</span>
-              <div>
-                <p className="font-bold text-slate-900">{docData.informe_conf_via_nombre}</p>
-                <p className="text-slate-600">{docData.informe_conf_via_cargo}</p>
+              <span className="font-bold text-slate-800 pt-1">VIA:</span>
+              <div className="space-y-0.5">
+                <input
+                  type="text"
+                  value={docData.informe_conf_via_nombre || ""}
+                  onChange={(e) => handleFieldChange("informe_conf_via_nombre", e.target.value)}
+                  className="w-full font-bold text-slate-900 border-b border-dashed border-transparent hover:border-slate-400 focus:border-blue-500 focus:bg-white outline-none px-1 py-0.5 rounded transition-colors"
+                  placeholder="Lic. RAÚL ALBERTO TORRICO GÓMEZ"
+                />
+                <input
+                  type="text"
+                  value={docData.informe_conf_via_cargo || ""}
+                  onChange={(e) => handleFieldChange("informe_conf_via_cargo", e.target.value)}
+                  className="w-full text-slate-600 text-[11px] border-b border-dashed border-transparent hover:border-slate-400 focus:border-blue-500 focus:bg-white outline-none px-1 py-0.5 rounded transition-colors"
+                  placeholder="GERENTE GENERAL"
+                />
               </div>
 
-              <span className="font-bold text-slate-800">De:</span>
-              <div>
-                <p className="font-bold text-slate-900">{docData.informe_conf_de_nombre}</p>
-                <p className="text-slate-600">{docData.informe_conf_de_cargo}</p>
+              <span className="font-bold text-slate-800 pt-1">De:</span>
+              <div className="space-y-0.5">
+                <input
+                  type="text"
+                  value={docData.informe_conf_de_nombre || ""}
+                  onChange={(e) => handleFieldChange("informe_conf_de_nombre", e.target.value)}
+                  className="w-full font-bold text-slate-900 border-b border-dashed border-transparent hover:border-slate-400 focus:border-blue-500 focus:bg-white outline-none px-1 py-0.5 rounded transition-colors"
+                  placeholder="Ing. TATIANA TORRES ANDRADE"
+                />
+                <input
+                  type="text"
+                  value={docData.informe_conf_de_cargo || ""}
+                  onChange={(e) => handleFieldChange("informe_conf_de_cargo", e.target.value)}
+                  className="w-full text-slate-600 text-[11px] border-b border-dashed border-transparent hover:border-slate-400 focus:border-blue-500 focus:bg-white outline-none px-1 py-0.5 rounded transition-colors"
+                  placeholder="SUPERVISOR SEGURIDAD INDUSTRIAL"
+                />
               </div>
 
-              <span className="font-bold text-slate-800">PROCESO:</span>
-              <div className="font-bold text-slate-900 leading-relaxed">
-                {docData.informe_conf_proceso}
+              <span className="font-bold text-slate-800 pt-1">PROCESO:</span>
+              <div>
+                <textarea
+                  rows={2}
+                  value={docData.informe_conf_proceso || ""}
+                  onChange={(e) => handleFieldChange("informe_conf_proceso", e.target.value)}
+                  className="w-full font-bold text-slate-900 border-b border-dashed border-transparent hover:border-slate-400 focus:border-blue-500 focus:bg-white outline-none px-1 py-0.5 rounded text-xs leading-relaxed transition-colors resize-y"
+                  placeholder="REMISIÓN DE INFORME TÉCNICO DE EVALUACIÓN DE COTIZACIONES..."
+                />
               </div>
             </div>
 
             {/* Subtitle */}
-            <div className="text-center mb-4">
+            <div className="text-center mb-3">
               <h3 className="text-xs font-bold text-slate-900 uppercase underline tracking-wide">
                 INFORME TÉCNICO DE EVALUACIÓN DE OFERTAS Y CUADRO COMPARATIVO
               </h3>
             </div>
 
-            {/* Antecedentes */}
-            <div className="mb-4 text-xs leading-relaxed text-slate-800">
-              <h4 className="font-bold text-slate-900 mb-1">ANTECEDENTES</h4>
-              <p className="text-justify">
-                En fecha {docData.informe_conf_antecedentes_fecha}, mediante Formulario S1-N014 y{" "}
-                {docData.informe_conf_antecedentes_nota}, el Área Solicitante inició el trámite para la &quot;
-                {docData.titulo_proceso}&quot;, con una Previsión de Precio de Bs{" "}
-                {Number(docData.informe_conf_prevision_precio || 0).toLocaleString("es-BO", {
-                  minimumFractionDigits: 2,
-                })}{" "}
-                (Categoría I - Art. 31), aprobada por el Responsable de Contratación (Art. 42).
-              </p>
+            {/* Antecedentes Section */}
+            <div className="mb-3 text-xs text-slate-800 space-y-1">
+              <h4 className="font-bold text-slate-900">ANTECEDENTES</h4>
+              <div className="flex flex-wrap items-center gap-1.5 leading-relaxed">
+                <span>En fecha</span>
+                <input
+                  type="text"
+                  value={docData.informe_conf_antecedentes_fecha || ""}
+                  onChange={(e) => handleFieldChange("informe_conf_antecedentes_fecha", e.target.value)}
+                  className="font-bold text-slate-900 border-b border-dashed border-slate-400 focus:border-blue-500 outline-none px-1 py-0.5 w-24 text-center"
+                />
+                <span>, mediante Formulario S1-N014 y</span>
+                <input
+                  type="text"
+                  value={docData.informe_conf_antecedentes_nota || ""}
+                  onChange={(e) => handleFieldChange("informe_conf_antecedentes_nota", e.target.value)}
+                  className="font-bold text-slate-900 border-b border-dashed border-slate-400 focus:border-blue-500 outline-none px-1 py-0.5 w-32 text-center"
+                />
+                <span>el Área Solicitante inició el trámite con una Previsión de Precio de Bs</span>
+                <input
+                  type="number"
+                  value={docData.informe_conf_prevision_precio || 0}
+                  onChange={(e) => handleFieldChange("informe_conf_prevision_precio", parseFloat(e.target.value) || 0)}
+                  className="font-bold text-slate-900 border-b border-dashed border-slate-400 focus:border-blue-500 outline-none px-1 py-0.5 w-28 text-right"
+                />
+                <span>(Categoría I - Art. 31), aprobada por el Responsable de Contratación (Art. 42).</span>
+              </div>
             </div>
 
-            {/* Recepcion */}
-            <div className="mb-4 text-xs leading-relaxed text-slate-800">
-              <h4 className="font-bold text-slate-900 mb-1">RECEPCIÓN DE LAS OFERTAS / BIENES</h4>
-              <p className="text-justify">
+            {/* Recepción Section */}
+            <div className="mb-3 text-xs text-slate-800 space-y-1">
+              <h4 className="font-bold text-slate-900">RECEPCIÓN DE LAS OFERTAS / BIENES</h4>
+              <p className="text-justify leading-relaxed">
                 De acuerdo con el procedimiento regular, el proceso se llevó a cabo mediante la
-                invitación a {docData.informe_conf_proponentes?.length || 4} proveedores potenciales.
-                En cumplimiento del Artículo 34 y Artículo 7 Inciso v) (Invitación Selectiva), se
-                recibieron las cotizaciones correspondientes al requerimiento.
+                invitación selectiva a proveedores potenciales. En cumplimiento del Artículo 34 y
+                Artículo 7 Inciso v), se recibieron las cotizaciones correspondientes al requerimiento.
               </p>
             </div>
 
-            {/* Evaluacion */}
-            <div className="mb-4 text-xs leading-relaxed text-slate-800">
-              <h4 className="font-bold text-slate-900 mb-1">
-                EVALUACIÓN TÉCNICA Y ECONÓMICA (Art. 18, Inciso C - Menor Precio)
-              </h4>
-              <p className="text-justify">
-                Se procedió a la verificación del cumplimiento del 100% de las Especificaciones
-                Técnicas y la validación de la Previsión de Precio (Art. 10 y Art. 25 Inciso l):
-                presentación de cotización conforme a especificaciones técnicas y documentación tributaria
-                básica (NIT y registro correspondiente).
-              </p>
-            </div>
-
-            {/* Cuadro Comparativo Table */}
-            <div className="mb-6 overflow-hidden border border-slate-300 rounded">
+            {/* Cuadro Comparativo Table (Fully Editable with Add/Remove and Ganador Switch) */}
+            <div className="mb-4 overflow-hidden border border-slate-300 rounded shadow-sm">
               <table className="w-full text-xs text-left border-collapse">
                 <thead>
                   <tr className="bg-[#001E40] text-white">
-                    <th className="p-2 border border-slate-400 text-center w-10">N°</th>
-                    <th className="p-2 border border-slate-400 w-32">Empresa</th>
-                    <th className="p-2 border border-slate-400">Cotización</th>
+                    <th className="p-2 border border-slate-400 text-center w-8">N°</th>
+                    <th className="p-2 border border-slate-400 w-36">Empresa</th>
+                    <th className="p-2 border border-slate-400">Detalle de Cotización</th>
                     <th className="p-2 border border-slate-400 text-right w-28">Precio</th>
-                    <th className="p-2 border border-slate-400 w-44">Actividad Económica / NIT</th>
+                    <th className="p-2 border border-slate-400 w-36">Actividad Económica / NIT</th>
+                    <th className="p-2 border border-slate-400 text-center w-14">Ganador</th>
+                    <th className="p-2 border border-slate-400 text-center w-8"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -425,32 +505,72 @@ export const InformeConformidadViewer: React.FC<InformeConformidadViewerProps> =
                         prop.es_ganador
                           ? "bg-emerald-50 text-emerald-950 font-medium"
                           : idx % 2 === 1
-                          ? "bg-slate-50"
+                          ? "bg-slate-50/70"
                           : "bg-white"
                       }
                     >
                       <td className="p-2 border border-slate-300 text-center font-bold">
                         {prop.numero || idx + 1}
                       </td>
-                      <td className="p-2 border border-slate-300 font-bold flex items-center gap-1.5">
-                        <Building2 className="w-3.5 h-3.5 text-slate-400" />
-                        <span>{prop.empresa}</span>
-                        {prop.es_ganador && (
-                          <span className="text-[10px] bg-emerald-600 text-white px-1.5 py-0.2 rounded font-bold">
-                            GANADOR
-                          </span>
-                        )}
+                      <td className="p-2 border border-slate-300">
+                        <input
+                          type="text"
+                          value={prop.empresa}
+                          onChange={(e) => handleProponenteChange(idx, "empresa", e.target.value)}
+                          className="w-full font-bold text-slate-900 border-b border-dashed border-transparent hover:border-slate-400 focus:border-blue-500 focus:bg-white outline-none px-1 py-0.5 text-xs rounded"
+                          placeholder="Nombre Empresa"
+                        />
                       </td>
-                      <td className="p-2 border border-slate-300 whitespace-pre-line text-[11px]">
-                        {prop.cotizacion_detalle}
+                      <td className="p-2 border border-slate-300">
+                        <textarea
+                          rows={2}
+                          value={prop.cotizacion_detalle}
+                          onChange={(e) => handleProponenteChange(idx, "cotizacion_detalle", e.target.value)}
+                          className="w-full border-b border-dashed border-transparent hover:border-slate-400 focus:border-blue-500 focus:bg-white outline-none px-1 py-0.5 text-[11px] rounded leading-tight resize-y"
+                          placeholder="Fechas de cotización y cumplimiento..."
+                        />
                       </td>
-                      <td className="p-2 border border-slate-300 text-right font-bold text-slate-900">
-                        {typeof prop.precio === "number"
-                          ? `Bs ${prop.precio.toLocaleString("es-BO", { minimumFractionDigits: 2 })}`
-                          : prop.precio}
+                      <td className="p-2 border border-slate-300 text-right">
+                        <input
+                          type="text"
+                          value={prop.precio}
+                          onChange={(e) => handleProponenteChange(idx, "precio", e.target.value)}
+                          className="w-full text-right font-bold text-slate-900 border-b border-dashed border-transparent hover:border-slate-400 focus:border-blue-500 focus:bg-white outline-none px-1 py-0.5 text-xs rounded"
+                          placeholder="Bs 0.00"
+                        />
                       </td>
-                      <td className="p-2 border border-slate-300 whitespace-pre-line text-[10px] text-slate-600">
-                        {prop.actividad_economica}
+                      <td className="p-2 border border-slate-300">
+                        <textarea
+                          rows={2}
+                          value={prop.actividad_economica}
+                          onChange={(e) => handleProponenteChange(idx, "actividad_economica", e.target.value)}
+                          className="w-full border-b border-dashed border-transparent hover:border-slate-400 focus:border-blue-500 focus:bg-white outline-none px-1 py-0.5 text-[10px] text-slate-600 rounded leading-tight resize-y"
+                          placeholder="NIT y actividad..."
+                        />
+                      </td>
+                      <td className="p-2 border border-slate-300 text-center">
+                        <button
+                          type="button"
+                          onClick={() => handleSetGanador(idx)}
+                          className={`p-1.5 rounded transition-all ${
+                            prop.es_ganador
+                              ? "bg-emerald-600 text-white shadow"
+                              : "bg-slate-200 text-slate-500 hover:bg-slate-300"
+                          }`}
+                          title={prop.es_ganador ? "Empresa Ganadora" : "Marcar como Ganadora"}
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                      <td className="p-2 border border-slate-300 text-center">
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveProponente(idx)}
+                          className="p-1 text-red-400 hover:text-red-600 transition-colors"
+                          title="Eliminar fila"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -458,310 +578,104 @@ export const InformeConformidadViewer: React.FC<InformeConformidadViewerProps> =
               </table>
             </div>
 
-            {/* Conclusiones */}
-            <div className="mb-4 text-xs leading-relaxed text-slate-800">
-              <h4 className="font-bold text-slate-900 mb-1">CONCLUSIONES</h4>
-              <p className="text-justify mb-2">
-                De acuerdo con la evaluación técnica y económica realizada por la unidad solicitante, en
-                marco del Artículo 18 Inciso c) (Método de Selección de Menor Precio) del Reglamento SBC,
-                se establece:
+            {/* Conclusiones Section */}
+            <div className="mb-3 text-xs text-slate-800 space-y-1">
+              <h4 className="font-bold text-slate-900">CONCLUSIONES</h4>
+              <p className="text-justify leading-relaxed">
+                De acuerdo con la evaluación técnica y económica realizada por la unidad solicitante,
+                en marco del Artículo 18 Inciso c) (Método de Selección de Menor Precio) del
+                Reglamento SBC:
               </p>
               <ul className="space-y-1 pl-4">
-                <li>
+                <li className="flex flex-wrap items-center gap-1.5">
                   <span className="font-bold">• 1. Adjudicación por Menor Precio:</span> La propuesta
-                  presentada por la empresa{" "}
-                  <strong className="text-slate-900">{docData.informe_conf_empresa_ganadora}</strong>{" "}
-                  resulta GANADORA al haber ofertado el MENOR PRECIO (Bs{" "}
-                  {Number(docData.informe_conf_monto_adjudicado || 0).toLocaleString("es-BO", {
-                    minimumFractionDigits: 2,
-                  })}
-                  ), haber cumplido al 100% con las Especificaciones Técnicas requeridas y encontrarse
-                  dentro de la Previsión de Precio.
-                </li>
-                <li>
-                  <span className="font-bold">• 2. Descalificación / Declinación:</span> Las propuestas
-                  incompletas o que no enviaron cotización conforme al plazo fijado quedan
-                  desestimadas.
-                </li>
-              </ul>
-            </div>
-
-            {/* Recomendaciones */}
-            <div className="mb-6 text-xs leading-relaxed text-slate-800">
-              <h4 className="font-bold text-slate-900 mb-1">RECOMENDACIONES</h4>
-              <p className="mb-2">
-                En virtud a los principios de Economía, Eficiencia y Transparencia (Artículo 6) que
-                rigen a ENDE Oruro S.A.:
-              </p>
-              <ol className="space-y-1.5 pl-4 list-decimal">
-                <li>
-                  <strong>Adjudicación Formal:</strong> Recomendar al Responsable de Contratación
-                  (Artículo 42) proceder con la Adjudicación del proceso &quot;{docData.titulo_proceso}&quot; a
-                  favor de la empresa{" "}
-                  <strong>{docData.informe_conf_empresa_ganadora}</strong> por el monto total de{" "}
-                  <strong>
-                    Bs{" "}
-                    {Number(docData.informe_conf_monto_adjudicado || 0).toLocaleString("es-BO", {
-                      minimumFractionDigits: 2,
-                    })}{" "}
-                    ({docData.informe_conf_monto_adjudicado_literal})
-                  </strong>
-                  .
-                </li>
-                <li>
-                  <strong>Formalización del Trámite:</strong> Remitir los antecedentes al Área
-                  Administrativa y Financiera a efectos de solicitar la documentación legal
-                  complementaria para la emisión de la Orden de Compra o Contrato.
-                </li>
-              </ol>
-            </div>
-
-            <p className="text-xs text-slate-700 italic mb-12">
-              Es cuanto puedo informar en honor a la verdad, para los fines consiguientes.
-            </p>
-
-            {/* Firmas */}
-            <div className="grid grid-cols-2 gap-8 text-center text-xs mt-12 pt-6 border-t border-slate-200">
-              <div>
-                <div className="w-48 border-b border-slate-400 mx-auto mb-2"></div>
-                <p className="font-bold text-slate-900">{docData.informe_conf_de_nombre}</p>
-                <p className="text-slate-600">{docData.informe_conf_de_cargo}</p>
-              </div>
-              <div>
-                <div className="w-48 border-b border-slate-400 mx-auto mb-2"></div>
-                <p className="font-bold text-slate-900">{docData.informe_conf_via_nombre}</p>
-                <p className="text-slate-600">{docData.informe_conf_via_cargo}</p>
-              </div>
-            </div>
-          </div>
-        ) : (
-          /* Form Editor Tab */
-          <div className="max-w-4xl mx-auto space-y-6 text-slate-200 text-xs">
-            {/* Header Data */}
-            <div className="bg-slate-900 p-5 rounded-xl border border-slate-800 space-y-4">
-              <h4 className="font-semibold text-slate-100 text-sm flex items-center gap-2">
-                <FileCheck className="w-4 h-4 text-blue-400" />
-                Datos del Encabezado e Informe
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-slate-400 mb-1">Formulario</label>
-                  <input
-                    type="text"
-                    value={docData.informe_conf_formulario || ""}
-                    onChange={(e) => handleFieldChange("informe_conf_formulario", e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-100"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-400 mb-1">Fecha</label>
-                  <input
-                    type="text"
-                    value={docData.informe_conf_fecha || ""}
-                    onChange={(e) => handleFieldChange("informe_conf_fecha", e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-100"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-400 mb-1">CITE Informe</label>
-                  <input
-                    type="text"
-                    value={docData.informe_conf_cite || ""}
-                    onChange={(e) => handleFieldChange("informe_conf_cite", e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-100"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-                <div>
-                  <label className="block text-slate-400 mb-1">A (Destinatario)</label>
-                  <input
-                    type="text"
-                    value={docData.informe_conf_a_nombre || ""}
-                    onChange={(e) => handleFieldChange("informe_conf_a_nombre", e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-100 mb-1"
-                  />
-                  <input
-                    type="text"
-                    value={docData.informe_conf_a_cargo || ""}
-                    onChange={(e) => handleFieldChange("informe_conf_a_cargo", e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-400 text-[11px]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-400 mb-1">VÍA</label>
-                  <input
-                    type="text"
-                    value={docData.informe_conf_via_nombre || ""}
-                    onChange={(e) => handleFieldChange("informe_conf_via_nombre", e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-100 mb-1"
-                  />
-                  <input
-                    type="text"
-                    value={docData.informe_conf_via_cargo || ""}
-                    onChange={(e) => handleFieldChange("informe_conf_via_cargo", e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-400 text-[11px]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-400 mb-1">DE (Remitente)</label>
-                  <input
-                    type="text"
-                    value={docData.informe_conf_de_nombre || ""}
-                    onChange={(e) => handleFieldChange("informe_conf_de_nombre", e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-100 mb-1"
-                  />
-                  <input
-                    type="text"
-                    value={docData.informe_conf_de_cargo || ""}
-                    onChange={(e) => handleFieldChange("informe_conf_de_cargo", e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-400 text-[11px]"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Adjudicación y Ganador */}
-            <div className="bg-slate-900 p-5 rounded-xl border border-slate-800 space-y-4">
-              <h4 className="font-semibold text-slate-100 text-sm flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-yellow-400" />
-                Empresa Ganadora y Monto Adjudicado
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-slate-400 mb-1">Empresa Adjudicada</label>
+                  presentada por la empresa
                   <input
                     type="text"
                     value={docData.informe_conf_empresa_ganadora || ""}
                     onChange={(e) => handleFieldChange("informe_conf_empresa_ganadora", e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-100 font-bold"
+                    className="font-bold text-slate-900 border-b border-dashed border-slate-400 focus:border-blue-500 outline-none px-1 py-0.5 w-32"
                   />
-                </div>
-                <div>
-                  <label className="block text-slate-400 mb-1">Monto Adjudicado (Bs)</label>
+                  <span>resulta GANADORA al haber ofertado el menor precio y cumplido las E.T. al 100%.</span>
+                </li>
+                <li>
+                  <span className="font-bold">• 2. Descalificaciones / Declinaciones:</span> Las
+                  propuestas que no enviaron cotización o no acreditaron NIT válido quedan
+                  inhabilitadas conforme a reglamento.
+                </li>
+              </ul>
+            </div>
+
+            {/* Recomendaciones Section */}
+            <div className="mb-4 text-xs text-slate-800 space-y-1">
+              <h4 className="font-bold text-slate-900">RECOMENDACIONES</h4>
+              <ol className="space-y-1.5 pl-4 list-decimal">
+                <li>
+                  <strong>Adjudicación Formal:</strong> Recomendar al Responsable de Contratación
+                  (Artículo 42) adjudicar el proceso a favor de{" "}
+                  <strong>{docData.informe_conf_empresa_ganadora}</strong> por el monto total de Bs{" "}
                   <input
                     type="number"
                     value={docData.informe_conf_monto_adjudicado || 0}
-                    onChange={(e) =>
-                      handleFieldChange("informe_conf_monto_adjudicado", parseFloat(e.target.value) || 0)
-                    }
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-100 font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-400 mb-1">Monto en Literal</label>
+                    onChange={(e) => handleFieldChange("informe_conf_monto_adjudicado", parseFloat(e.target.value) || 0)}
+                    className="font-bold text-slate-900 border-b border-dashed border-slate-400 focus:border-blue-500 outline-none px-1 py-0.5 w-28 text-right"
+                  />{" "}
+                  (
                   <input
                     type="text"
                     value={docData.informe_conf_monto_adjudicado_literal || ""}
-                    onChange={(e) =>
-                      handleFieldChange("informe_conf_monto_adjudicado_literal", e.target.value)
-                    }
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-100"
+                    onChange={(e) => handleFieldChange("informe_conf_monto_adjudicado_literal", e.target.value)}
+                    className="font-bold text-slate-900 border-b border-dashed border-slate-400 focus:border-blue-500 outline-none px-1 py-0.5 w-72"
+                    placeholder="Monto en literal..."
                   />
-                </div>
-              </div>
+                  ).
+                </li>
+                <li>
+                  <strong>Formalización del Trámite:</strong> Remitir antecedentes al Área
+                  Administrativa y Financiera para la emisión de la Orden de Compra o Contrato.
+                </li>
+              </ol>
             </div>
 
-            {/* Proponentes Table Editor */}
-            <div className="bg-slate-900 p-5 rounded-xl border border-slate-800 space-y-4">
-              <div className="flex justify-between items-center">
-                <h4 className="font-semibold text-slate-100 text-sm flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-blue-400" />
-                  Cuadro de Proponentes y Cotizaciones
-                </h4>
-                <button
-                  onClick={handleAddProponente}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-medium transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Añadir Proponente</span>
-                </button>
-              </div>
+            <p className="text-xs text-slate-700 italic mb-8">
+              Es cuanto puedo informar en honor a la verdad, para los fines consiguientes.
+            </p>
+          </div>
 
-              <div className="space-y-3">
-                {(docData.informe_conf_proponentes || []).map((prop, idx) => (
-                  <div
-                    key={idx}
-                    className={`p-4 rounded-xl border ${
-                      prop.es_ganador
-                        ? "bg-emerald-950/30 border-emerald-500/40"
-                        : "bg-slate-950 border-slate-800"
-                    } space-y-3`}
-                  >
-                    <div className="flex justify-between items-center">
-                      <span className="font-bold text-slate-300">#{idx + 1} Proponente</span>
-                      <div className="flex items-center gap-3">
-                        <label className="flex items-center gap-2 cursor-pointer text-xs text-emerald-400">
-                          <input
-                            type="checkbox"
-                            checked={prop.es_ganador || false}
-                            onChange={(e) =>
-                              handleProponenteChange(idx, "es_ganador", e.target.checked)
-                            }
-                            className="rounded border-slate-700 text-emerald-600 focus:ring-0"
-                          />
-                          <span>Marcar como Ganador</span>
-                        </label>
-                        <button
-                          onClick={() => handleRemoveProponente(idx)}
-                          className="p-1 text-red-400 hover:text-red-300 transition-colors"
-                          title="Eliminar proponente"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div>
-                        <label className="block text-slate-400 mb-1">Nombre Empresa</label>
-                        <input
-                          type="text"
-                          value={prop.empresa}
-                          onChange={(e) => handleProponenteChange(idx, "empresa", e.target.value)}
-                          className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-100"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-slate-400 mb-1">Precio Ofertado</label>
-                        <input
-                          type="text"
-                          value={prop.precio}
-                          onChange={(e) => handleProponenteChange(idx, "precio", e.target.value)}
-                          className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-100 font-bold"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-slate-400 mb-1">Actividad Económica / NIT</label>
-                        <input
-                          type="text"
-                          value={prop.actividad_economica}
-                          onChange={(e) =>
-                            handleProponenteChange(idx, "actividad_economica", e.target.value)
-                          }
-                          className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-100 text-[11px]"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-slate-400 mb-1">Detalle de Cotización / Cumplimiento</label>
-                      <textarea
-                        rows={2}
-                        value={prop.cotizacion_detalle}
-                        onChange={(e) =>
-                          handleProponenteChange(idx, "cotizacion_detalle", e.target.value)
-                        }
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-100 text-xs"
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
+          {/* Firmas Block at Bottom of Carta Sheet */}
+          <div className="grid grid-cols-2 gap-8 text-center text-xs pt-4 border-t border-slate-200">
+            <div>
+              <div className="w-44 border-b border-slate-400 mx-auto mb-1.5"></div>
+              <input
+                type="text"
+                value={docData.informe_conf_de_nombre || ""}
+                onChange={(e) => handleFieldChange("informe_conf_de_nombre", e.target.value)}
+                className="w-full text-center font-bold text-slate-900 border-b border-dashed border-transparent hover:border-slate-400 focus:border-blue-500 outline-none"
+              />
+              <input
+                type="text"
+                value={docData.informe_conf_de_cargo || ""}
+                onChange={(e) => handleFieldChange("informe_conf_de_cargo", e.target.value)}
+                className="w-full text-center text-[10px] text-slate-500 border-b border-dashed border-transparent hover:border-slate-400 focus:border-blue-500 outline-none"
+              />
+            </div>
+            <div>
+              <div className="w-44 border-b border-slate-400 mx-auto mb-1.5"></div>
+              <input
+                type="text"
+                value={docData.informe_conf_via_nombre || ""}
+                onChange={(e) => handleFieldChange("informe_conf_via_nombre", e.target.value)}
+                className="w-full text-center font-bold text-slate-900 border-b border-dashed border-transparent hover:border-slate-400 focus:border-blue-500 outline-none"
+              />
+              <input
+                type="text"
+                value={docData.informe_conf_via_cargo || ""}
+                onChange={(e) => handleFieldChange("informe_conf_via_cargo", e.target.value)}
+                className="w-full text-center text-[10px] text-slate-500 border-b border-dashed border-transparent hover:border-slate-400 focus:border-blue-500 outline-none"
+              />
             </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

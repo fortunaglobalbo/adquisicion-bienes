@@ -393,11 +393,12 @@ export async function generateInformeConformidadDocx(
       {
         properties: {
           page: {
+            size: { width: 12240, height: 15840 }, // Tamaño Carta (Letter: 8.5" x 11")
             margin: {
-              top: 1000,
-              bottom: 1000,
-              left: 1200,
-              right: 1200,
+              top: 1440,
+              bottom: 1440,
+              left: 1440,
+              right: 1440,
             },
           },
         },

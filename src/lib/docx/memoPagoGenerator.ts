@@ -315,11 +315,12 @@ export async function generateMemoPagoDocx(
       {
         properties: {
           page: {
+            size: { width: 12240, height: 15840 }, // Tamaño Carta (Letter: 8.5" x 11")
             margin: {
-              top: 1200,
-              bottom: 1200,
-              left: 1400,
-              right: 1400,
+              top: 1440,
+              bottom: 1440,
+              left: 1440,
+              right: 1440,
             },
           },
         },
