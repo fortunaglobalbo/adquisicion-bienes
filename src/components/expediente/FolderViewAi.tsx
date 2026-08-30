@@ -41,6 +41,55 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
   const [manualUploadSuccess, setManualUploadSuccess] = useState(false);
   const manualFileRef = useRef<HTMLInputElement | null>(null);
 
+  // Estado para subida y conversión de plantillas personalizadas (PDF / Word)
+  const [templateUploading, setTemplateUploading] = useState(false);
+  const [templateSuccessMsg, setTemplateSuccessMsg] = useState<string | null>(null);
+  const templateInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Helper para subir y convertir plantilla con pdf2docx / MarkItDown en el VPS
+  const handleTemplateUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setTemplateUploading(true);
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("fk_carpeta", String(carpeta.numero));
+      formData.append("nombre_plantilla", file.name);
+
+      const res = await fetch("http://85.31.230.163:8080/api/convertir-plantilla", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        throw new Error("Error al convertir la plantilla en el VPS");
+      }
+
+      const result = await res.json();
+
+      // Actualizar en DataStore
+      const plantillas = DataStore.getPlantillas();
+      const existing = plantillas.find((p) => p.fk_carpeta === carpeta.numero);
+      if (existing) {
+        await DataStore.updatePlantilla(existing.id, {
+          nombre_archivo: result.nombre_archivo,
+          descripcion: `Plantilla personalizada convertida con pdf2docx / MarkItDown (${file.name})`,
+          tipo_doc: file.name.toLowerCase().endsWith(".pdf") ? "PDF_CONVERTIDO" : "DOCX",
+        });
+      }
+
+      setTemplateSuccessMsg(`✅ Plantilla "${file.name}" convertida con éxito y asignada como molde oficial de esta carpeta.`);
+      setTimeout(() => setTemplateSuccessMsg(null), 6000);
+    } catch (err: any) {
+      alert("Error al subir plantilla: " + err.message);
+    } finally {
+      setTemplateUploading(false);
+      if (templateInputRef.current) templateInputRef.current.value = "";
+    }
+  };
+
   // Determinar tipo de documento a generar
   const getDocType = (): "TDR" | "SOLICITUD_INICIO" | "FORM_S2" | "INFORME_CONFORMIDAD" | "MEMO_PAGO" => {
     if (carpeta.numero === 1) return "TDR";
@@ -303,6 +352,58 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
 
   return (
     <div className="flex flex-col h-full space-y-4 w-full">
+      {/* Barra de Gestión de Plantilla Oficial de la Carpeta */}
+      <div className="bg-surface-container-low border border-outline-variant/60 rounded-lg p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="p-1.5 bg-primary/10 text-primary rounded">
+            <FileText className="w-4 h-4" />
+          </div>
+          <div>
+            <span className="text-xs font-bold text-on-surface">
+              Plantilla Oficial de Carpeta {carpeta.numero} ({carpeta.nombre})
+            </span>
+            <p className="text-[11px] text-on-surface-variant">
+              Sube tu plantilla oficial en PDF o Word (.docx). El VPS la convertirá con pdf2docx para usarla como molde editable.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <input
+            ref={templateInputRef}
+            type="file"
+            className="hidden"
+            accept=".pdf,.docx,.doc"
+            onChange={handleTemplateUpload}
+          />
+          <button
+            type="button"
+            disabled={templateUploading}
+            onClick={() => templateInputRef.current?.click()}
+            className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-surface border border-outline-variant hover:border-primary text-on-surface text-xs font-semibold rounded-md shadow-sm transition-all disabled:opacity-50"
+          >
+            {templateUploading ? (
+              <>
+                <RefreshCw className="w-3.5 h-3.5 animate-spin text-primary" />
+                <span>Convirtiendo con pdf2docx...</span>
+              </>
+            ) : (
+              <>
+                <Upload className="w-3.5 h-3.5 text-primary" />
+                <span>Subir Plantilla (.pdf / .docx)</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {templateSuccessMsg && (
+        <div className="p-3 bg-emerald-50 border border-emerald-300 text-emerald-800 rounded-md text-xs flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>{templateSuccessMsg}</span>
+        </div>
+      )}
+
       {/* For Carpeta 1: Full-Screen Direct Document Editor & Viewer (TDR) */}
       {carpeta.numero === 1 ? (
         <TdrDocumentViewer

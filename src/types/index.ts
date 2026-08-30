@@ -308,6 +308,8 @@ export interface Plantilla {
   id: string;
   fk_carpeta: number;
   nombre: string;
+  nombre_archivo?: string;
+  tipo_doc?: string;
   ruta_archivo?: string;
   version: string;
   descripcion: string;

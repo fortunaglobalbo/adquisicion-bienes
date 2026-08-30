@@ -16,7 +16,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Adquisición requerida" }, { status: 400 });
     }
 
-    const data = await extractMemoPagoWithAI(adquisicion, {
+    let vpsData: any = null;
+    try {
+      const vpsRes = await fetch("http://85.31.230.163:8080/api/procesar-memo-pago", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adquisicion, insumoTexto, imageBase64 }),
+        signal: AbortSignal.timeout(45000),
+      });
+      if (vpsRes.ok) {
+        const vJson = await vpsRes.json();
+        if (vJson.success && vJson.data) {
+          vpsData = vJson.data;
+        }
+      }
+    } catch (e: any) {
+      console.warn("VPS Memo Pago fallback:", e.message);
+    }
+
+    const data = vpsData || await extractMemoPagoWithAI(adquisicion, {
       insumoTexto,
       imageBase64,
       contextoCarpetas,
