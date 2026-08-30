@@ -291,6 +291,9 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
         setShowAiModal(false);
         setSavedFeedback(true);
         setTimeout(() => setSavedFeedback(false), 3000);
+
+        // Descarga directa inmediata del archivo Word (.docx) generado
+        onDownloadDocx(updated);
       }
     } catch (err: any) {
       alert("Error con la IA: " + err.message);
@@ -551,7 +554,6 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
               ¡Guardado Correctamente!
             </span>
           )}
-
           <button
             onClick={() => onDownloadDocx(docData)}
             className="flex items-center gap-2 px-4 py-2.5 bg-primary text-on-primary hover:bg-primary-container font-sans text-sm font-bold rounded shadow transition-all active:scale-95"
@@ -559,15 +561,6 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
           >
             <Download className="w-4 h-4 text-secondary-container" />
             <span>Descargar Word (.docx)</span>
-          </button>
-
-          <button
-            onClick={() => onDownloadPdf ? onDownloadPdf(docData) : window.print()}
-            className="flex items-center gap-2 px-4 py-2.5 bg-red-700 hover:bg-red-800 text-white font-sans text-sm font-bold rounded shadow transition-all active:scale-95"
-            title="Descargar o imprimir este documento oficial en formato PDF institucional"
-          >
-            <FileDown className="w-4 h-4 text-red-200" />
-            <span>Descargar PDF Oficial</span>
           </button>
         </div>
 
@@ -582,7 +575,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
             </button>
             <button
               onClick={() => setViewMode("continuo")}
-              className={`px-3 py-1 rounded transition-colors ${viewMode === "continuo" ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant hover:text-on-surface"}`}
+              className={`px-3 py-1 rounded transition-colors ${viewMode === "continuo" ? "bg-primary text-on-surface-variant hover:text-on-surface" : "text-on-surface-variant hover:text-on-surface"}`}
             >
               Vista Completa
             </button>
@@ -598,8 +591,8 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
-              <span className="px-3 font-bold text-primary">
-                Pág. {currentPage} de {totalPages}
+              <span className="px-3 py-1 font-bold text-xs">
+                {currentPage} / {totalPages}
               </span>
               <button
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
@@ -625,74 +618,38 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
         </div>
       </div>
 
-      {/* Banner de Sincronización y Edición */}
-      <div className="bg-blue-50 border-l-4 border-blue-600 p-2.5 rounded text-xs text-blue-950 flex flex-col md:flex-row items-start md:items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Layers className="w-4 h-4 text-blue-700 shrink-0" />
-          <span><strong>Plantilla Oficial Sincronizada:</strong> Este expediente respeta los campos del molde técnico ({camposMolde.length} campos) y los 14 puntos del reglamento oficial. Todos los textos son editables directamente.</span>
-        </div>
-        <button
-          onClick={handleAddItem}
-          className="flex items-center gap-1 px-3 py-1 bg-primary text-on-primary rounded font-bold text-xs hover:bg-primary-container shrink-0"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>+ Añadir Ítem / Examen</span>
-        </button>
-      </div>
-
-      {/* Document Pages Container */}
-      <div className="w-full flex flex-col items-center gap-8 py-4 bg-surface-container/60 rounded-lg p-2 md:p-6 overflow-x-auto">
-
-        {/* ============================================================ */}
-        {/* PÁGINA 1: PORTADA OFICIAL (FORMATO EXACTO ENDE DEORURO)      */}
-        {/* ============================================================ */}
+      {/* Main Pages Container */}
+      <div className="flex flex-col items-center gap-8 w-full">
+        {/* PÁGINA 1: PORTADA OFICIAL */}
         {(viewMode === "continuo" || currentPage === 1) && (
-          <div className="w-full max-w-full lg:max-w-[1050px] bg-white border border-outline-variant shadow-xl rounded-sm p-5 sm:p-10 md:p-14 text-on-surface font-sans min-h-[1050px] flex flex-col justify-between relative group">
+          <div className="w-full max-w-full lg:max-w-[1050px] bg-white border border-outline-variant shadow-xl rounded-sm p-5 sm:p-10 md:p-14 text-on-surface font-sans min-h-[1050px] flex flex-col justify-between relative">
             <div className="flex justify-between items-center text-xs text-gray-500 font-mono border-b border-gray-200 pb-1 font-bold">
-              <span>{tituloEntidad}</span>
-              <span>PÁGINA 1 DE {totalPages} (PORTADA)</span>
+              <span>{adquisicion.codigo}</span>
+              <span>PÁGINA 1 DE {totalPages}</span>
             </div>
 
-            {/* Logo Central Oficial */}
-            <div className="flex flex-col items-center justify-center pt-8 space-y-2">
-              {logoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={logoUrl} alt="Logo" className="h-24 w-auto object-contain drop-shadow" />
-              ) : (
-                <InstitutionalLogo size="lg" showText={false} />
-              )}
-              <h3 className="font-sans text-sm md:text-base font-bold text-gray-700 tracking-widest uppercase mt-4">
-                {subtituloDoc}
-              </h3>
+            <RunningHeader pageNum={1} />
+
+            <div className="text-center my-6 space-y-3">
+              <h2 className="font-black text-xl md:text-2xl text-gray-900 uppercase tracking-wide leading-snug">
+                {docData.titulo_proceso}
+              </h2>
             </div>
 
-            {/* Título Principal Editable */}
-            <div className="text-center space-y-4 my-8">
-              <div
-                contentEditable
-                suppressContentEditableWarning
-                onBlur={(e) => handleTextChange("titulo_proceso", e.currentTarget.textContent || "")}
-                className="font-sans text-xl md:text-2xl font-black text-primary tracking-tight uppercase border border-transparent hover:border-blue-400 hover:bg-blue-50/50 p-2 rounded focus:outline-none"
-              >
-                “{docData.titulo_proceso}”
+            <div className="border border-gray-400 rounded overflow-hidden text-xs my-4">
+              <div className="grid grid-cols-3 bg-gray-100 font-bold border-b border-gray-400 text-center text-gray-900 py-1.5">
+                <div>ELABORADO POR:</div>
+                <div>REVISADO POR:</div>
+                <div>APROBADO POR:</div>
               </div>
-            </div>
-
-            {/* Tabla de Firmas de Portada (Elaborado / Revisado / Aprobado) */}
-            <div className="my-6 border border-gray-300 rounded overflow-hidden">
-              <div className="grid grid-cols-3 bg-gray-100 text-center font-bold text-xs py-2 border-b border-gray-300">
-                <div>Elaborado</div>
-                <div>Revisado</div>
-                <div>Aprobado</div>
-              </div>
-              <div className="grid grid-cols-3 text-center text-xs py-3 bg-white divide-x divide-gray-200">
+              <div className="grid grid-cols-3 text-center py-4 divide-x divide-gray-300">
                 <div
                   contentEditable
                   suppressContentEditableWarning
                   onBlur={(e) => handleTextChange("elaborado_por", e.currentTarget.textContent || "")}
                   className="p-1 hover:bg-blue-50 focus:outline-none font-medium"
                 >
-                  {docData.elaborado_por || "Gabriela Bobarin Vargas"}
+                  {docData.elaborado_por || "Ing. Gabriela Bobarin"}
                 </div>
                 <div
                   contentEditable
@@ -700,7 +657,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
                   onBlur={(e) => handleTextChange("revisado_por", e.currentTarget.textContent || "")}
                   className="p-1 hover:bg-blue-50 focus:outline-none font-medium"
                 >
-                  {docData.revisado_por || "Raúl Torrico Gomez"}
+                  {docData.revisado_por || "Ing. Raúl Torrico"}
                 </div>
                 <div
                   contentEditable
@@ -708,31 +665,11 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
                   onBlur={(e) => handleTextChange("aprobado_por", e.currentTarget.textContent || "")}
                   className="p-1 hover:bg-blue-50 focus:outline-none font-medium"
                 >
-                  {docData.aprobado_por || "Raúl Torrico Gomez"}
+                  {docData.aprobado_por || "Ing. Raúl Torrico"}
                 </div>
               </div>
             </div>
 
-            {/* Caja de RESUMEN */}
-            <div className="space-y-1 my-4">
-              <h4 className="font-bold text-primary font-sans text-xs uppercase tracking-wider font-mono">
-                {etiquetaResumen}:
-              </h4>
-              <div className="p-3 bg-gray-50 border border-gray-300 rounded text-xs leading-relaxed">
-                <p className="font-sans text-on-surface">
-                  <span className="text-primary font-bold">❖  </span>
-                  <span
-                    contentEditable
-                    suppressContentEditableWarning
-                    className="hover:bg-blue-50/50 p-1 rounded focus:outline-none"
-                  >
-                    “{docData.titulo_proceso}”
-                  </span>
-                </p>
-              </div>
-            </div>
-
-            {/* Pie de Portada */}
             <div className="pt-8 border-t border-gray-300 flex justify-between items-end mt-auto text-xs text-gray-600 font-sans">
               <div
                 contentEditable
@@ -747,9 +684,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
           </div>
         )}
 
-        {/* ============================================================ */}
-        {/* PÁGINA 2: ÍNDICE GENERAL (14 PUNTOS OFICIALES)               */}
-        {/* ============================================================ */}
+        {/* PÁGINA 2: ÍNDICE GENERAL */}
         {(viewMode === "continuo" || currentPage === 2) && (
           <div className="w-full max-w-full lg:max-w-[1050px] bg-white border border-outline-variant shadow-xl rounded-sm p-5 sm:p-10 md:p-14 text-on-surface font-sans min-h-[1050px] flex flex-col justify-between relative">
             <div className="flex justify-between items-center text-xs text-gray-500 font-mono border-b border-gray-200 pb-1 font-bold">
@@ -765,7 +700,6 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
               </h3>
             </div>
 
-            {/* Lista de 14 Puntos Oficiales */}
             <div className="space-y-2 font-sans text-sm max-w-2xl mx-auto w-full flex-1">
               {puntosOficiales.map((pto) => (
                 <div key={pto.num} className="flex justify-between items-center border-b border-dotted border-gray-400 py-1 hover:bg-gray-50 px-2 rounded">
@@ -786,9 +720,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
           </div>
         )}
 
-        {/* ============================================================ */}
-        {/* PÁGINA 3: ANTECEDENTES Y JUSTIFICACIÓN (PÁRRAFOS COMPLETOS)  */}
-        {/* ============================================================ */}
+        {/* PÁGINA 3: ANTECEDENTES Y JUSTIFICACIÓN */}
         {(viewMode === "continuo" || currentPage === 3) && (
           <div className="w-full max-w-full lg:max-w-[1050px] bg-white border border-outline-variant shadow-xl rounded-sm p-5 sm:p-10 md:p-14 text-on-surface font-sans min-h-[1050px] flex flex-col justify-between relative space-y-6">
             <div className="flex justify-between items-center text-xs text-gray-500 font-mono border-b border-gray-200 pb-1 font-bold">
@@ -798,38 +730,30 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
 
             <RunningHeader pageNum={3} />
 
-            <div className="space-y-6 flex-1 text-sm font-sans">
-              {/* Punto 1: Antecedentes (3 párrafos formales) */}
-              <div className="space-y-2">
+            <div className="space-y-6 flex-1 text-justify font-sans text-xs md:text-sm">
+              <div className="space-y-1">
                 <h4 className="font-bold text-gray-900 text-sm">
                   1. ANTECEDENTES
                 </h4>
                 <div
                   contentEditable
                   suppressContentEditableWarning
-                  onBlur={(e) => {
-                    handlePuntoChange(1, "contenido", e.currentTarget.textContent || "");
-                    handleTextChange("antecedentes_texto", e.currentTarget.textContent || "");
-                  }}
-                  className="text-justify leading-relaxed p-2 rounded hover:bg-blue-50/50 focus:outline-none text-gray-800 whitespace-pre-line space-y-3"
+                  onBlur={(e) => handlePuntoChange(1, "contenido", e.currentTarget.textContent || "")}
+                  className="text-justify leading-relaxed p-2 rounded hover:bg-blue-50/50 focus:outline-none text-gray-800 whitespace-pre-line space-y-2"
                 >
                   {puntosOficiales[0].contenido}
                 </div>
               </div>
 
-              {/* Punto 2: Justificación / Necesidad (4 párrafos formales) */}
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <h4 className="font-bold text-gray-900 text-sm">
                   2. JUSTIFICACIÓN / NECESIDAD
                 </h4>
                 <div
                   contentEditable
                   suppressContentEditableWarning
-                  onBlur={(e) => {
-                    handlePuntoChange(2, "contenido", e.currentTarget.textContent || "");
-                    handleTextChange("justificacion_texto", e.currentTarget.textContent || "");
-                  }}
-                  className="text-justify leading-relaxed p-2 rounded hover:bg-blue-50/50 focus:outline-none text-gray-800 whitespace-pre-line space-y-3"
+                  onBlur={(e) => handlePuntoChange(2, "contenido", e.currentTarget.textContent || "")}
+                  className="text-justify leading-relaxed p-2 rounded hover:bg-blue-50/50 focus:outline-none text-gray-800 whitespace-pre-line space-y-2"
                 >
                   {puntosOficiales[1].contenido}
                 </div>
@@ -843,584 +767,105 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
           </div>
         )}
 
-        {/* ============================================================ */}
-        {/* PÁGINA 4: ESPECIFICACIÓN TÉCNICA (RESPETA PLANTILLA OFICIAL) */}
-        {/* ============================================================ */}
+        {/* PÁGINA 4: ESPECIFICACIONES TÉCNICAS (TABLA DE ÍTEMS) */}
         {(viewMode === "continuo" || currentPage === 4) && (
-          <div className="w-full max-w-full lg:max-w-[1050px] bg-white border border-outline-variant shadow-xl rounded-sm p-5 sm:p-10 md:p-14 text-on-surface font-sans min-h-[1050px] flex flex-col justify-between relative space-y-6">
+          <div className="w-full max-w-full lg:max-w-[1050px] bg-white border border-outline-variant shadow-xl rounded-sm p-5 sm:p-10 md:p-14 text-on-surface font-sans min-h-[1050px] flex flex-col justify-between relative space-y-4">
             <div className="flex justify-between items-center text-xs text-gray-500 font-mono border-b border-gray-200 pb-1 font-bold">
               <span>{docData.titulo_proceso}</span>
-              <span>PÁGINA 4 DE {totalPages} (ESPECIFICACIÓN TÉCNICA)</span>
+              <span>PÁGINA 4 DE {totalPages}</span>
             </div>
 
             <RunningHeader pageNum={4} />
 
-            <div className="space-y-6 flex-1 text-sm font-sans">
-              {/* Header de Sección 3 con Selector de Formato de Tabla */}
-              <div className="space-y-2 border-b pb-2">
-                <div className="flex flex-wrap justify-between items-center gap-2">
-                  <h4 className="font-bold text-gray-900 text-sm">
-                    3. ESPECIFICACIÓN TÉCNICA ({items.length} ÍTEMS)
-                  </h4>
-                  <div className="flex items-center gap-2">
-                    {tipoTablaTdr === "FICHAS_DINAMICAS" && (
-                      <button
-                        type="button"
-                        onClick={() => setIncluirFotoEnItems(!incluirFotoEnItems)}
-                        className="flex items-center gap-1.5 px-2.5 py-1 bg-surface-container-high hover:bg-surface-variant text-primary border border-outline-variant rounded text-xs font-bold transition-colors"
-                      >
-                        <Camera className="w-3.5 h-3.5 text-primary" />
-                        <span>{incluirFotoEnItems ? "Ocultar Fotografías" : "Habilitar Fotografías"}</span>
-                      </button>
-                    )}
-                    <button
-                      onClick={handleAddItem}
-                      className="flex items-center gap-1 px-3 py-1 bg-primary text-white rounded text-xs font-bold shadow hover:bg-primary-container"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>+ Añadir Ítem</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Barra de Opciones de Tipo de Tabla */}
-                <div className="flex flex-wrap items-center gap-1.5 p-2 bg-surface-container-low border border-outline-variant rounded-lg">
-                  <span className="text-[11px] font-mono font-bold text-primary mr-1">Formato de Tabla:</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTipoTablaTdr("MATRIZ_SERVICIOS");
-                      handleTextChange("tipo_tabla_tdr", "MATRIZ_SERVICIOS");
-                    }}
-                    className={`px-2.5 py-1 rounded text-xs font-bold font-mono transition-all ${
-                      tipoTablaTdr === "MATRIZ_SERVICIOS"
-                        ? "bg-primary text-white shadow-sm ring-1 ring-primary"
-                        : "bg-white text-on-surface-variant hover:bg-surface-container-high border border-outline-variant"
-                    }`}
-                  >
-                    📋 Matriz de Servicios (4 Cols: Ítem | Componente | Especificación | Entregable)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTipoTablaTdr("BIENES_3_COLS");
-                      handleTextChange("tipo_tabla_tdr", "BIENES_3_COLS");
-                    }}
-                    className={`px-2.5 py-1 rounded text-xs font-bold font-mono transition-all ${
-                      tipoTablaTdr === "BIENES_3_COLS"
-                        ? "bg-primary text-white shadow-sm ring-1 ring-primary"
-                        : "bg-white text-on-surface-variant hover:bg-surface-container-high border border-outline-variant"
-                    }`}
-                  >
-                    📦 Tabla 3 Columnas (Ítem | Descripción | Características)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTipoTablaTdr("BIENES_SIMPLE");
-                      handleTextChange("tipo_tabla_tdr", "BIENES_SIMPLE");
-                    }}
-                    className={`px-2.5 py-1 rounded text-xs font-bold font-mono transition-all ${
-                      tipoTablaTdr === "BIENES_SIMPLE"
-                        ? "bg-primary text-white shadow-sm ring-1 ring-primary"
-                        : "bg-white text-on-surface-variant hover:bg-surface-container-high border border-outline-variant"
-                    }`}
-                  >
-                    📦 Tabla 5 Columnas (Ítem | Descripción | Unidad | Cantidad | Características)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTipoTablaTdr("SALUD_OCUPACIONAL");
-                      handleTextChange("tipo_tabla_tdr", "SALUD_OCUPACIONAL");
-                    }}
-                    className={`px-2.5 py-1 rounded text-xs font-bold font-mono transition-all ${
-                      tipoTablaTdr === "SALUD_OCUPACIONAL"
-                        ? "bg-primary text-white shadow-sm ring-1 ring-primary"
-                        : "bg-white text-on-surface-variant hover:bg-surface-container-high border border-outline-variant"
-                    }`}
-                  >
-                    🩺 Tabla Salud / Laboratorio
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTipoTablaTdr("TABLA_DINAMICA");
-                      handleTextChange("tipo_tabla_tdr", "TABLA_DINAMICA");
-                    }}
-                    className={`px-2.5 py-1 rounded text-xs font-bold font-mono transition-all ${
-                      tipoTablaTdr === "TABLA_DINAMICA"
-                        ? "bg-primary text-white shadow-sm ring-1 ring-primary"
-                        : "bg-white text-on-surface-variant hover:bg-surface-container-high border border-outline-variant"
-                    }`}
-                  >
-                    ⚡ Tabla Dinámica
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTipoTablaTdr("FICHAS_DINAMICAS");
-                      handleTextChange("tipo_tabla_tdr", "FICHAS_DINAMICAS");
-                    }}
-                    className={`px-2.5 py-1 rounded text-xs font-bold font-mono transition-all ${
-                      tipoTablaTdr === "FICHAS_DINAMICAS"
-                        ? "bg-primary text-white shadow-sm ring-1 ring-primary"
-                        : "bg-white text-on-surface-variant hover:bg-surface-container-high border border-outline-variant"
-                    }`}
-                  >
-                    📑 Fichas Técnicas
-                  </button>
-                </div>
-              </div>
-
-              {/* Párrafo Introductorio de Sección 3 si existe */}
-              <div className="text-xs text-gray-700 leading-relaxed bg-blue-50/30 p-2 border border-blue-100 rounded">
-                <div className="text-[10px] font-bold text-primary mb-1 uppercase tracking-wide">
-                  Instrucción / Estructuración de la Propuesta Técnica:
-                </div>
-                <div
-                  contentEditable
-                  suppressContentEditableWarning
-                  onBlur={(e) => handleTextChange("seccion3_introduccion_texto", e.currentTarget.textContent || "")}
-                  className="focus:bg-white focus:outline-none p-1 rounded hover:bg-white border border-transparent focus:border-blue-300 font-sans"
+            <div className="space-y-4 flex-1">
+              <div className="flex justify-between items-center border-b pb-2">
+                <h4 className="font-bold text-gray-900 text-sm">
+                  3. ESPECIFICACIÓN TÉCNICA
+                </h4>
+                <button
+                  type="button"
+                  onClick={handleAddItem}
+                  className="flex items-center gap-1.5 px-3 py-1 bg-primary text-white font-sans text-xs font-bold rounded hover:bg-primary-container shadow-sm no-print"
                 >
-                  {docData.seccion3_introduccion_texto || "El proponente debe estructurar su propuesta técnica en base a los siguientes componentes obligatorios:"}
-                </div>
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Añadir Ítem</span>
+                </button>
               </div>
 
-              {/* RENDERIZADO SEGÚN EL TIPO DE TABLA SELECCIONADO */}
-
-              {/* 0. MATRIZ DE SERVICIOS ESPECIALIZADOS / 4 COLUMNAS */}
-              {tipoTablaTdr === "MATRIZ_SERVICIOS" && (
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse border border-gray-400 text-xs text-left">
-                    <thead>
-                      <tr className="bg-gray-100 font-bold uppercase text-gray-900 border-b border-gray-400">
-                        <th className="border border-gray-400 p-2 text-center w-12">ÍTEM</th>
-                        <th className="border border-gray-400 p-2 w-1/4">DESCRIPCIÓN DE COMPONENTE / SERVICIO</th>
-                        <th className="border border-gray-400 p-2 w-2/5">CARACTERÍSTICAS / ESPECIFICACIÓN TÉCNICA MÍNIMA REQUERIDA</th>
-                        <th className="border border-gray-400 p-2 w-1/4">PRODUCTO ENTREGABLE</th>
-                        <th className="border border-gray-400 p-1 text-center w-14 no-print">ACCIÓN</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {items.map((item) => (
-                        <tr key={item.id} className="hover:bg-blue-50/20 border-b border-gray-300">
-                          <td className="border border-gray-400 p-2 font-mono font-bold text-center bg-gray-50/50">
-                            {item.item}
-                          </td>
-                          <td className="border border-gray-400 p-2 font-bold text-primary">
-                            <div
-                              contentEditable
-                              suppressContentEditableWarning
-                              onBlur={(e) => handleItemTextChange(item.id, "descripcion", e.currentTarget.textContent || "")}
-                              className="focus:bg-white focus:outline-none p-1 rounded hover:bg-blue-50/50"
-                            >
-                              {item.descripcion}
-                            </div>
-                          </td>
-                          <td className="border border-gray-400 p-2 text-gray-800 leading-relaxed">
-                            <div
-                              contentEditable
-                              suppressContentEditableWarning
-                              onBlur={(e) => handleItemTextChange(item.id, "caracteristicasTecnicas", e.currentTarget.textContent || "")}
-                              className="focus:bg-white focus:outline-none p-1 rounded hover:bg-blue-50/50 whitespace-pre-wrap"
-                            >
-                              {item.caracteristicasTecnicas || item.especificacionMinima || "Especificaciones técnicas y alcance requerido por ENDE Deoruro S.A."}
-                            </div>
-                          </td>
-                          <td className="border border-gray-400 p-2 text-gray-800 leading-relaxed bg-gray-50/30">
-                            <div
-                              contentEditable
-                              suppressContentEditableWarning
-                              onBlur={(e) => handleItemTextChange(item.id, "productoEntregable", e.currentTarget.textContent || "")}
-                              className="focus:bg-white focus:outline-none p-1 rounded hover:bg-blue-50/50 whitespace-pre-wrap"
-                            >
-                              {item.productoEntregable || item.propuestoOferente || "Informe final y producto entregable oficial"}
-                            </div>
-                          </td>
-                          <td className="border border-gray-400 p-1 text-center no-print">
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveItem(item.id)}
-                              className="text-red-500 hover:text-red-700 p-1"
-                              title="Eliminar ítem"
-                            >
-                              <Trash2 className="w-4 h-4 mx-auto" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {/* 0.B TABLA DINÁMICA PERSONALIZADA */}
-              {tipoTablaTdr === "TABLA_DINAMICA" && (
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse border border-gray-400 text-xs text-left">
-                    <thead>
-                      <tr className="bg-gray-100 font-bold uppercase text-gray-900 border-b border-gray-400">
-                        {(docData.columnas_tabla_tdr || ["ÍTEM", "DESCRIPCIÓN", "ESPECIFICACIONES", "ENTREGABLE"]).map((col, cIdx) => (
-                          <th key={cIdx} className={`border border-gray-400 p-2 ${cIdx === 0 ? "text-center w-12" : ""}`}>
-                            {col}
-                          </th>
-                        ))}
-                        <th className="border border-gray-400 p-1 text-center w-14 no-print">ACCIÓN</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {items.map((item) => {
-                        const cols = docData.columnas_tabla_tdr || ["ÍTEM", "DESCRIPCIÓN", "ESPECIFICACIONES", "ENTREGABLE"];
-                        const vals = item.valores_columnas && item.valores_columnas.length === cols.length
-                          ? item.valores_columnas
-                          : [String(item.item), item.descripcion, item.caracteristicasTecnicas || "", item.productoEntregable || ""];
-
-                        return (
-                          <tr key={item.id} className="hover:bg-blue-50/20 border-b border-gray-300">
-                            {cols.map((_, cIdx) => (
-                              <td
-                                key={cIdx}
-                                className={`border border-gray-400 p-2 ${
-                                  cIdx === 0 ? "font-mono font-bold text-center bg-gray-50/50" : cIdx === 1 ? "font-bold text-primary" : "text-gray-800"
-                                }`}
-                              >
-                                <div
-                                  contentEditable
-                                  suppressContentEditableWarning
-                                  onBlur={(e) => {
-                                    const newText = e.currentTarget.textContent || "";
-                                    const updatedVals = [...vals];
-                                    updatedVals[cIdx] = newText;
-                                    handleItemTextChange(item.id, "valores_columnas" as any, updatedVals);
-                                    if (cIdx === 1) handleItemTextChange(item.id, "descripcion", newText);
-                                    if (cIdx === 2) handleItemTextChange(item.id, "caracteristicasTecnicas", newText);
-                                    if (cIdx === 3) handleItemTextChange(item.id, "productoEntregable", newText);
-                                  }}
-                                  className="focus:bg-white focus:outline-none p-1 rounded hover:bg-blue-50/50 whitespace-pre-wrap"
-                                >
-                                  {vals[cIdx] || ""}
-                                </div>
-                              </td>
-                            ))}
-                            <td className="border border-gray-400 p-1 text-center no-print">
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveItem(item.id)}
-                                className="text-red-500 hover:text-red-700 p-1"
-                                title="Eliminar ítem"
-                              >
-                                <Trash2 className="w-4 h-4 mx-auto" />
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {/* 1. TABLA 3 COLUMNAS DE BIENES (ÍTEM, DESCRIPCIÓN, CARACTERÍSTICAS) */}
-              {tipoTablaTdr === "BIENES_3_COLS" && (
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse border border-gray-400 text-xs text-left">
-                    <thead>
-                      <tr className="bg-gray-100 font-bold uppercase text-gray-900 border-b border-gray-400">
-                        <th className="border border-gray-400 p-2 text-center w-12">ÍTEM</th>
-                        <th className="border border-gray-400 p-2 w-2/5">DESCRIPCIÓN DEL BIEN / REQUERIMIENTO</th>
-                        <th className="border border-gray-400 p-2">CARACTERÍSTICAS TÉCNICAS REQUERIDAS</th>
-                        <th className="border border-gray-400 p-1 text-center w-14 no-print">ACCIÓN</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {items.map((item) => (
-                        <tr key={item.id} className="hover:bg-blue-50/20 border-b border-gray-300">
-                          <td className="border border-gray-400 p-2 font-mono font-bold text-center bg-gray-50/50">
-                            {item.item}
-                          </td>
-                          <td className="border border-gray-400 p-2 font-bold text-primary">
-                            <div
-                              contentEditable
-                              suppressContentEditableWarning
-                              onBlur={(e) => handleItemTextChange(item.id, "descripcion", e.currentTarget.textContent || "")}
-                              className="focus:bg-white focus:outline-none p-1 rounded hover:bg-blue-50/50"
-                            >
-                              {item.descripcion}
-                            </div>
-                          </td>
-                          <td className="border border-gray-400 p-2 text-gray-800 leading-relaxed">
-                            <div
-                              contentEditable
-                              suppressContentEditableWarning
-                              onBlur={(e) => handleItemTextChange(item.id, "caracteristicasTecnicas", e.currentTarget.textContent || "")}
-                              className="focus:bg-white focus:outline-none p-1 rounded hover:bg-blue-50/50 whitespace-pre-wrap"
-                            >
-                              {item.caracteristicasTecnicas || item.especificacionMinima || "Cumplimiento con especificaciones técnicas requeridas por ENDE Deoruro S.A."}
-                            </div>
-                          </td>
-                          <td className="border border-gray-400 p-1 text-center no-print">
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveItem(item.id)}
-                              className="text-red-500 hover:text-red-700 p-1"
-                              title="Eliminar ítem"
-                            >
-                              <Trash2 className="w-4 h-4 mx-auto" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {/* 2. TABLA SIMPLE DE BIENES (5 COLUMNAS) */}
-              {tipoTablaTdr === "BIENES_SIMPLE" && (
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse border border-gray-400 text-xs text-left">
-                    <thead>
-                      <tr className="bg-gray-100 font-bold uppercase text-gray-900 border-b border-gray-400">
-                        <th className="border border-gray-400 p-2 text-center w-12">ÍTEM</th>
-                        <th className="border border-gray-400 p-2 w-1/3">DESCRIPCIÓN DEL BIEN</th>
-                        <th className="border border-gray-400 p-2 text-center w-20">UNIDAD</th>
-                        <th className="border border-gray-400 p-2 text-center w-20">CANTIDAD</th>
-                        <th className="border border-gray-400 p-2">CARACTERÍSTICAS TÉCNICAS REQUERIDAS</th>
-                        <th className="border border-gray-400 p-1 text-center w-14 no-print">ACCIÓN</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {items.map((item) => (
-                        <tr key={item.id} className="hover:bg-blue-50/20 border-b border-gray-300">
-                          <td className="border border-gray-400 p-2 font-mono font-bold text-center bg-gray-50/50">
-                            {item.item}
-                          </td>
-                          <td className="border border-gray-400 p-2 font-bold text-primary">
-                            <div
-                              contentEditable
-                              suppressContentEditableWarning
-                              onBlur={(e) => handleItemTextChange(item.id, "descripcion", e.currentTarget.textContent || "")}
-                              className="focus:bg-white focus:outline-none p-1 rounded hover:bg-blue-50/50"
-                            >
-                              {item.descripcion}
-                            </div>
-                          </td>
-                          <td className="border border-gray-400 p-2 text-center font-mono">
-                            <div
-                              contentEditable
-                              suppressContentEditableWarning
-                              onBlur={(e) => handleItemTextChange(item.id, "unidad", e.currentTarget.textContent || "")}
-                              className="focus:bg-white focus:outline-none p-1 rounded hover:bg-blue-50/50"
-                            >
-                              {item.unidad || "PZA"}
-                            </div>
-                          </td>
-                          <td className="border border-gray-400 p-2 text-center font-mono font-bold">
-                            <div
-                              contentEditable
-                              suppressContentEditableWarning
-                              onBlur={(e) => handleItemTextChange(item.id, "cantidad", Number(e.currentTarget.textContent) || 1)}
-                              className="focus:bg-white focus:outline-none p-1 rounded hover:bg-blue-50/50"
-                            >
-                              {item.cantidad}
-                            </div>
-                          </td>
-                          <td className="border border-gray-400 p-2 text-gray-800 leading-relaxed">
-                            <div
-                              contentEditable
-                              suppressContentEditableWarning
-                              onBlur={(e) => handleItemTextChange(item.id, "caracteristicasTecnicas", e.currentTarget.textContent || "")}
-                              className="focus:bg-white focus:outline-none p-1 rounded hover:bg-blue-50/50 whitespace-pre-wrap"
-                            >
-                              {item.caracteristicasTecnicas ||
-                                (item.fichaTecnica?.caracteristicasDetalle && item.fichaTecnica.caracteristicasDetalle.length > 0
-                                  ? item.fichaTecnica.caracteristicasDetalle.join("\n• ")
-                                  : `${item.fichaTecnica?.material ? `Material: ${item.fichaTecnica.material}. ` : ""}${item.fichaTecnica?.normaCertificacion ? `Norma: ${item.fichaTecnica.normaCertificacion}. ` : ""}${item.fichaTecnica?.dimensiones ? `Dimensiones: ${item.fichaTecnica.dimensiones}` : ""}`.trim()) ||
-                                "Cumplimiento con especificaciones técnicas requeridas por ENDE Deoruro S.A."}
-                            </div>
-                          </td>
-                          <td className="border border-gray-400 p-1 text-center no-print">
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveItem(item.id)}
-                              className="text-red-500 hover:text-red-700 p-1"
-                              title="Eliminar ítem"
-                            >
-                              <Trash2 className="w-4 h-4 mx-auto" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {/* 2. TABLA DE SALUD OCUPACIONAL / LABORATORIO */}
-              {tipoTablaTdr === "SALUD_OCUPACIONAL" && (
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse border border-gray-400 text-xs text-left">
-                    <thead>
-                      <tr className="bg-gray-100 font-bold uppercase text-gray-900 border-b border-gray-400">
-                        <th className="border border-gray-400 p-2 text-center w-12">ÍTEM</th>
-                        <th className="border border-gray-400 p-2 w-1/3">EXAMEN / ESTUDIO REQUERIDO</th>
-                        <th className="border border-gray-400 p-2 w-1/3">ESPECIFICACIÓN MÍNIMA / METODOLOGÍA</th>
-                        <th className="border border-gray-400 p-2 w-1/4">PROPUESTO / A INFORMAR</th>
-                        <th className="border border-gray-400 p-1 text-center w-14 no-print">ACCIÓN</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {items.map((item) => (
-                        <tr key={item.id} className="hover:bg-blue-50/20 border-b border-gray-300">
-                          <td className="border border-gray-400 p-2 font-mono font-bold text-center bg-gray-50/50">
-                            {item.item}
-                          </td>
-                          <td className="border border-gray-400 p-2">
-                            <div
-                              contentEditable
-                              suppressContentEditableWarning
-                              onBlur={(e) => handleItemTextChange(item.id, "descripcion", e.currentTarget.textContent || "")}
-                              className="font-bold text-primary focus:bg-white focus:outline-none p-1 rounded hover:bg-blue-50/50"
-                            >
-                              {item.descripcion}
-                            </div>
-                            <div className="text-[11px] text-gray-500 font-mono mt-0.5">
-                              Cantidad: {item.cantidad} {item.unidad || "ESTUDIO"}
-                            </div>
-                          </td>
-                          <td className="border border-gray-400 p-2 text-gray-800">
-                            <div
-                              contentEditable
-                              suppressContentEditableWarning
-                              onBlur={(e) => handleItemTextChange(item.id, "especificacionMinima", e.currentTarget.textContent || "")}
-                              className="focus:bg-white focus:outline-none p-1 rounded hover:bg-blue-50/50 whitespace-pre-wrap leading-relaxed"
-                            >
-                              {item.especificacionMinima ||
-                                item.fichaTecnica?.normaCertificacion ||
-                                item.fichaTecnica?.material ||
-                                "Examen médico / estudio de laboratorio clínico con metodología certificada y acreditación sanitaria."}
-                            </div>
-                          </td>
-                          <td className="border border-gray-400 p-2 text-gray-700">
-                            <div
-                              contentEditable
-                              suppressContentEditableWarning
-                              onBlur={(e) => handleItemTextChange(item.id, "propuestoOferente", e.currentTarget.textContent || "")}
-                              className="focus:bg-white focus:outline-none p-1 rounded hover:bg-blue-50/50 italic text-gray-600"
-                            >
-                              {item.propuestoOferente || "Cumple según metodología del oferente / A informar"}
-                            </div>
-                          </td>
-                          <td className="border border-gray-400 p-1 text-center no-print">
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveItem(item.id)}
-                              className="text-red-500 hover:text-red-700 p-1"
-                              title="Eliminar examen"
-                            >
-                              <Trash2 className="w-4 h-4 mx-auto" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {/* 3. FICHAS TÉCNICAS INDIVIDUALES */}
-              {tipoTablaTdr === "FICHAS_DINAMICAS" && (
-                <div className="space-y-6">
-                  {items.map((item) => (
-                    <div key={item.id} className="border-2 border-black rounded-lg p-4 bg-white space-y-3 shadow-sm">
-                      <div className="flex justify-between items-center border-b border-gray-300 pb-1">
-                        <span className="font-mono font-bold text-xs bg-primary text-white px-2.5 py-0.5 rounded">
-                          ÍTEM #{item.item}: {item.cantidad} {item.unidad}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveItem(item.id)}
-                          className="text-red-600 hover:text-red-800 p-1 text-xs font-bold flex items-center gap-1"
-                          title="Eliminar este ítem"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>Eliminar</span>
-                        </button>
-                      </div>
-
-                      <div
-                        contentEditable
-                        suppressContentEditableWarning
-                        onBlur={(e) => handleItemTextChange(item.id, "descripcion", e.currentTarget.textContent || "")}
-                        className="font-black text-sm text-primary uppercase border-b pb-1 hover:bg-blue-50/50 p-1 rounded focus:outline-none"
-                      >
-                        {item.descripcion}
-                      </div>
-
-                      {/* Contenedor con Foto del Ítem y Campos */}
-                      <div className={`grid gap-4 items-start ${incluirFotoEnItems ? "grid-cols-1 md:grid-cols-12" : "grid-cols-1"}`}>
-                        {incluirFotoEnItems && (
-                          <div className="md:col-span-4 h-44 bg-gray-50 border border-gray-300 rounded flex flex-col items-center justify-center text-gray-500 text-xs font-mono p-2 text-center relative group">
-                            {item.fichaTecnica?.imagenUrl ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={item.fichaTecnica.imagenUrl} alt="Foto" className="h-32 w-auto object-contain" />
-                            ) : (
-                              <>
-                                <Camera className="w-7 h-7 text-gray-400 mb-1" />
-                                <span className="font-bold">Fotografía Oficial del Ítem</span>
-                              </>
-                            )}
-                            <input
-                              type="file"
-                              accept="image/*"
-                              ref={(el) => {
-                                fileInputRefs.current[item.id] = el;
-                              }}
-                              onChange={(e) => {
-                                const f = e.target.files?.[0];
-                                if (f) handleImageUpload(item.id, f);
-                              }}
-                              className="hidden"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => fileInputRefs.current[item.id]?.click()}
-                              className="mt-1 px-2 py-0.5 bg-primary/10 hover:bg-primary/20 text-primary text-[10px] font-bold rounded"
-                            >
-                              Subir Foto
-                            </button>
+              {/* Tabla de Ítems */}
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border border-gray-400 text-xs text-left">
+                  <thead>
+                    <tr className="bg-gray-100 font-bold uppercase text-gray-900 border-b border-gray-400">
+                      <th className="border border-gray-400 p-2 text-center w-12">ÍTEM</th>
+                      <th className="border border-gray-400 p-2 w-1/3">DESCRIPCIÓN DEL ÍTEM</th>
+                      <th className="border border-gray-400 p-2 w-20 text-center">CANT.</th>
+                      <th className="border border-gray-400 p-2 w-20 text-center">UNIDAD</th>
+                      <th className="border border-gray-400 p-2">CARACTERÍSTICAS / ESPECIFICACIÓN TÉCNICA</th>
+                      <th className="border border-gray-400 p-1 text-center w-12 no-print">ACCIÓN</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((item) => (
+                      <tr key={item.id} className="hover:bg-blue-50/20 border-b border-gray-300">
+                        <td className="border border-gray-400 p-2 font-mono font-bold text-center bg-gray-50/50">
+                          {item.item}
+                        </td>
+                        <td className="border border-gray-400 p-2 font-bold text-primary">
+                          <div
+                            contentEditable
+                            suppressContentEditableWarning
+                            onBlur={(e) => handleItemTextChange(item.id, "descripcion", e.currentTarget.textContent || "")}
+                            className="focus:bg-white focus:outline-none p-1 rounded hover:bg-blue-50/50"
+                          >
+                            {item.descripcion}
                           </div>
-                        )}
-
-                        <div className={`${incluirFotoEnItems ? "md:col-span-8" : "w-full"} space-y-2`}>
-                          {camposMolde.map((campo, cIdx) => (
-                            <div key={campo.id} className="p-1.5 border border-gray-200 rounded bg-gray-50/50 text-xs">
-                              <strong className="text-primary block font-mono text-[11px] uppercase">{campo.nombre}:</strong>
-                              <div
-                                contentEditable
-                                suppressContentEditableWarning
-                                className="p-1 text-gray-800 hover:bg-white focus:bg-white rounded focus:outline-none"
-                              >
-                                {cIdx === 0
-                                  ? item.fichaTecnica?.normaCertificacion || campo.valorEjemplo
-                                  : cIdx === 1
-                                  ? item.fichaTecnica?.material || campo.valorEjemplo
-                                  : cIdx === 2
-                                  ? item.fichaTecnica?.dimensiones || campo.valorEjemplo
-                                  : cIdx === 3
-                                  ? item.fichaTecnica?.uso || campo.valorEjemplo
-                                  : item.fichaTecnica?.caracteristicasDetalle?.[0] || campo.valorEjemplo}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                        </td>
+                        <td className="border border-gray-400 p-2 font-mono font-bold text-center bg-gray-50/30">
+                          <div
+                            contentEditable
+                            suppressContentEditableWarning
+                            onBlur={(e) => handleItemTextChange(item.id, "cantidad", Number(e.currentTarget.textContent) || 1)}
+                            className="focus:bg-white focus:outline-none p-1 rounded hover:bg-blue-50/50"
+                          >
+                            {item.cantidad}
+                          </div>
+                        </td>
+                        <td className="border border-gray-400 p-2 font-mono text-center bg-gray-50/30">
+                          <div
+                            contentEditable
+                            suppressContentEditableWarning
+                            onBlur={(e) => handleItemTextChange(item.id, "unidad", e.currentTarget.textContent || "PZA")}
+                            className="focus:bg-white focus:outline-none p-1 rounded hover:bg-blue-50/50 uppercase"
+                          >
+                            {item.unidad || "PZA"}
+                          </div>
+                        </td>
+                        <td className="border border-gray-400 p-2 text-gray-800 leading-relaxed">
+                          <div
+                            contentEditable
+                            suppressContentEditableWarning
+                            onBlur={(e) => handleItemTextChange(item.id, "caracteristicasTecnicas", e.currentTarget.textContent || "")}
+                            className="focus:bg-white focus:outline-none p-1 rounded hover:bg-blue-50/50 whitespace-pre-wrap"
+                          >
+                            {item.caracteristicasTecnicas || item.especificacionMinima || "Especificaciones técnicas conforme a requerimiento de ENDE DEORURO S.A."}
+                          </div>
+                        </td>
+                        <td className="border border-gray-400 p-1 text-center no-print">
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveItem(item.id)}
+                            className="text-red-500 hover:text-red-700 p-1"
+                            title="Eliminar ítem"
+                          >
+                            <Trash2 className="w-4 h-4 mx-auto" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
               {/* Punto 4: Calidad */}
               <div className="space-y-1 pt-2">
@@ -1445,51 +890,48 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
           </div>
         )}
 
-        {/* ============================================================ */}
-        {/* PÁGINAS 5 Y 6: PUNTOS 5 AL 14 (CONDICIONES, PLAZOS, MULTAS)  */}
-        {/* ============================================================ */}
-        {(viewMode === "continuo" || currentPage >= 5) && (
-          <div className="w-full max-w-full lg:max-w-[1050px] bg-white border border-outline-variant shadow-xl rounded-sm p-5 sm:p-10 md:p-14 text-on-surface font-sans min-h-[1050px] flex flex-col justify-between relative space-y-6">
+        {/* PÁGINA 5: PUNTOS 5 AL 14 */}
+        {(viewMode === "continuo" || currentPage === 5) && (
+          <div className="w-full max-w-full lg:max-w-[1050px] bg-white border border-outline-variant shadow-xl rounded-sm p-5 sm:p-10 md:p-14 text-on-surface font-sans min-h-[1050px] flex flex-col justify-between relative space-y-4">
             <div className="flex justify-between items-center text-xs text-gray-500 font-mono border-b border-gray-200 pb-1 font-bold">
               <span>{docData.titulo_proceso}</span>
-              <span>PÁGINA 5 DE {totalPages} (CONDICIONES ADMINISTRATIVAS)</span>
+              <span>PÁGINA 5 DE {totalPages}</span>
             </div>
 
             <RunningHeader pageNum={5} />
 
-            <div className="space-y-4 flex-1 text-sm font-sans">
-              {puntosOficiales.slice(4).map((pto) => (
-                <div key={pto.num} className="space-y-1">
-                  <h4 className="font-bold text-gray-900 text-xs md:text-sm uppercase">
-                    {pto.num}. {pto.titulo}
+            <div className="space-y-4 flex-1 text-justify font-sans text-xs md:text-sm">
+              {puntosOficiales.slice(4).map((p) => (
+                <div key={p.num} className="space-y-1">
+                  <h4 className="font-bold text-gray-900 text-sm">
+                    {p.num}. {p.titulo.toUpperCase()}
                   </h4>
                   <div
                     contentEditable
                     suppressContentEditableWarning
-                    onBlur={(e) => handlePuntoChange(pto.num, "contenido", e.currentTarget.textContent || "")}
-                    className="text-justify leading-relaxed p-1.5 rounded hover:bg-blue-50/50 focus:outline-none text-gray-800 text-xs md:text-sm whitespace-pre-line space-y-2"
+                    onBlur={(e) => handlePuntoChange(p.num, "contenido", e.currentTarget.textContent || "")}
+                    className="text-justify leading-relaxed p-2 rounded hover:bg-blue-50/50 focus:outline-none text-gray-800 whitespace-pre-line"
                   >
-                    {pto.contenido}
+                    {p.contenido}
                   </div>
                 </div>
               ))}
             </div>
 
             <div className="border-t border-gray-300 pt-2 flex justify-between text-xs font-mono text-gray-600 mt-auto">
-              <span>{tituloEntidad} • Oruro - Bolivia</span>
+              <span>{tituloEntidad}</span>
               <span>Página 5 de {totalPages}</span>
             </div>
           </div>
         )}
-
       </div>
 
-      {/* Modal de Asistente IA */}
+      {/* Modal Simplificado y Directo de Asistente IA */}
       <Modal
         isOpen={showAiModal}
         onClose={() => !isAiProcessing && setShowAiModal(false)}
-        title="✨ Asistente de IA: Redacción y Estructuración de TDR"
-        subtitle="Pega tu TDR en Markdown/Texto o sube tu documento. La IA acomodará la información en nuestra plantilla oficial respetando con fidelidad total tus especificaciones."
+        title="✨ Asistente IA: Generar Documento Oficial Word (.docx)"
+        subtitle="Ingresa el requerimiento o borrador. La IA de DeepSeek estructurará los 14 puntos oficiales de ENDE DEORURO S.A. y descargará directamente tu archivo Word."
         maxWidth="lg"
       >
         <div className="space-y-4 font-sans text-xs">
@@ -1504,7 +946,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
                   : "border-transparent text-on-surface-variant hover:text-primary"
               }`}
             >
-              📝 Pegar TDR (Formato Markdown / Texto)
+              📝 Pegar Requerimiento / Texto
             </button>
             <button
               type="button"
@@ -1515,31 +957,23 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
                   : "border-transparent text-on-surface-variant hover:text-primary"
               }`}
             >
-              📁 Subir Archivo (.md, .txt, .pdf, Foto, Word)
+              📁 Subir Archivo (.pdf, Word, TXT, Foto)
             </button>
           </div>
 
-          {/* Opción 1: Pegar Markdown / Texto Completo */}
+          {/* Opción 1: Pegar Texto */}
           {aiInputMode === "markdown" ? (
             <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <label className="font-bold text-primary text-xs">
-                  Pega aquí el contenido completo del TDR (en Markdown o Texto):
-                </label>
-                <span className="text-[11px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-mono font-semibold border border-emerald-200">
-                  ✓ Fidelidad 100% Literal (Sin alucinaciones)
-                </span>
-              </div>
+              <label className="font-bold text-primary text-xs">
+                Pega o escribe aquí tu requerimiento o borrador:
+              </label>
               <textarea
                 rows={9}
                 value={markdownTdrText}
                 onChange={(e) => setMarkdownTdrText(e.target.value)}
-                placeholder={`# ESPECIFICACIONES TÉCNICAS (TDR)\n\n## 1. ANTECEDENTES\nEn el marco del plan de mantenimiento anual...\n\n## 2. JUSTIFICACIÓN\nSe requiere la adquisición de los siguientes ítems para garantizar...\n\n## 3. ÍTEMS REQUERIDOS\n| Ítem | Descripción | Cantidad | Unidad | Características Técnicas |\n| 1 | Botas de Seguridad Dieléctricas | 20 | PAR | Conforme a norma ASTM F2413, suela antideslizante... |\n| 2 | Casco Dieléctrico Tipo II | 20 | PZA | Clase E, barboquejo de 4 puntos... |`}
-                className="w-full p-3 border border-outline-variant rounded font-mono text-xs bg-surface leading-relaxed focus:outline-none focus:border-primary"
+                placeholder="Ejemplo: Adquisición de herramientas para cuadrillas: 20 alicates universales 8 pulgadas, 3 carretillas, dos palas, una cinta aislante 1000V y 15 destornilladores planos 6 pulgadas."
+                className="w-full p-3 border border-outline-variant rounded font-sans text-xs bg-surface leading-relaxed focus:outline-none focus:border-primary"
               />
-              <p className="text-[11px] text-on-surface-variant italic">
-                * La IA acomodará exactamente los antecedentes, justificación y cada ítem en la plantilla de ENDE Deoruro S.A. sin aumentar ni suprimir requisitos.
-              </p>
             </div>
           ) : (
             /* Opción 2: Subir Archivo */
@@ -1563,139 +997,46 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
                 <div className="space-y-2">
                   <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />
                   <p className="font-bold text-sm text-primary">{uploadedAiFile.name}</p>
-                  <p className="text-[11px] text-outline">Haz clic para seleccionar otro archivo si lo deseas</p>
                 </div>
               ) : (
                 <div className="space-y-1">
                   <FileUp className="w-10 h-10 text-primary mx-auto opacity-75" />
                   <p className="font-bold text-sm text-primary">Arrastra o haz clic aquí para subir tu documento o foto</p>
                   <p className="text-on-surface-variant text-[11px]">
-                    Formatos soportados: Markdown (.md), Fotos (JPG, PNG), Documentos (PDF, Word, TXT)
+                    Formatos: Documentos (Word, PDF, TXT), Fotos (JPG, PNG)
                   </p>
                 </div>
               )}
             </div>
           )}
 
-          {/* Selector de Tipo de Tabla Preferido */}
-          <div className="p-3 bg-surface-container-low border border-outline-variant rounded-lg space-y-2">
-            <span className="font-bold text-on-surface text-xs block">
-              Formato de Tabla de Especificaciones Técnicas deseado:
-            </span>
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
-              <button
-                type="button"
-                onClick={() => setTipoTablaTdr("MATRIZ_SERVICIOS")}
-                className={`p-2 rounded text-left border text-xs transition-all ${
-                  tipoTablaTdr === "MATRIZ_SERVICIOS"
-                    ? "border-primary bg-white ring-2 ring-primary text-primary font-bold shadow-sm"
-                    : "border-outline-variant bg-surface text-on-surface-variant hover:bg-white"
-                }`}
-              >
-                <div className="font-bold">📋 Matriz de Servicios</div>
-                <div className="text-[10px] text-outline font-normal">4 Cols: Ítem, Componente, Alcance, Entregable</div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setTipoTablaTdr("BIENES_3_COLS")}
-                className={`p-2 rounded text-left border text-xs transition-all ${
-                  tipoTablaTdr === "BIENES_3_COLS"
-                    ? "border-primary bg-white ring-2 ring-primary text-primary font-bold shadow-sm"
-                    : "border-outline-variant bg-surface text-on-surface-variant hover:bg-white"
-                }`}
-              >
-                <div className="font-bold">📦 Bienes 3 Cols</div>
-                <div className="text-[10px] text-outline font-normal">Ítem, Descripción, Características</div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setTipoTablaTdr("BIENES_SIMPLE")}
-                className={`p-2 rounded text-left border text-xs transition-all ${
-                  tipoTablaTdr === "BIENES_SIMPLE"
-                    ? "border-primary bg-white ring-2 ring-primary text-primary font-bold shadow-sm"
-                    : "border-outline-variant bg-surface text-on-surface-variant hover:bg-white"
-                }`}
-              >
-                <div className="font-bold">📦 Bienes 5 Cols</div>
-                <div className="text-[10px] text-outline font-normal">Unidad, Cantidad y Características</div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setTipoTablaTdr("SALUD_OCUPACIONAL")}
-                className={`p-2 rounded text-left border text-xs transition-all ${
-                  tipoTablaTdr === "SALUD_OCUPACIONAL"
-                    ? "border-primary bg-white ring-2 ring-primary text-primary font-bold shadow-sm"
-                    : "border-outline-variant bg-surface text-on-surface-variant hover:bg-white"
-                }`}
-              >
-                <div className="font-bold">🩺 Salud / Lab</div>
-                <div className="text-[10px] text-outline font-normal">Examen, Metodología y Propuesto</div>
-              </button>
-            </div>
-          </div>
-
-          {/* Opción de Fotografía Técnica en Ítems */}
-          <div className="p-3 bg-surface-container-low border border-outline-variant rounded-lg flex items-center justify-between">
-            <div>
-              <label htmlFor="check-foto-modal" className="font-bold text-on-surface text-xs cursor-pointer block">
-                ¿Incluir recuadro de fotografía para cada ítem?
-              </label>
-              <p className="text-[11px] text-on-surface-variant">
-                Habilita el espacio para subir y mostrar la imagen técnica de cada ítem en las especificaciones.
-              </p>
-            </div>
-            <input
-              id="check-foto-modal"
-              type="checkbox"
-              checked={incluirFotoEnItems}
-              onChange={(e) => setIncluirFotoEnItems(e.target.checked)}
-              className="w-4 h-4 text-primary rounded cursor-pointer accent-primary ml-3"
-            />
-          </div>
-
-          {/* Optional Prompt */}
-          <div className="space-y-1">
-            <label className="block font-bold text-primary text-xs">
-              Instrucciones adicionales para la IA (Opcional):
-            </label>
-            <textarea
-              rows={2}
-              value={aiPrompt}
-              onChange={(e) => setAiPrompt(e.target.value)}
-              placeholder="Ejemplo: Respetar fielmente las cantidades y métodos descritos..."
-              className="w-full p-2.5 border border-outline-variant rounded text-xs bg-surface"
-            />
-          </div>
-
           {/* Footer Buttons */}
-          <div className="flex justify-end gap-3 pt-2 border-t border-outline-variant">
+          <div className="flex justify-end gap-3 pt-3 border-t border-outline-variant">
             <button
               type="button"
               disabled={isAiProcessing}
               onClick={() => setShowAiModal(false)}
-              className="px-4 py-2 border border-outline-variant rounded font-mono text-xs text-on-surface-variant hover:bg-surface-container-high"
+              className="px-4 py-2 border border-outline-variant rounded font-sans text-xs text-on-surface-variant hover:bg-surface-container-high"
             >
               Cancelar
             </button>
-
             <button
               type="button"
-              disabled={isAiProcessing || (aiInputMode === "markdown" && !markdownTdrText.trim() && !uploadedAiFile)}
-              onClick={handleRunAi}
-              className="flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white font-sans text-xs font-bold rounded shadow transition-all active:scale-95 disabled:opacity-50"
+              disabled={isAiProcessing || (aiInputMode === "markdown" && !markdownTdrText.trim() && !aiPrompt.trim()) || (aiInputMode === "file" && !uploadedAiFile)}
+              onClick={async () => {
+                await handleRunAi();
+              }}
+              className="px-6 py-2.5 bg-gradient-to-r from-primary to-primary-container hover:opacity-90 text-white font-sans text-xs font-bold rounded shadow flex items-center gap-2 disabled:opacity-50 active:scale-95"
             >
               {isAiProcessing ? (
                 <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Acomodando datos en Plantilla Oficial...</span>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Analizando con IA y Generando Word...</span>
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-4 h-4" />
-                  <span>Acomodar en Plantilla TDR Oficial</span>
+                  <Sparkles className="w-4 h-4 text-yellow-300 fill-yellow-300" />
+                  <span>Generar y Descargar Word Oficial (.docx)</span>
                 </>
               )}
             </button>

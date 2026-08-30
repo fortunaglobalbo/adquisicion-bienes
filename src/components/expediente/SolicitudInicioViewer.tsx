@@ -174,15 +174,6 @@ export const SolicitudInicioViewer: React.FC<SolicitudInicioViewerProps> = ({
             <Download className="w-4 h-4 text-secondary-container" />
             <span>Descargar Word (.docx)</span>
           </button>
-
-          <button
-            onClick={() => onDownloadPdf ? onDownloadPdf(docData) : window.print()}
-            className="flex items-center gap-2 px-4 py-2.5 bg-red-700 hover:bg-red-800 text-white font-sans text-sm font-bold rounded shadow transition-all active:scale-95"
-            title="Descargar o imprimir la Solicitud de Inicio en formato PDF institucional"
-          >
-            <FileDown className="w-4 h-4 text-red-200" />
-            <span>Descargar PDF Oficial</span>
-          </button>
         </div>
 
         {/* Right: Quick Options */}

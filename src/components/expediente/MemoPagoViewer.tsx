@@ -204,16 +204,6 @@ export const MemoPagoViewer: React.FC<MemoPagoViewerProps> = ({
             <span>Descargar Word (.docx)</span>
           </button>
 
-          {/* Direct PDF Export Button */}
-          <button
-            onClick={() => onDownloadPdf ? onDownloadPdf(docData) : window.print()}
-            className="flex items-center gap-2 px-4 py-2.5 bg-red-700 hover:bg-red-800 text-white font-sans text-sm font-semibold rounded shadow transition-all active:scale-95"
-            title="Descargar o imprimir Memorándum de Pago en formato PDF oficial"
-          >
-            <FileDown className="w-4 h-4 text-red-200" />
-            <span>Descargar PDF Oficial</span>
-          </button>
-
           {/* Save Button */}
           <button
             onClick={handleSave}
