@@ -379,46 +379,27 @@ class ProcessRequest(BaseModel):
     adquisicion: Optional[Dict[str, Any]] = None
 
 @app.post("/api/procesar-documento")
-async def procesar_documento(
-    req: Optional[ProcessRequest] = None,
-    file: Optional[UploadFile] = File(None),
-    texto: Optional[str] = Form(None)
-):
-    """
-    Endpoint maestro que acepta archivo crudo, base64 o texto,
-    ejecuta MarkItDown / OCR, analiza con DeepSeek y compila el DOCX oficial.
-    """
+async def procesar_documento_json(req: ProcessRequest):
+    """Procesa requerimientos enviados en formato JSON (texto, base64 o metadatos)."""
     extracted_text = ""
-    filename = "documento"
     
-    # 1. Si viene como multipart/form-data
-    if file:
-        filename = file.filename or "archivo"
-        contents = await file.read()
-        extracted_text = extract_text_from_file_bytes(contents, filename)
-    
-    # 2. Si viene como JSON con base64 o texto
-    if req:
-        if req.imageBase64:
-            b64_data = req.imageBase64.split(",")[-1]
-            file_bytes = base64.b64decode(b64_data)
-            fname = req.nombreArchivo or "archivo.pdf"
-            extracted_text = extract_text_from_file_bytes(file_bytes, fname)
-        elif req.documentText:
-            extracted_text = req.documentText
-        elif req.insumoTexto:
-            extracted_text = req.insumoTexto
-            
-    if texto:
-        extracted_text = f"{texto}\n\n{extracted_text}"
+    if req.imageBase64:
+        b64_data = req.imageBase64.split(",")[-1]
+        file_bytes = base64.b64decode(b64_data)
+        fname = req.nombreArchivo or "archivo.pdf"
+        extracted_text = extract_text_from_file_bytes(file_bytes, fname)
+    elif req.documentText:
+        extracted_text = req.documentText
+    elif req.insumoTexto:
+        extracted_text = req.insumoTexto
         
     if not extracted_text.strip():
-        extracted_text = "Adquisición de herramientas y materiales operativos para ENDE DEORURO S.A."
+        extracted_text = "Adquisición de bienes y herramientas operativas para ENDE DEORURO S.A."
 
-    # 3. Invocar a DeepSeek IA
+    # 1. Analizar con DeepSeek IA
     ai_data = call_deepseek_ai(extracted_text)
     
-    # 4. Generar Word .docx Oficial
+    # 2. Generar Word .docx Oficial
     docx_file = create_official_tdr_docx(ai_data)
     
     return {
@@ -426,7 +407,36 @@ async def procesar_documento(
         "data": ai_data,
         "extracted_text_preview": extracted_text[:500],
         "docx_file": docx_file,
-        "download_docx": f"/download/{docx_file}"
+        "download_docx": f"/download/{docx_file}",
+        "download_pdf": f"/download/{docx_file}"
+    }
+
+@app.post("/api/procesar-archivo")
+async def procesar_archivo_upload(
+    file: UploadFile = File(...),
+    texto_adicional: Optional[str] = Form(None)
+):
+    """Procesa archivos subidos directamente por multipart/form-data."""
+    contents = await file.read()
+    filename = file.filename or "archivo"
+    extracted_text = extract_text_from_file_bytes(contents, filename)
+    
+    if texto_adicional:
+        extracted_text = f"{texto_adicional}\n\n{extracted_text}"
+        
+    if not extracted_text.strip():
+        extracted_text = "Adquisición de bienes y herramientas operativas para ENDE DEORURO S.A."
+
+    ai_data = call_deepseek_ai(extracted_text)
+    docx_file = create_official_tdr_docx(ai_data)
+    
+    return {
+        "success": True,
+        "data": ai_data,
+        "extracted_text_preview": extracted_text[:500],
+        "docx_file": docx_file,
+        "download_docx": f"/download/{docx_file}",
+        "download_pdf": f"/download/{docx_file}"
     }
 
 @app.post("/api/generar-especificaciones")
