@@ -7,7 +7,7 @@ import { Carpeta } from "@/types";
 interface FolderProgressBarProps {
   carpetas?: Carpeta[];
   activeNumero: number;
-  onSelectNumero: (num: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8) => void;
+  onSelectNumero: (num: number) => void;
 }
 
 export const FolderProgressBar: React.FC<FolderProgressBarProps> = ({
@@ -17,30 +17,21 @@ export const FolderProgressBar: React.FC<FolderProgressBarProps> = ({
 }) => {
   const safeCarpetas = Array.isArray(carpetas) && carpetas.length > 0 ? carpetas : [];
 
-  const shortNames = [
-    "TDR",
-    "S1-N014",
-    "Justificación",
-    "Cotización",
-    "Solicitud",
-    "S2-N014",
-    "Conformidad",
-    "Contrato",
-  ];
-
   return (
-    <div className="bg-surface-container-lowest border border-outline-variant rounded-lg p-5 shadow-institutional">
-      <div className="flex justify-between items-center relative">
+    <div className="bg-surface-container-lowest border border-outline-variant rounded-lg p-4 shadow-institutional overflow-x-auto">
+      <div className="flex justify-between items-center relative min-w-[600px]">
         {/* Connecting Line */}
         <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-outline-variant -translate-y-1/2 z-0" />
 
-        {/* 8 Stages */}
-        {safeCarpetas.map((folder, index) => {
-          const num = (folder.numero || index + 1) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
-          const isActive = num === activeNumero;
-          const docsCount = Array.isArray(folder.documentos) ? folder.documentos.length : 0;
-          const isCompleted = folder.estado === "Completado" || docsCount > 0;
-          const isAI = folder.tipo_generacion === "IA";
+        {/* Dynamic Stages */}
+        {safeCarpetas
+          .sort((a, b) => a.numero - b.numero)
+          .map((folder, index) => {
+            const num = folder.numero || index + 1;
+            const isActive = num === activeNumero;
+            const docsCount = Array.isArray(folder.documentos) ? folder.documentos.length : 0;
+            const isCompleted = folder.estado === "Completado" || docsCount > 0;
+            const isAI = folder.tipo_generacion === "IA";
 
           let circleStyle = "bg-surface-container-high border-outline-variant text-outline";
           if (isActive) {
@@ -75,7 +66,7 @@ export const FolderProgressBar: React.FC<FolderProgressBarProps> = ({
                       : "text-outline"
                   }`}
                 >
-                  {shortNames[index] || `C${num}`}
+                  {folder.nombre.length > 12 ? folder.nombre.slice(0, 11) + "…" : folder.nombre}
                 </span>
                 {isAI && (
                   <span className="inline-flex items-center gap-0.5 font-mono text-[9px] text-secondary">

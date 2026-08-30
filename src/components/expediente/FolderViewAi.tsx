@@ -448,12 +448,18 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
         /* Carpetas 2, 3, 4 — Subida Manual del Usuario */
         (() => {
           const isManualFolder = [2, 3, 4].includes(carpeta.numero);
+          const isCustomFolder = carpeta.numero > 8 || (![1, 2, 3, 4, 5, 6, 7, 8].includes(carpeta.numero));
+
           const carpetaDescriptions: Record<number, { from: string; icon: string; hint: string }> = {
             2: { from: "El usuario sube manualmente", icon: "📋", hint: "Formulario S1-N014, Solicitud de inicio de proceso, partida presupuestaria" },
             3: { from: "El usuario sube manualmente", icon: "📊", hint: "Cuadro de justificación, previsión de precio aprobada, informe técnico de necesidad" },
             4: { from: "El usuario sube manualmente", icon: "💼", hint: "Cotizaciones / proformas de proveedores con NIT, precios y especificaciones" },
           };
-          const meta = carpetaDescriptions[carpeta.numero];
+          const meta = carpetaDescriptions[carpeta.numero] || {
+            from: "Carpeta Personalizada",
+            icon: "📂",
+            hint: carpeta.descripcion || "Documentos oficiales de esta fase",
+          };
 
           const handleManualUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
             const file = e.target.files?.[0];
@@ -471,7 +477,7 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
               version: (carpeta.documentos?.length || 0) + 1,
               creado_por: "Usuario",
               fecha_creacion: new Date().toISOString(),
-              contenido_texto: `Documento subido manualmente para la Carpeta ${carpeta.numero}: ${carpeta.nombre}`,
+              contenido_texto: `Documento subido para la Carpeta ${carpeta.numero}: ${carpeta.nombre}`,
               metadata: { subidoManualmente: true },
             };
 
@@ -505,7 +511,7 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
                   <p className="font-sans text-xs text-on-surface-variant mt-0.5">{carpeta.descripcion}</p>
                 </div>
                 <span className="px-3 py-1 bg-surface-container border border-outline-variant text-on-surface-variant text-xs rounded-full font-mono font-bold">
-                  Subida Manual
+                  {isCustomFolder ? "Personalizada" : "Subida Manual"}
                 </span>
               </div>
 
@@ -514,14 +520,16 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
                 <Link2 className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
                 <div className="space-y-1">
                   <p className="font-bold text-blue-900 dark:text-blue-200">
-                    Esta carpeta se completa con documentos subidos manualmente.
+                    {isCustomFolder
+                      ? `Carpeta personalizada: ${carpeta.nombre}`
+                      : "Esta carpeta se completa con documentos subidos o procesados por la IA."}
                   </p>
                   <p className="text-blue-700 dark:text-blue-300">
-                    <strong>Documentos típicos:</strong> {meta?.hint}
+                    <strong>Descripción:</strong> {meta?.hint}
                   </p>
-                  {carpeta.numero === 4 && (
-                    <p className="text-blue-700 dark:text-blue-300 font-semibold mt-1">
-                      ⚡ Los documentos de esta carpeta (cotizaciones) serán usados por la IA para generar la Carpeta 7 (Informe de Conformidad).
+                  {carpeta.plantilla_asociada_nombre && (
+                    <p className="text-emerald-700 dark:text-emerald-300 font-bold mt-1">
+                      📄 Plantilla oficial activa: {carpeta.plantilla_asociada_nombre}
                     </p>
                   )}
                 </div>
@@ -553,13 +561,15 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
                   </>
                 ) : (
                   <>
-                    <Upload className="w-14 h-14 text-outline group-hover:text-primary transition-colors" />
+                    <div className="w-14 h-14 rounded-full bg-surface-container-high group-hover:bg-primary/10 flex items-center justify-center transition-colors">
+                      <Upload className="w-6 h-6 text-outline group-hover:text-primary transition-colors" />
+                    </div>
                     <div className="text-center space-y-1">
-                      <p className="font-bold text-on-surface text-sm group-hover:text-primary transition-colors">
-                        Haz clic aquí o arrastra tu documento
+                      <p className="font-bold text-on-surface text-sm">
+                        Arrastra o haz clic para subir documentos a esta carpeta
                       </p>
                       <p className="text-xs text-on-surface-variant">
-                        PDF, Word (.docx), Excel, Imágenes, TXT — hasta 50 MB
+                        Formatos soportados: PDF, DOCX, XLSX, imágenes escaneadas o texto plano.
                       </p>
                     </div>
                     <button

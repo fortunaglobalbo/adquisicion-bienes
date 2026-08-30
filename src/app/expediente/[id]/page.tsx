@@ -21,6 +21,7 @@ import { FolderProgressBar } from "@/components/expediente/FolderProgressBar";
 import { FolderSidebar } from "@/components/expediente/FolderSidebar";
 import { FolderViewAi } from "@/components/expediente/FolderViewAi";
 import { FolderViewManual } from "@/components/expediente/FolderViewManual";
+import { FolderManagerModal } from "@/components/expediente/FolderManagerModal";
 import { Modal } from "@/components/ui/Modal";
 import { DataStore } from "@/lib/store/dataStore";
 import { createInitialFolders } from "@/lib/store/initialData";
@@ -41,12 +42,13 @@ export default function ExpedienteDetailPage() {
 
   const [adquisicion, setAdquisicion] = useState<Adquisicion | null>(null);
   const [carpetas, setCarpetas] = useState<Carpeta[]>([]);
-  const [activeFolderNum, setActiveFolderNum] = useState<1 | 2 | 3 | 4 | 5 | 6 | 7 | 8>(1);
+  const [activeFolderNum, setActiveFolderNum] = useState<number>(1);
   const [camposExtraidos, setCamposExtraidos] = useState<CampoExtraido[]>([]);
   const [firmas, setFirmas] = useState<Firma[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isManagerOpen, setIsManagerOpen] = useState(false);
 
   const [dbError, setDbError] = useState<string | null>(null);
 
@@ -224,18 +226,19 @@ export default function ExpedienteDetailPage() {
 
           {/* Dual Column Workflow (Folders Left, Canvas Right) */}
           <div className="grid grid-cols-12 gap-6">
-            {/* Left 3 Columns: 8 Folders Selector */}
+            {/* Left 3 Columns: Dynamic Folders Selector */}
             <div className="col-span-12 lg:col-span-3">
               <FolderSidebar
                 carpetas={carpetas}
                 activeNumero={activeFolderNum}
                 onSelectNumero={setActiveFolderNum}
+                onOpenManager={() => setIsManagerOpen(true)}
               />
             </div>
 
             {/* Right 9 Columns: Active Folder Canvas */}
             <div className="col-span-12 lg:col-span-9 bg-surface-container-lowest border border-outline-variant rounded-lg p-6 md:p-8 min-h-[550px] shadow-institutional flex flex-col">
-              {activeFolder.tipo_generacion === "IA" ? (
+              {activeFolder && (activeFolder.tipo_generacion === "IA" || !activeFolder.tipo_generacion) ? (
                 <FolderViewAi
                   adquisicion={adquisicion}
                   carpeta={activeFolder}
@@ -258,6 +261,21 @@ export default function ExpedienteDetailPage() {
           </div>
         </div>
       </main>
+
+      {/* Folder Manager Modal (Crear, Reordenar, Asignar Plantillas) */}
+      <FolderManagerModal
+        isOpen={isManagerOpen}
+        onClose={() => setIsManagerOpen(false)}
+        adquisicion={adquisicion}
+        carpetas={carpetas}
+        onCarpetasUpdated={(updated) => {
+          setCarpetas(updated);
+          // Si la carpeta activa fue eliminada, seleccionar la primera disponible
+          if (!updated.some((c) => c.numero === activeFolderNum) && updated.length > 0) {
+            setActiveFolderNum(updated[0].numero);
+          }
+        }}
+      />
 
       {/* Delete Confirmation Modal */}
       <Modal

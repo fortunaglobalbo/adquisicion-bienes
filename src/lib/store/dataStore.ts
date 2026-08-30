@@ -320,6 +320,102 @@ export class DataStore {
     localStorage.setItem(STORAGE_KEYS.CARPETAS, JSON.stringify(carpetas));
   }
 
+  static addCarpeta(adquisicionId: string, nombre: string, descripcion?: string): Carpeta {
+    const all = this.getAllCarpetas();
+    const current = all.filter((c) => c.adquisicion_id === adquisicionId).sort((a, b) => a.numero - b.numero);
+    const nextNum = current.length > 0 ? Math.max(...current.map((c) => c.numero)) + 1 : 1;
+
+    const newFolder: Carpeta = {
+      id: `folder-custom-${Date.now()}`,
+      adquisicion_id: adquisicionId,
+      numero: nextNum,
+      nombre: nombre.trim() || `Carpeta ${nextNum}`,
+      descripcion: descripcion?.trim() || "Carpeta personalizada para el expediente",
+      tipo_generacion: "IA",
+      estado: "Pendiente",
+      documentos: [],
+      orden: nextNum,
+    };
+
+    all.push(newFolder);
+    this.saveAllCarpetas(all);
+    return newFolder;
+  }
+
+  static deleteCarpeta(carpetaId: string): boolean {
+    const all = this.getAllCarpetas();
+    const target = all.find((c) => c.id === carpetaId);
+    if (!target) return false;
+
+    const adqId = target.adquisicion_id;
+    const remaining = all.filter((c) => c.id !== carpetaId);
+
+    // Renumerar las carpetas de esta adquisicion
+    let count = 1;
+    remaining
+      .filter((c) => c.adquisicion_id === adqId)
+      .sort((a, b) => a.numero - b.numero)
+      .forEach((c) => {
+        c.numero = count++;
+        c.orden = c.numero;
+      });
+
+    this.saveAllCarpetas(remaining);
+    return true;
+  }
+
+  static updateCarpeta(carpetaId: string, updates: Partial<Carpeta>): Carpeta | null {
+    const all = this.getAllCarpetas();
+    const target = all.find((c) => c.id === carpetaId);
+    if (!target) return null;
+
+    Object.assign(target, updates);
+    this.saveAllCarpetas(all);
+    return target;
+  }
+
+  static moveCarpetaUp(adquisicionId: string, carpetaId: string): Carpeta[] {
+    const all = this.getAllCarpetas();
+    const adqFolders = all.filter((c) => c.adquisicion_id === adquisicionId).sort((a, b) => a.numero - b.numero);
+    const idx = adqFolders.findIndex((c) => c.id === carpetaId);
+
+    if (idx > 0) {
+      const temp = adqFolders[idx];
+      adqFolders[idx] = adqFolders[idx - 1];
+      adqFolders[idx - 1] = temp;
+
+      // Reasignar numeros secuenciales
+      adqFolders.forEach((c, i) => {
+        c.numero = i + 1;
+        c.orden = i + 1;
+      });
+
+      this.saveAllCarpetas(all);
+    }
+    return adqFolders;
+  }
+
+  static moveCarpetaDown(adquisicionId: string, carpetaId: string): Carpeta[] {
+    const all = this.getAllCarpetas();
+    const adqFolders = all.filter((c) => c.adquisicion_id === adquisicionId).sort((a, b) => a.numero - b.numero);
+    const idx = adqFolders.findIndex((c) => c.id === carpetaId);
+
+    if (idx >= 0 && idx < adqFolders.length - 1) {
+      const temp = adqFolders[idx];
+      adqFolders[idx] = adqFolders[idx + 1];
+      adqFolders[idx + 1] = temp;
+
+      // Reasignar numeros secuenciales
+      adqFolders.forEach((c, i) => {
+        c.numero = i + 1;
+        c.orden = i + 1;
+      });
+
+      this.saveAllCarpetas(all);
+    }
+    return adqFolders;
+  }
+
   static async addDocumentToCarpeta(carpetaId: string, doc: Documento): Promise<Carpeta | undefined> {
     const all = this.getAllCarpetas();
     const folder = all.find((c) => c.id === carpetaId);

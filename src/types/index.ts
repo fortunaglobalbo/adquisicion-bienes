@@ -192,13 +192,16 @@ export interface Adquisicion {
 export interface Carpeta {
   id: string;
   adquisicion_id: string;
-  numero: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+  numero: number;
   nombre: string;
   tipo_generacion: TipoGeneracionCarpeta;
   estado: EstadoCarpeta;
   fecha_proceso?: string;
   descripcion: string;
   documentos: Documento[];
+  plantilla_asociada_nombre?: string;
+  plantilla_asociada_url?: string;
+  orden?: number;
 }
 
 export interface Documento {
