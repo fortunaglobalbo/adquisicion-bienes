@@ -201,15 +201,10 @@ DEBES DEVOLVER ESTRICTAMENTE UN OBJETO JSON VÁLIDO con la siguiente estructura:
   ]
 }`;
 
-  // Cuando hay documentText, instruir explícitamente al modelo a copiar verbatim
-  const hasText = !!(input.documentText || input.insumoTexto);
-  let userContent: any = hasText
-    ? `INSTRUCCIÓN CRÍTICA: Tienes a continuación el texto COMPLETO del documento para el proceso ${adquisicion.codigo}.\n` +
-      `Tu única tarea es COPIAR CADA SECCIÓN VERBATIM (carácter por carácter) al campo JSON correspondiente.\n` +
-      `NO reescribas. NO parafrasees. NO resumas. NO inventes nada.\n` +
-      `Si ves "El plazo es de 30 días", pon EXACTAMENTE "El plazo es de 30 días" en el campo tiempo_entrega_texto.\n\n` +
-      `DOCUMENTO A TRANSCRIBIR:\n`
-    : `Analiza y extrae la información del documento para el proceso ${adquisicion.codigo}:\n`;
+  // Instrucción para que la IA redacte y complete el TDR oficial de 14 puntos
+  let userContent: string = `Toma este requerimiento/borrador base para el proceso ${adquisicion.codigo} y REDACTA un documento formal de Especificaciones Técnicas (ET) o Términos de Referencia (TdR) con la estructura oficial de 14 puntos de ENDE DEORURO S.A.\n` +
+    `Detecta automáticamente el rubro (Opción A: Bienes/Herramientas u Opción B: Salud Ocupacional/Laboratorio), adapta la tabla del Punto 3 y redacta ampliamente Antecedentes, Justificación y los demás puntos normativos.\n\n` +
+    `INSUMO BASE PROVISTO:\n`;
 
   if (input.nombreArchivo) userContent += `Archivo: ${input.nombreArchivo}\n`;
   if (input.documentText) userContent += `\n${"=".repeat(60)}\n${input.documentText}\n${"=".repeat(60)}\n`;
