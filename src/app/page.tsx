@@ -8,7 +8,6 @@ import { AcquisitionsTable } from "@/components/dashboard/AcquisitionsTable";
 import { NewAcquisitionModal } from "@/components/dashboard/NewAcquisitionModal";
 import { DataStore } from "@/lib/store/dataStore";
 import { Adquisicion } from "@/types";
-import { GeneradorEspecificacionesPanel } from "@/components/dashboard/GeneradorEspecificacionesPanel";
 
 export default function DashboardPage() {
   const [adquisiciones, setAdquisiciones] = useState<Adquisicion[]>([]);
@@ -135,9 +134,6 @@ export default function DashboardPage() {
               </button>
             </div>
           </div>
-
-          {/* ⚡ GENERADOR AUTOMÁTICO DE ESPECIFICACIONES TÉCNICAS (DeepSeek IA + PDF) */}
-          <GeneradorEspecificacionesPanel />
 
           {/* Metric Summary Cards */}
           <MetricCards adquisiciones={adquisiciones} />
