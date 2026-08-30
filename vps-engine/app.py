@@ -698,6 +698,39 @@ async def procesar_memo_pago(req: ProcessRequest):
   ]
 }}"""
 
+class AssistantFolderRequest(BaseModel):
+    peticion_usuario: str
+    adquisicion: Optional[Dict[str, Any]] = None
+    carpetas_existentes: Optional[List[Dict[str, Any]]] = None
+
+@app.post("/api/asistente-carpeta")
+async def asistente_carpeta(req: AssistantFolderRequest):
+    """
+    Asistente experto de ENDE DEORURO que traduce peticiones no técnicas en la estructura óptima de carpeta.
+    """
+    adq = req.adquisicion or {}
+    pet = req.peticion_usuario or "Crear nueva carpeta para el proceso"
+    
+    prompt = f"""Eres el Asistente Experto en Contrataciones de ENDE DEORURO S.A.
+El usuario no es técnico y te pide lo siguiente con sus propias palabras:
+"{pet}"
+
+Para el proceso: "{adq.get('titulo_proceso', 'Adquisición Institucional')}".
+Analiza la solicitud y devuelve en JSON estricto:
+{{
+  "nombre_carpeta": "Título Formal e Institucional Corto (ej. Acta de Apertura de Sobres)",
+  "descripcion_clara": "Explicación breve de 1 línea de qué es este documento",
+  "que_hace": "Explicación en lenguaje sencillo y claro de lo que se tramita o redacta en esta fase",
+  "de_quien_depende": "Explicación clara de qué carpetas o documentos previos se necesita tener listos",
+  "pasos": [
+    "Paso 1: Explicación sencilla del primer paso",
+    "Paso 2: Explicación sencilla del segundo paso",
+    "Paso 3: Explicación sencilla del tercer paso"
+  ],
+  "tipo_generacion": "IA",
+  "borrador_contenido": "Texto inicial redactado formalmente para ENDE DEORURO S.A. listo para ser usado..."
+}}"""
+
     res = call_deepseek_ai(prompt)
     return {"success": True, "data": res}
 
