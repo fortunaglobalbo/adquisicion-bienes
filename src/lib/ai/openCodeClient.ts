@@ -11,32 +11,48 @@ const DEFAULT_OPENCODE_KEY = "sk-uiqURVX900evBUHKomZL4LjIe3L1NvILaNAcATY4oZ6rWvD
 const DEFAULT_OPENCODE_BASE_URL = "https://opencode.ai/zen/go/v1";
 const DEFAULT_OPENCODE_MODEL = "deepseek-v4-flash-vision-exp";
 
-export function extractJsonFromText(text: string): any {
-  if (!text) return null;
-  try {
-    return JSON.parse(text);
-  } catch {}
+export function extractJsonFromText(raw: string): any {
+  if (!raw) return null;
+  let str = raw.replace(/```json/gi, "").replace(/```/g, "").trim();
 
-  const cleaned = text.replace(/```json/gi, "").replace(/```/g, "").trim();
-  try {
-    return JSON.parse(cleaned);
-  } catch {}
-
-  const firstBrace = text.indexOf("{");
-  const lastBrace = text.lastIndexOf("}");
-  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-    const jsonSubstring = text.substring(firstBrace, lastBrace + 1);
-    try {
-      return JSON.parse(jsonSubstring);
-    } catch {
-      try {
-        const sanitised = jsonSubstring
-          .replace(/,\s*([\]}])/g, "$1")
-          .replace(/[\x00-\x1F\x7F-\x9F]/g, " ");
-        return JSON.parse(sanitised);
-      } catch {}
-    }
+  const start = str.indexOf("{");
+  const end = str.lastIndexOf("}");
+  if (start !== -1 && end !== -1 && end > start) {
+    str = str.substring(start, end + 1);
   }
+
+  // Intento 1: Parseo directo
+  try {
+    return JSON.parse(str);
+  } catch (e) {}
+
+  // Intento 2: Escapar saltos de línea reales dentro de cadenas JSON
+  try {
+    const fixed = str.replace(/("(?:[^"\\]|\\.)*")/g, (match) => {
+      return match
+        .replace(/\r?\n/g, "\\n")
+        .replace(/\t/g, "\\t");
+    });
+    return JSON.parse(fixed);
+  } catch (e) {}
+
+  // Intento 3: Eliminar comas colgantes y normalizar caracteres de control
+  try {
+    const fixed2 = str
+      .replace(/("(?:[^"\\]|\\.)*")/g, (match) => match.replace(/\r?\n/g, "\\n").replace(/\t/g, "\\t"))
+      .replace(/,\s*([\]}])/g, "$1");
+    return JSON.parse(fixed2);
+  } catch (e) {}
+
+  // Intento 4: Sanitización de caracteres no imprimibles
+  try {
+    const sanitised = str
+      .replace(/("(?:[^"\\]|\\.)*")/g, (match) => match.replace(/\r?\n/g, "\\n").replace(/\t/g, "\\t"))
+      .replace(/,\s*([\]}])/g, "$1")
+      .replace(/[\x00-\x09\x0B-\x1F\x7F-\x9F]/g, " ");
+    return JSON.parse(sanitised);
+  } catch (e) {}
+
   return null;
 }
 
