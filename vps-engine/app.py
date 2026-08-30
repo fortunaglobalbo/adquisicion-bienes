@@ -568,11 +568,35 @@ async def convertir_plantilla(
         with open(out_docx_path, "wb") as f:
             f.write(contents)
 
+    # Análisis inteligente del documento con DeepSeek IA para autocompletar propósito, dependencias y pasos
+    ai_analysis = {}
+    if extracted_text.strip():
+        prompt = f"""Analiza esta plantilla oficial subida para ENDE DEORURO S.A. ({filename}) y responde en JSON estricto:
+{{
+  "titulo_sugerido": "Título Formal Institucional Corto",
+  "descripcion": "Descripción clara de 1 línea para usuarios no técnicos",
+  "que_hace": "Explicación sencilla y clara de para qué sirve este documento y qué trámite realiza",
+  "de_quien_depende": "Explicación clara de qué carpetas, documentos o datos previos necesita",
+  "pasos": [
+    "Paso 1: Primer paso recomendado",
+    "Paso 2: Segundo paso recomendado",
+    "Paso 3: Tercer paso recomendado"
+  ]
+}}
+
+Texto extraído de la plantilla:
+{extracted_text[:4000]}"""
+        try:
+            ai_analysis = call_deepseek_ai(prompt)
+        except Exception as e:
+            print(f"Error analizando plantilla con IA: {e}")
+
     return {
         "success": True,
         "fk_carpeta": fk_carpeta,
         "nombre_archivo": out_docx_name,
         "download_docx": f"/download/{out_docx_name}",
+        "analisis_ia": ai_analysis,
         "texto_extraido_preview": extracted_text[:1000],
         "total_caracteres": len(extracted_text)
     }
