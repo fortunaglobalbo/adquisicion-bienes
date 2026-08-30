@@ -197,51 +197,48 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
       });
 
       const result = await res.json();
-      // Si el parser local (directParsed) detectó secciones, tiene PRIORIDAD ABSOLUTA
-      // sobre cualquier resultado de IA para garantizar copia fiel 100%
-      const hasDirectContent = directParsed && (
-        directParsed.items?.length > 0 ||
-        directParsed.antecedentes_texto ||
-        directParsed.justificacion_texto ||
-        Object.keys(directParsed.puntos_detectados || {}).length > 0
-      );
-      if (!res.ok && !hasDirectContent) throw new Error(result.error || "Error al procesar el documento");
+      const aiData = result.data || {};
+      const directItems = directParsed?.items || [];
+      const aiItems = aiData.items || [];
+      
+      // Usar los ítems generados por la IA o los detectados por directParsed
+      const finalItems = aiItems.length > 0 ? aiItems : (directItems.length > 0 ? directItems : docData.items);
 
-      // directParsed tiene PRIORIDAD ABSOLUTA cuando tiene contenido — NO se llama a cleanInstitutionalText
-      const parsedData = hasDirectContent ? directParsed : (result.data || directParsed);
+      const parsedData = {
+        ...aiData,
+        ...(directParsed && Object.keys(directParsed.puntos_detectados || {}).length > 0 ? directParsed : {}),
+        items: finalItems,
+      };
+
       if (parsedData) {
-        const detectedTabla = directParsed?.tipo_tabla_sugerido || parsedData.tipo_tabla_sugerido || tipoTablaTdr;
-        const detectedPuntos = directParsed?.puntos_14_texto || directParsed?.puntos_detectados || parsedData?.puntos_14_texto || parsedData?.puntos_detectados || {};
+        const detectedTabla = parsedData.tipo_tabla_sugerido || directParsed?.tipo_tabla_sugerido || tipoTablaTdr;
+        const detectedPuntos = parsedData.puntos_14_texto || parsedData.puntos_detectados || directParsed?.puntos_detectados || {};
 
         const updated: Adquisicion = {
           ...docData,
           tipo_tabla_tdr: detectedTabla,
-          titulo_proceso: directParsed?.titulo_proceso || parsedData.titulo_proceso || docData.titulo_proceso,
-          elaborado_por: directParsed?.elaborado_por || docData.elaborado_por,
-          revisado_por: directParsed?.revisado_por || docData.revisado_por,
-          aprobado_por: directParsed?.aprobado_por || docData.aprobado_por,
-          antecedentes_texto: directParsed?.antecedentes_texto || parsedData.antecedentes_texto || detectedPuntos[1] || docData.antecedentes_texto,
-          justificacion_texto: directParsed?.justificacion_texto || parsedData.justificacion_texto || detectedPuntos[2] || docData.justificacion_texto,
-          calidad_texto: directParsed?.calidad_texto || parsedData.calidad_texto || detectedPuntos[4] || docData.calidad_texto,
-          ambito_aplicacion: directParsed?.ambito_aplicacion || parsedData.ambito_aplicacion || detectedPuntos[5] || docData.ambito_aplicacion,
-          metodo_seleccion_texto: directParsed?.metodo_seleccion_texto || parsedData.metodo_seleccion_texto || detectedPuntos[6] || docData.metodo_seleccion_texto,
-          vigencia_propuesta_texto: directParsed?.vigencia_propuesta_texto || parsedData.vigencia_propuesta_texto || detectedPuntos[7] || docData.vigencia_propuesta_texto,
-          categoria_texto: directParsed?.categoria_texto || parsedData.categoria_texto || detectedPuntos[8] || docData.categoria_texto,
-          lugar_entrega: directParsed?.lugar_entrega || parsedData.lugar_entrega || detectedPuntos[9] || docData.lugar_entrega,
-          tiempo_entrega_texto: directParsed?.tiempo_entrega_texto || parsedData.tiempo_entrega_texto || detectedPuntos[10] || docData.tiempo_entrega_texto,
-          forma_adjudicacion: directParsed?.forma_adjudicacion || parsedData.forma_adjudicacion || detectedPuntos[11] || docData.forma_adjudicacion,
-          aceptacion_lote: directParsed?.aceptacion_lote || parsedData.aceptacion_lote || detectedPuntos[12] || docData.aceptacion_lote,
-          forma_pago_texto: directParsed?.forma_pago_texto || parsedData.forma_pago_texto || detectedPuntos[13] || docData.forma_pago_texto,
-          multas_texto: directParsed?.multas_texto || parsedData.multas_texto || detectedPuntos[14] || docData.multas_texto,
+          titulo_proceso: parsedData.titulo_proceso || directParsed?.titulo_proceso || docData.titulo_proceso,
+          elaborado_por: parsedData.elaborado_por || directParsed?.elaborado_por || docData.elaborado_por,
+          revisado_por: parsedData.revisado_por || directParsed?.revisado_por || docData.revisado_por,
+          aprobado_por: parsedData.aprobado_por || directParsed?.aprobado_por || docData.aprobado_por,
+          antecedentes_texto: parsedData.antecedentes_texto || directParsed?.antecedentes_texto || detectedPuntos[1] || docData.antecedentes_texto,
+          justificacion_texto: parsedData.justificacion_texto || directParsed?.justificacion_texto || detectedPuntos[2] || docData.justificacion_texto,
+          calidad_texto: parsedData.calidad_texto || directParsed?.calidad_texto || detectedPuntos[4] || docData.calidad_texto,
+          ambito_aplicacion: parsedData.ambito_aplicacion || directParsed?.ambito_aplicacion || detectedPuntos[5] || docData.ambito_aplicacion,
+          metodo_seleccion_texto: parsedData.metodo_seleccion_texto || directParsed?.metodo_seleccion_texto || detectedPuntos[6] || docData.metodo_seleccion_texto,
+          vigencia_propuesta_texto: parsedData.vigencia_propuesta_texto || directParsed?.vigencia_propuesta_texto || detectedPuntos[7] || docData.vigencia_propuesta_texto,
+          categoria_texto: parsedData.categoria_texto || directParsed?.categoria_texto || detectedPuntos[8] || docData.categoria_texto,
+          lugar_entrega: parsedData.lugar_entrega || directParsed?.lugar_entrega || detectedPuntos[9] || docData.lugar_entrega,
+          tiempo_entrega_texto: parsedData.tiempo_entrega_texto || directParsed?.tiempo_entrega_texto || detectedPuntos[10] || docData.tiempo_entrega_texto,
+          forma_adjudicacion: parsedData.forma_adjudicacion || directParsed?.forma_adjudicacion || detectedPuntos[11] || docData.forma_adjudicacion,
+          aceptacion_lote: parsedData.aceptacion_lote || directParsed?.aceptacion_lote || detectedPuntos[12] || docData.aceptacion_lote,
+          forma_pago_texto: parsedData.forma_pago_texto || directParsed?.forma_pago_texto || detectedPuntos[13] || docData.forma_pago_texto,
+          multas_texto: parsedData.multas_texto || directParsed?.multas_texto || detectedPuntos[14] || docData.multas_texto,
           puntos_14_texto: Object.keys(detectedPuntos).length > 0 ? detectedPuntos : docData.puntos_14_texto,
-          seccion3_introduccion_texto: directParsed?.seccion3_introduccion_texto || parsedData.seccion3_introduccion_texto || docData.seccion3_introduccion_texto,
-          columnas_tabla_tdr: directParsed?.columnas_tabla_tdr || parsedData.columnas_tabla_tdr || docData.columnas_tabla_tdr,
+          seccion3_introduccion_texto: parsedData.seccion3_introduccion_texto || directParsed?.seccion3_introduccion_texto || docData.seccion3_introduccion_texto,
+          columnas_tabla_tdr: parsedData.columnas_tabla_tdr || directParsed?.columnas_tabla_tdr || docData.columnas_tabla_tdr,
           categoria: (parsedData.categoria_detectada as any) || docData.categoria,
-          items: directParsed?.items && directParsed.items.length > 0
-            ? directParsed.items
-            : parsedData.items && parsedData.items.length > 0
-            ? parsedData.items
-            : docData.items,
+          items: finalItems.length > 0 ? finalItems : docData.items,
         };
 
         const totalPresupuesto = updated.items.reduce(
