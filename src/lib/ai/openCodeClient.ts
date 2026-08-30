@@ -247,56 +247,88 @@ DEBES DEVOLVER ESTRICTAMENTE UN OBJETO JSON VÁLIDO con la siguiente estructura:
           }
         }
 
+        // Enriquecer Antecedentes y Justificación con los estándares institucionales de ENDE DEORURO
+        const isSalud = (parsed.categoria_detectada as string) === "Salud Ocupacional" ||
+          (parsed.titulo_proceso || "").toLowerCase().includes("oftalmo") ||
+          (parsed.titulo_proceso || "").toLowerCase().includes("laboratorio") ||
+          (parsed.tipo_tabla_sugerido === "SALUD_OCUPACIONAL");
+
+        const defaultAntecedentes = isSalud ? GOLD_STANDARD_HEALTH_ANTECEDENTES : GOLD_STANDARD_TOOLS_ANTECEDENTES;
+        const defaultJustificacion = isSalud ? GOLD_STANDARD_HEALTH_JUSTIFICACION : GOLD_STANDARD_TOOLS_JUSTIFICACION;
+
+        const rawAntecedentes = cleanInstitutionalText(literalParsed?.antecedentes_texto || parsed.antecedentes_texto || parsed.puntos_14?.["1"] || adquisicion.antecedentes_texto || "");
+        const finalAntecedentes = rawAntecedentes.length > 50 ? rawAntecedentes : defaultAntecedentes;
+
+        const rawJustificacion = cleanInstitutionalText(literalParsed?.justificacion_texto || parsed.justificacion_texto || parsed.puntos_14?.["2"] || adquisicion.justificacion_texto || "");
+        const finalJustificacion = rawJustificacion.length > 50 ? rawJustificacion : defaultJustificacion;
+
+        const enrichedItems: ItemAdquisicion[] = (
+          literalParsed?.items && literalParsed.items.length > 0
+            ? literalParsed.items
+            : parsed.items
+        ).map((it: any, idx: number) => {
+          const num = it.item || idx + 1;
+          const desc = (it.descripcion || it.nombre || `ÍTEM #${num}`).toUpperCase();
+          const cant = Number(it.cantidad) || 1;
+          const unidad = (it.unidad || (isSalud ? "ESTUDIO" : (parsed.tipo_tabla_sugerido === "MATRIZ_SERVICIOS" ? "SRV" : "PZA"))).toUpperCase();
+          
+          let carac = it.caracteristicasTecnicas || it.especificacionMinima || it.caracteristicas || it.especificacion || "";
+          if (!carac || carac.length < 5) {
+            carac = isSalud
+              ? "Examen médico ocupacional con evaluación especializada, informe clínico individual y recomendaciones según protocolo de salud"
+              : `Fabricación en acero forjado de alta resistencia, tratamiento anticorrosión y homologación según norma técnica aplicable`;
+          }
+
+          const entregable = it.productoEntregable || it.propuestoOferente || (isSalud ? "Certificado médico de aptitud e informe clínico" : "Bienes nuevos con certificado de garantía oficial");
+
+          return {
+            id: `item-ia-${Date.now()}-${idx}`,
+            item: num,
+            descripcion: desc,
+            cantidad: cant,
+            unidad: unidad,
+            precioUnitarioEstimado: Number(it.precioUnitarioEstimado) || 0,
+            precioTotalEstimado: cant * (Number(it.precioUnitarioEstimado) || 0),
+            caracteristicasTecnicas: carac,
+            especificacionMinima: carac,
+            productoEntregable: entregable,
+            propuestoOferente: entregable,
+            valores_columnas: isSalud
+              ? [desc, carac, entregable]
+              : [String(num), desc, carac, String(cant)],
+            fichaTecnica: {
+              uso: isSalud ? "Medicina del Trabajo y Salud Ocupacional" : "Personal Operativo y Cuadrillas de Mantenimiento",
+              normaCertificacion: isSalud ? "Acreditación y Control de Calidad Sanitario" : "Norma ASTM A36 / ISO 9001 / IEEE / Aislación 1000V",
+              material: isSalud ? "Metodología Analítica Validada" : "Acero forjado con tratamiento térmico y aislamiento de seguridad",
+              color: "Estándar",
+              dimensiones: "Según requerimiento técnico",
+              categoriaItem: isSalud ? "Servicios de Salud Ocupacional" : "Herramientas y Equipos de Seguridad",
+              caracteristicasDetalle: [carac],
+            },
+          };
+        });
+
         return {
           titulo_proceso: literalParsed?.titulo_proceso || parsed.titulo_proceso || adquisicion.titulo_proceso,
-          antecedentes_texto: cleanInstitutionalText(literalParsed?.antecedentes_texto || parsed.antecedentes_texto || parsed.puntos_14?.["1"] || adquisicion.antecedentes_texto),
-          justificacion_texto: cleanInstitutionalText(literalParsed?.justificacion_texto || parsed.justificacion_texto || parsed.puntos_14?.["2"] || adquisicion.justificacion_texto),
-          calidad_texto: cleanInstitutionalText(literalParsed?.calidad_texto || parsed.calidad_texto || parsed.puntos_14?.["4"] || adquisicion.calidad_texto),
-          ambito_aplicacion: cleanInstitutionalText(literalParsed?.ambito_aplicacion || parsed.ambito_aplicacion || parsed.puntos_14?.["5"] || adquisicion.ambito_aplicacion),
-          metodo_seleccion_texto: cleanInstitutionalText(literalParsed?.metodo_seleccion_texto || parsed.metodo_seleccion_texto || parsed.puntos_14?.["6"] || adquisicion.metodo_seleccion_texto),
-          vigencia_propuesta_texto: cleanInstitutionalText(literalParsed?.vigencia_propuesta_texto || parsed.vigencia_propuesta_texto || parsed.puntos_14?.["7"] || adquisicion.vigencia_propuesta_texto),
-          categoria_texto: cleanInstitutionalText(literalParsed?.categoria_texto || parsed.categoria_texto || parsed.puntos_14?.["8"] || adquisicion.categoria_texto),
-          lugar_entrega: cleanInstitutionalText(literalParsed?.lugar_entrega || parsed.lugar_entrega || parsed.puntos_14?.["9"] || adquisicion.lugar_entrega),
-          tiempo_entrega_texto: cleanInstitutionalText(literalParsed?.tiempo_entrega_texto || parsed.tiempo_entrega_texto || parsed.puntos_14?.["10"] || adquisicion.tiempo_entrega_texto),
-          forma_adjudicacion: cleanInstitutionalText(literalParsed?.forma_adjudicacion || parsed.forma_adjudicacion || parsed.puntos_14?.["11"] || adquisicion.forma_adjudicacion),
-          aceptacion_lote: cleanInstitutionalText(literalParsed?.aceptacion_lote || parsed.aceptacion_lote || parsed.puntos_14?.["12"] || adquisicion.aceptacion_lote),
-          forma_pago_texto: cleanInstitutionalText(literalParsed?.forma_pago_texto || parsed.forma_pago_texto || parsed.puntos_14?.["13"] || adquisicion.forma_pago_texto),
-          multas_texto: cleanInstitutionalText(literalParsed?.multas_texto || parsed.multas_texto || parsed.puntos_14?.["14"] || adquisicion.multas_texto),
-          seccion3_introduccion_texto: cleanInstitutionalText(literalParsed?.seccion3_introduccion_texto || parsed.seccion3_introduccion_texto || adquisicion.seccion3_introduccion_texto),
-          tipo_tabla_sugerido: literalParsed?.tipo_tabla_sugerido || parsed.tipo_tabla_sugerido || adquisicion.tipo_tabla_tdr,
-          columnas_tabla_tdr: literalParsed?.columnas_tabla_tdr || parsed.columnas_tabla || adquisicion.columnas_tabla_tdr,
+          antecedentes_texto: finalAntecedentes,
+          justificacion_texto: finalJustificacion,
+          calidad_texto: cleanInstitutionalText(literalParsed?.calidad_texto || parsed.calidad_texto || parsed.puntos_14?.["4"] || (isSalud ? "Cumplimiento obligatorio de credenciales sanitarias y control de calidad médico." : "Los bienes deberán ser nuevos, de primer uso y fabricados bajo normas de calidad aplicables con garantía oficial.")),
+          ambito_aplicacion: cleanInstitutionalText(literalParsed?.ambito_aplicacion || parsed.ambito_aplicacion || parsed.puntos_14?.["5"] || "Personal institucional y áreas operativas de la Distribuidora de Electricidad ENDE DEORURO S.A."),
+          metodo_seleccion_texto: cleanInstitutionalText(literalParsed?.metodo_seleccion_texto || parsed.metodo_seleccion_texto || parsed.puntos_14?.["6"] || "Menor Precio (Art. 31 del Reglamento SBC)."),
+          vigencia_propuesta_texto: cleanInstitutionalText(literalParsed?.vigencia_propuesta_texto || parsed.vigencia_propuesta_texto || parsed.puntos_14?.["7"] || "Tendrá una validez mínima de 30 días calendario computables a partir de la presentación de la propuesta."),
+          categoria_texto: cleanInstitutionalText(literalParsed?.categoria_texto || parsed.categoria_texto || parsed.puntos_14?.["8"] || (isSalud ? "Salud Ocupacional y Medicina del Trabajo." : "Bienes, Herramientas y Suministros Oficiales.")),
+          lugar_entrega: cleanInstitutionalText(literalParsed?.lugar_entrega || parsed.lugar_entrega || parsed.puntos_14?.["9"] || "Almacenes / Instalaciones de ENDE DEORURO S.A., Oruro - Bolivia."),
+          tiempo_entrega_texto: cleanInstitutionalText(literalParsed?.tiempo_entrega_texto || parsed.tiempo_entrega_texto || parsed.puntos_14?.["10"] || `Máximo ${adquisicion.plazo_entrega_dias || 30} días calendario computables a partir del día siguiente hábil de la recepción de la Orden de Compra.`),
+          forma_adjudicacion: cleanInstitutionalText(literalParsed?.forma_adjudicacion || parsed.forma_adjudicacion || parsed.puntos_14?.["11"] || "Por Ítem requerido, formalizada por Orden de Compra (Art. 31 SBC)."),
+          aceptacion_lote: cleanInstitutionalText(literalParsed?.aceptacion_lote || parsed.aceptacion_lote || parsed.puntos_14?.["12"] || "El personal técnico de ENDE DEORURO realizará una evaluación técnica de conformidad el día de la entrega."),
+          forma_pago_texto: cleanInstitutionalText(literalParsed?.forma_pago_texto || parsed.forma_pago_texto || parsed.puntos_14?.["13"] || "El pago se realizará contra entrega satisfactoria del producto o servicio, conformidad emitida por ENDE DEORURO S.A. y presentación de Nota de Entrega, Solicitud de Pago y Factura oficial."),
+          multas_texto: cleanInstitutionalText(literalParsed?.multas_texto || parsed.multas_texto || parsed.puntos_14?.["14"] || `Ante el incumplimiento de los plazos establecidos, se aplicará la multa del ${adquisicion.multa_diaria_porcentaje || 0.25}% por cada día de retraso injustificado.`),
+          seccion3_introduccion_texto: cleanInstitutionalText(literalParsed?.seccion3_introduccion_texto || parsed.seccion3_introduccion_texto || "Detalle técnico y especificaciones de los requerimientos:"),
+          tipo_tabla_sugerido: isSalud ? "SALUD_OCUPACIONAL" : (literalParsed?.tipo_tabla_sugerido || parsed.tipo_tabla_sugerido || "BIENES_SIMPLE"),
+          columnas_tabla_tdr: isSalud ? ["EXAMEN / SERVICIO REQUERIDO", "ESPECIFICACIÓN MÍNIMA REQUERIDA", "PROPUESTO / INFORMAR"] : ["No.", "DESCRIPCIÓN DEL ÍTEM", "CARACTERÍSTICAS / ESPECIFICACIÓN TÉCNICA", "CANT."],
           puntos_detectados: mergedPuntos14,
           puntos_14_texto: mergedPuntos14,
-          items: literalParsed?.items && literalParsed.items.length > 0
-            ? literalParsed.items
-            : parsed.items.map((it: any, idx: number) => ({
-                id: `item-ia-${Date.now()}-${idx}`,
-                item: it.item || idx + 1,
-                descripcion: (it.descripcion || `ÍTEM #${idx + 1}`).toUpperCase(),
-                cantidad: Number(it.cantidad) || 1,
-                unidad: (it.unidad || (parsed.tipo_tabla_sugerido === "MATRIZ_SERVICIOS" ? "SRV" : "PZA")).toUpperCase(),
-                precioUnitarioEstimado: Number(it.precioUnitarioEstimado) || 0,
-                precioTotalEstimado: (Number(it.cantidad) || 1) * (Number(it.precioUnitarioEstimado) || 0),
-                caracteristicasTecnicas: it.caracteristicasTecnicas || it.especificacionMinima || "",
-                especificacionMinima: it.especificacionMinima || it.caracteristicasTecnicas || "",
-                productoEntregable: it.productoEntregable || it.propuestoOferente || "",
-                propuestoOferente: it.propuestoOferente || it.productoEntregable || "Cumple según especificaciones",
-                valores_columnas: it.valores_columnas || [
-                  String(it.item || idx + 1),
-                  it.descripcion || "",
-                  it.caracteristicasTecnicas || "",
-                  it.productoEntregable || ""
-                ],
-                fichaTecnica: {
-                  uso: it.fichaTecnica?.uso || (parsed.tipo_tabla_sugerido === "MATRIZ_SERVICIOS" ? "Servicios Especializados" : "Personal Institucional"),
-                  normaCertificacion: it.fichaTecnica?.normaCertificacion || "Norma Técnica Aplicable y Homologación",
-                  material: it.fichaTecnica?.material || "Según especificación técnica y entregables",
-                  color: it.fichaTecnica?.color || "Estándar",
-                  dimensiones: it.fichaTecnica?.dimensiones || "Estándar",
-                  categoriaItem: it.fichaTecnica?.categoriaItem || (parsed.tipo_tabla_sugerido === "MATRIZ_SERVICIOS" ? "Servicios Especializados" : "Suministros Oficiales"),
-                  caracteristicasDetalle: it.caracteristicasTecnicas ? [it.caracteristicasTecnicas] : ["Conforme a especificaciones"],
-                },
-              })),
+          items: enrichedItems,
         };
       }
     } catch (e) {
