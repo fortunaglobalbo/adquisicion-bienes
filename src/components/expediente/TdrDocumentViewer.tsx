@@ -93,16 +93,47 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
       : "BIENES_SIMPLE")
   );
 
-  // Sincronizar docData cuando cambian las props de adquisicion
+  // Sincronizar docData cuando cambia el expediente
   useEffect(() => {
-    setDocData({
-      ...adquisicion,
-      mes_anio_documento: adquisicion.mes_anio_documento || getMesAnioActual(),
+    setDocData((prev) => {
+      // Si el estado local ya tiene items y la prop entrante viene vacía por recarga asíncrona, conservar items locales
+      if (prev.items && prev.items.length > 0 && (!adquisicion.items || adquisicion.items.length === 0)) {
+        return {
+          ...adquisicion,
+          items: prev.items,
+          antecedentes_texto: prev.antecedentes_texto || adquisicion.antecedentes_texto,
+          justificacion_texto: prev.justificacion_texto || adquisicion.justificacion_texto,
+          puntos_14_texto: prev.puntos_14_texto || adquisicion.puntos_14_texto,
+          mes_anio_documento: prev.mes_anio_documento || adquisicion.mes_anio_documento || getMesAnioActual(),
+        };
+      }
+      return {
+        ...adquisicion,
+        mes_anio_documento: adquisicion.mes_anio_documento || getMesAnioActual(),
+      };
     });
     if (adquisicion.tipo_tabla_tdr) {
       setTipoTablaTdr(adquisicion.tipo_tabla_tdr);
     }
-  }, [adquisicion]);
+  }, [adquisicion.id, adquisicion.fecha_creacion, adquisicion.items?.length]);
+
+  // Obtener contenido en vivo de cualquier punto del documento
+  const getPuntoContent = (num: number): string => {
+    if (num === 1) return docData.antecedentes_texto || docData.puntos_14_texto?.[1] || "De acuerdo a la legislación vigente, normas y políticas internas se inicia el presente proceso de adquisición/contratación para el cumplimiento de los objetivos operativos e institucionales de la Distribuidora de Electricidad ENDE DEORURO S.A.";
+    if (num === 2) return docData.justificacion_texto || docData.puntos_14_texto?.[2] || "La presente contratación tiene el objetivo fundamental de garantizar la continuidad operativa, el cumplimiento normativo institucional y la mitigación de riesgos de accidentes laborales.";
+    if (num === 4) return docData.calidad_texto || docData.puntos_14_texto?.[4] || "Los bienes deberán ser nuevos, de primer uso y fabricados bajo normas de calidad aplicables con garantía técnica mínima.";
+    if (num === 5) return docData.ambito_aplicacion || docData.puntos_14_texto?.[5] || "Personal institucional y áreas operativas de la Distribuidora de Electricidad ENDE DEORURO S.A.";
+    if (num === 6) return docData.metodo_seleccion_texto || docData.puntos_14_texto?.[6] || "Menor Precio (Art. 31 del Reglamento SBC).";
+    if (num === 7) return docData.vigencia_propuesta_texto || docData.puntos_14_texto?.[7] || "Tendrá una validez mínima de 30 días calendario computables a partir de la presentación de la propuesta.";
+    if (num === 8) return docData.categoria_texto || docData.puntos_14_texto?.[8] || "Bienes, Herramientas y Suministros Oficiales.";
+    if (num === 9) return docData.lugar_entrega || docData.puntos_14_texto?.[9] || "Almacenes / Instalaciones de ENDE DEORURO S.A., Oruro - Bolivia.";
+    if (num === 10) return docData.tiempo_entrega_texto || docData.puntos_14_texto?.[10] || "Máximo 30 días calendario computables a partir del día siguiente hábil de la recepción de la Orden de Compra.";
+    if (num === 11) return docData.forma_adjudicacion || docData.puntos_14_texto?.[11] || "Por Ítem requerido, formalizada por Orden de Compra (Art. 31 SBC).";
+    if (num === 12) return docData.aceptacion_lote || docData.puntos_14_texto?.[12] || "El personal técnico de ENDE DEORURO realizará una evaluación técnica de conformidad el día de la entrega.";
+    if (num === 13) return docData.forma_pago_texto || docData.puntos_14_texto?.[13] || "El pago se realizará contra entrega satisfactoria del producto o servicio, conformidad emitida por ENDE DEORURO S.A. y factura oficial.";
+    if (num === 14) return docData.multas_texto || docData.puntos_14_texto?.[14] || "Ante el incumplimiento de los plazos establecidos, se aplicará la multa del 0.25% por cada día de retraso injustificado.";
+    return docData.puntos_14_texto?.[num] || "";
+  };
 
   // Update field helper
   const handleTextChange = (field: keyof Adquisicion, value: any) => {
@@ -722,7 +753,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
                   onBlur={(e) => handlePuntoChange(1, "contenido", e.currentTarget.textContent || "")}
                   className="text-justify leading-relaxed p-2 rounded hover:bg-blue-50/50 focus:outline-none text-gray-800 whitespace-pre-line space-y-2"
                 >
-                  {puntosOficiales[0].contenido}
+                  {getPuntoContent(1)}
                 </div>
               </div>
 
@@ -736,7 +767,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
                   onBlur={(e) => handlePuntoChange(2, "contenido", e.currentTarget.textContent || "")}
                   className="text-justify leading-relaxed p-2 rounded hover:bg-blue-50/50 focus:outline-none text-gray-800 whitespace-pre-line space-y-2"
                 >
-                  {puntosOficiales[1].contenido}
+                  {getPuntoContent(2)}
                 </div>
               </div>
             </div>
@@ -859,7 +890,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
                   onBlur={(e) => handlePuntoChange(4, "contenido", e.currentTarget.textContent || "")}
                   className="text-justify leading-relaxed p-2 rounded hover:bg-blue-50/50 focus:outline-none text-gray-800 text-xs md:text-sm whitespace-pre-line space-y-2"
                 >
-                  {puntosOficiales[3].contenido}
+                  {getPuntoContent(4)}
                 </div>
               </div>
             </div>
@@ -893,7 +924,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
                     onBlur={(e) => handlePuntoChange(p.num, "contenido", e.currentTarget.textContent || "")}
                     className="text-justify leading-relaxed p-2 rounded hover:bg-blue-50/50 focus:outline-none text-gray-800 whitespace-pre-line"
                   >
-                    {p.contenido}
+                    {getPuntoContent(p.num)}
                   </div>
                 </div>
               ))}
