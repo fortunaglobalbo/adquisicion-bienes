@@ -16,6 +16,7 @@ import { SolicitudInicioViewer } from "./SolicitudInicioViewer";
 import { FormS2Viewer } from "./FormS2Viewer";
 import { InformeConformidadViewer } from "./InformeConformidadViewer";
 import { MemoPagoViewer } from "./MemoPagoViewer";
+import { FolderAiGuideBanner } from "./FolderAiGuideBanner";
 import { DataStore } from "@/lib/store/dataStore";
 
 interface FolderViewAiProps {
@@ -352,6 +353,13 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
 
   return (
     <div className="flex flex-col h-full space-y-4 w-full">
+      {/* Guía Inteligente Paso a Paso para No-Técnicos */}
+      <FolderAiGuideBanner
+        carpeta={carpeta}
+        adquisicion={adquisicion}
+        todasCarpetas={todasCarpetas}
+      />
+
       {/* Barra de Gestión de Plantilla Oficial de la Carpeta */}
       <div className="bg-surface-container-low border border-outline-variant/60 rounded-lg p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div className="flex items-center gap-2.5">

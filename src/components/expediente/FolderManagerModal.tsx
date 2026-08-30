@@ -41,14 +41,54 @@ export const FolderManagerModal: React.FC<FolderManagerModalProps> = ({
 
   // Estado para crear nueva carpeta
   const [isAdding, setIsAdding] = useState(false);
+  const [creationMode, setCreationMode] = useState<"manual" | "ai">("ai");
   const [newNombre, setNewNombre] = useState("");
   const [newDesc, setNewDesc] = useState("");
+
+  // Estado para Asistente IA
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [isAnalyzingAi, setIsAnalyzingAi] = useState(false);
 
   // Estado para subir plantilla
   const [uploadingFolderId, setUploadingFolderId] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [targetUploadCarpeta, setTargetUploadCarpeta] = useState<Carpeta | null>(null);
+
+  const handleCreateWithAi = async () => {
+    if (!aiPrompt.trim()) return;
+    setIsAnalyzingAi(true);
+    try {
+      const res = await fetch("/api/ai/folder-assistant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          peticion_usuario: aiPrompt.trim(),
+          adquisicion,
+          carpetas_existentes: carpetas,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Error en el asistente");
+
+      const { nombre_carpeta, descripcion_clara } = json.data || {};
+      const folderName = nombre_carpeta || aiPrompt.trim();
+      const folderDesc = descripcion_clara || `Fase sugerida por la IA para: ${aiPrompt.trim()}`;
+
+      DataStore.addCarpeta(adquisicion.id, folderName, folderDesc);
+      const updated = DataStore.getCarpetasByAdquisicion(adquisicion.id);
+      onCarpetasUpdated(updated);
+
+      setSuccessMsg(`✨ ¡Carpeta "${folderName}" creada y configurada exitosamente por el Asistente IA!`);
+      setAiPrompt("");
+      setIsAdding(false);
+      setTimeout(() => setSuccessMsg(null), 6000);
+    } catch (e: any) {
+      alert("Error del asistente: " + e.message);
+    } finally {
+      setIsAnalyzingAi(false);
+    }
+  };
 
   const handleMoveUp = (folder: Carpeta) => {
     const updated = DataStore.moveCarpetaUp(adquisicion.id, folder.id);
@@ -179,49 +219,154 @@ export const FolderManagerModal: React.FC<FolderManagerModalProps> = ({
         {/* Formulario para Crear Nueva Carpeta */}
         {isAdding && (
           <div className="p-4 bg-surface-container-low border border-primary/30 rounded-xl space-y-3 animate-fadeIn">
-            <h5 className="text-xs font-bold text-primary flex items-center gap-2">
-              <FolderPlus className="w-4 h-4" />
-              Crear Nueva Carpeta para este Expediente
-            </h5>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[11px] font-bold text-on-surface mb-1">Nombre de la Carpeta *</label>
-                <input
-                  type="text"
-                  placeholder="Ej. Acta de Apertura de Sobres"
-                  value={newNombre}
-                  onChange={(e) => setNewNombre(e.target.value)}
-                  className="w-full text-xs p-2 bg-surface border border-outline-variant rounded-md focus:border-primary focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-on-surface mb-1">Descripción / Propósito</label>
-                <input
-                  type="text"
-                  placeholder="Ej. Documento de verificación de ofertas recibidas"
-                  value={newDesc}
-                  onChange={(e) => setNewDesc(e.target.value)}
-                  className="w-full text-xs p-2 bg-surface border border-outline-variant rounded-md focus:border-primary focus:outline-none"
-                />
+            <div className="flex items-center justify-between">
+              <h5 className="text-xs font-bold text-primary flex items-center gap-2">
+                <FolderPlus className="w-4 h-4" />
+                Crear Nueva Carpeta para este Expediente
+              </h5>
+
+              {/* Selector de Modo */}
+              <div className="flex bg-surface-container p-0.5 rounded-lg border border-outline-variant text-[11px]">
+                <button
+                  type="button"
+                  onClick={() => setCreationMode("ai")}
+                  className={`px-3 py-1 rounded-md font-bold transition-all flex items-center gap-1.5 ${
+                    creationMode === "ai"
+                      ? "bg-primary text-on-primary shadow-sm"
+                      : "text-on-surface-variant hover:text-on-surface"
+                  }`}
+                >
+                  <Sparkles className="w-3 h-3" />
+                  <span>🪄 Asistente Inteligente (Fácil)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCreationMode("manual")}
+                  className={`px-3 py-1 rounded-md font-bold transition-all flex items-center gap-1.5 ${
+                    creationMode === "manual"
+                      ? "bg-primary text-on-primary shadow-sm"
+                      : "text-on-surface-variant hover:text-on-surface"
+                  }`}
+                >
+                  <Edit2 className="w-3 h-3" />
+                  <span>Modo Manual</span>
+                </button>
               </div>
             </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setIsAdding(false)}
-                className="px-3 py-1.5 text-xs text-on-surface-variant hover:bg-surface-container rounded-md"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleAddFolder}
-                disabled={!newNombre.trim()}
-                className="px-4 py-1.5 text-xs bg-primary text-on-primary font-bold rounded-md disabled:opacity-50"
-              >
-                Guardar Carpeta
-              </button>
-            </div>
+
+            {/* MODO ASISTENTE INTELIGENTE */}
+            {creationMode === "ai" ? (
+              <div className="space-y-3 bg-surface p-3.5 rounded-lg border border-primary/20">
+                <div>
+                  <label className="block text-[11px] font-bold text-on-surface mb-1">
+                    ¿Qué documento o fase necesitas crear? (Escribe con tus propias palabras)
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Ej. Necesito una orden de compra para entregar al proveedor ganador, o un acta de apertura de ofertas..."
+                    value={aiPrompt}
+                    onChange={(e) => setAiPrompt(e.target.value)}
+                    className="w-full text-xs p-2.5 bg-surface-container border border-outline-variant rounded-md focus:border-primary focus:outline-none"
+                  />
+                </div>
+
+                {/* Sugerencias Rápidas */}
+                <div className="space-y-1">
+                  <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">
+                    Sugerencias frecuentes de ENDE DEORURO:
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      "Acta de Apertura de Sobres",
+                      "Orden de Compra / Servicio",
+                      "Carta de Notificación de Adjudicación",
+                      "Póliza de Garantía de Cumplimiento",
+                      "Acta de Recepción Provisional",
+                    ].map((sug, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setAiPrompt(sug)}
+                        className="px-2 py-1 bg-surface-container hover:bg-primary/10 hover:border-primary border border-outline-variant text-[10.5px] rounded-md text-on-surface-variant transition-colors"
+                      >
+                        + {sug}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-outline-variant/40">
+                  <button
+                    type="button"
+                    onClick={() => setIsAdding(false)}
+                    className="px-3 py-1.5 text-xs text-on-surface-variant hover:bg-surface-container rounded-md"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isAnalyzingAi || !aiPrompt.trim()}
+                    onClick={handleCreateWithAi}
+                    className="flex items-center gap-1.5 px-4 py-1.5 text-xs bg-primary text-on-primary font-bold rounded-md shadow-sm hover:opacity-90 transition-all disabled:opacity-50"
+                  >
+                    {isAnalyzingAi ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Analizando y Creando Carpeta...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>Crear con Asistente IA</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* MODO MANUAL */
+              <div className="space-y-3 bg-surface p-3.5 rounded-lg border border-outline-variant">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-on-surface mb-1">Nombre de la Carpeta *</label>
+                    <input
+                      type="text"
+                      placeholder="Ej. Acta de Apertura de Sobres"
+                      value={newNombre}
+                      onChange={(e) => setNewNombre(e.target.value)}
+                      className="w-full text-xs p-2 bg-surface-container border border-outline-variant rounded-md focus:border-primary focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-on-surface mb-1">Descripción / Propósito</label>
+                    <input
+                      type="text"
+                      placeholder="Ej. Documento de verificación de ofertas recibidas"
+                      value={newDesc}
+                      onChange={(e) => setNewDesc(e.target.value)}
+                      className="w-full text-xs p-2 bg-surface-container border border-outline-variant rounded-md focus:border-primary focus:outline-none"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 pt-2 border-t border-outline-variant/40">
+                  <button
+                    type="button"
+                    onClick={() => setIsAdding(false)}
+                    className="px-3 py-1.5 text-xs text-on-surface-variant hover:bg-surface-container rounded-md"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAddFolder}
+                    disabled={!newNombre.trim()}
+                    className="px-4 py-1.5 text-xs bg-primary text-on-primary font-bold rounded-md disabled:opacity-50"
+                  >
+                    Guardar Carpeta
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
