@@ -34,7 +34,9 @@ interface GeneradorResponse {
   error?: string;
 }
 
-const BASE_URL = "http://85.31.230.163:8080";
+// Ruta interna del proxy Next.js (server-side) — evita el bloqueo CORS del navegador
+const PROXY_URL = "/api/proxy/generar-especificaciones";
+const BACKEND_BASE = "http://85.31.230.163:8080";
 
 export const GeneradorEspecificacionesPanel: React.FC = () => {
   const [isExpanded, setIsExpanded] = useState(true);
@@ -115,7 +117,8 @@ export const GeneradorEspecificacionesPanel: React.FC = () => {
     };
 
     try {
-      const res = await fetch(`${BASE_URL}/api/generar-especificaciones`, {
+      // Llamada al proxy server-side de Next.js → evita CORS
+      const res = await fetch(PROXY_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -137,9 +140,10 @@ export const GeneradorEspecificacionesPanel: React.FC = () => {
 
   const handleDownload = async (path: string, filename: string) => {
     try {
-      const url = path.startsWith("http") ? path : `${BASE_URL}${path}`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("No se pudo descargar el archivo");
+      // Descarga a través del proxy server-side para evitar CORS
+      const proxyDownloadUrl = `${PROXY_URL}?path=${encodeURIComponent(path)}&filename=${encodeURIComponent(filename)}`;
+      const res = await fetch(proxyDownloadUrl);
+      if (!res.ok) throw new Error(`Error ${res.status} al descargar el archivo`);
       const blob = await res.blob();
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
