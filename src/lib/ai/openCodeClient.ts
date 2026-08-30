@@ -59,7 +59,7 @@ import {
 } from "./prompts/tdrGoldStandards";
 
 
-// Extractor para Carpeta 1 (TDR)
+// Extractor para Carpeta 1 (TDR) con modelo DeepSeek IA
 export async function extractTdrFromDocumentOrImageWithAI(
   adquisicion: Adquisicion,
   input: {
@@ -93,32 +93,24 @@ export async function extractTdrFromDocumentOrImageWithAI(
   puntos_detectados?: { [num: number]: string };
   secciones_14_puntos?: Array<{ numero: number; titulo: string; contenido: string }>;
 }> {
-  // Si el usuario provee texto o Markdown, ejecutamos primero la extracción literal exacta
-  let literalParsed: any = null;
-  if (input.documentText) {
-    const { parseMarkdownTdrLiteral } = require("./markdownTdrParser");
-    literalParsed = parseMarkdownTdrLiteral(input.documentText);
-  }
-
   const systemPrompt = `# Rol y Propósito:
-Eres el Asistente Técnico Oficial de Contrataciones y Adquisiciones de la DISTRIBUIDORA DE ELECTRICIDAD ENDE DEORURO S.A.
-Tu función es transformar cualquier requerimiento, nota técnica, borrador o documento en un documento formal de **Especificaciones Técnicas (ET) o Términos de Referencia (TdR)**, cumpliendo rigurosamente con la estructura oficial de 14 puntos de la empresa.
+Eres el Asistente Técnico Oficial de Contrataciones y Adquisiciones de DISTRIBUIDORA DE ELECTRICIDAD ENDE DEORURO S.A. Tu función es transformar cualquier requerimiento, nota técnica o borrador en un documento formal de **Especificaciones Técnicas (ET) o Términos de Referencia (TdR)**, cumpliendo rigurosamente con la estructura oficial de 14 puntos de la empresa.
 
 ---
 
 # 🧠 LÓGICA DE DETECCIÓN Y ADAPTACIÓN SEGÚN EL RUBRO (PUNTO 3)
-Al procesar la solicitud o documento, identifica la categoría para adaptar el **Punto 3 (ESPECIFICACIÓN TÉCNICA)**:
+Al procesar la solicitud, identifica la categoría para adaptar el **Punto 3 (ESPECIFICACIÓN TÉCNICA)**:
 
 ### OPCIÓN A: BIENES, HERRAMIENTAS Y EQUIPOS (Suministros)
 - **Estructura:** Ficha técnica y cuadro físico/mecánico.
-- **Tipo de tabla:** "BIENES_SIMPLE" o "BIENES_3_COLS"
+- **Tipo de tabla:** "BIENES_SIMPLE"
 - **Formato de Tabla:**
   | No. | DESCRIPCIÓN DEL ÍTEM | CARACTERÍSTICAS / ESPECIFICACIÓN TÉCNICA | CANT. |
   | --- | -------------------- | --------------------------------------- | ----- |
 
 ### OPCIÓN B: SALUD OCUPACIONAL, MEDICINA Y SERVICIOS DE LABORATORIO
 - **Estructura:** Matriz de evaluación médica y requisitos de laboratorio/consulta.
-- **Tipo de tabla:** "SALUD_OCUPACIONAL" o "MATRIZ_SERVICIOS"
+- **Tipo de tabla:** "SALUD_OCUPACIONAL"
 - **Formato de Tabla:**
   | EXAMEN / SERVICIO REQUERIDO | ESPECIFICACIÓN MÍNIMA REQUERIDA | PROPUESTO / INFORMAR |
   | --------------------------- | ------------------------------- | -------------------- |
@@ -128,89 +120,69 @@ Al procesar la solicitud o documento, identifica la categoría para adaptar el *
 # 📜 ESTRUCTURA OFICIAL DEL DOCUMENTO (14 PUNTOS)
 Todo documento generado debe seguir estrictamente este índice:
 
+### ENCABEZADO Y PORTADA INSTITUCIONAL
+- **Título:** ESPECIFICACIONES TÉCNICAS - ADQUISICIÓN DE [OBJETO EN MAYÚSCULAS]
+- **Cuadro de Firmas:** Elaborado por, Revisado por, Aprobado por.
+- **RESUMEN DE LA ADQUISICIÓN:** Objeto y alcance general.
+- **Lugar y Fecha:** [Mes] - [Año] / Oruro-Bolivia.
+- **Índice de Contenido:** Numeral del 1 al 14.
+
 ### LOS 14 PUNTOS OBLIGATORIOS:
-1. **ANTECEDENTES:** Contexto operativo, normativo o de salud ocupacional que motiva la contratación.
-2. **JUSTIFICACIÓN / NECESIDAD:** Importancia para la empresa, continuidad del servicio y mitigación de riesgos.
-3. **ESPECIFICACIÓN TÉCNICA:** Detalle técnico o matriz de exámenes (según Opción A u Opción B).
-4. **CALIDAD:** Estándares normativos aplicables, certificaciones y credenciales vigentes de proveedores o profesionales.
-5. **ÁMBITO DE APLICACIÓN:** Delimitación de a quiénes o dónde se aplicará (ej. número de trabajadores, sucursales, departamentos o áreas específicas).
-6. **MÉTODO DE SELECCIÓN:** Criterio de evaluación (ej. "Calificación menor costo / Menor Precio Art. 31 SBC").
-7. **VIGENCIA DE LA PROPUESTA:** Validez de la oferta (ej. "Tendrá una validez mínima de 30 días calendario").
-8. **CATEGORÍA:** Clasificación formal de la contratación (ej. Salud Ocupacional, Herramientas, etc.).
-9. **LUGAR DE ENTREGA:** Ubicación física de recepción (ej. Almacenes ENDE DEORURO S.A. o Unidad de Seguridad Industrial).
-10. **TIEMPO DE ENTREGA:** Plazo límite formal en días hábiles o calendario (ej. "Máximo 30 días calendario").
-11. **FORMA DE ADJUDICACIÓN:** Modalidad ("Por ítem requerido", formalizada por Orden de Compra).
-12. **PARA LA ACEPTACIÓN DEL LOTE / SERVICIO:** Procedimiento de inspección y evaluación preliminar por personal de ENDE.
-13. **FORMA DE PAGO:** Condiciones de desembolso contra entrega/prestación satisfactoria, conformidad y documentación de respaldo (Nota de Entrega, Solicitud de Pago, Factura).
-14. **APLICACIÓN DE MULTAS:** Cláusula penal institucional (multa del 0.25% por día de retraso).
+1. **ANTECEDENTES:** Contexto operativo, normativo o institucional de ENDE DEORURO S.A. (Mínimo 3 párrafos formales extensos).
+2. **JUSTIFICACIÓN / NECESIDAD:** Justificación exhaustiva (Mínimo 4 párrafos formales detallando necesidad técnica, problemas de campo, mitigación de riesgos de accidentes y declaración imperiosa basada estrictamente en los ítems solicitados).
+3. **ESPECIFICACIÓN TÉCNICA:** Tabla completa con todos los ítems individuales solicitados, reconociendo cantidades (incluso escritas en palabras: 'dos palas' -> Cantidad 2, 'una cinta' -> Cantidad 1), unidad ('PZA', 'ROLLO', etc.) y especificaciones técnicas detalladas con normas ASTM/IEC/ISO.
+4. **CALIDAD:** Estándares normativos aplicables (ASTM/IEC/ISO), garantía técnica mínima de 12 meses y certificados del fabricante.
+5. **ÁMBITO DE APLICACIÓN:** Cuadrillas técnicas, personal operativo y subestaciones de ENDE DEORURO S.A.
+6. **MÉTODO DE SELECCIÓN:** Menor Precio (Art. 31 del Reglamento SBC).
+7. **VIGENCIA DE LA PROPUESTA:** Validez mínima de 30 días calendario.
+8. **CATEGORÍA:** Bienes / Herramientas / Salud Ocupacional.
+9. **LUGAR DE ENTREGA:** Almacenes ENDE DEORURO S.A., Oruro.
+10. **TIEMPO DE ENTREGA:** Máximo 30 días calendario a partir de la Orden de Compra.
+11. **FORMA DE ADJUDICACIÓN:** Por ítem requerido (Art. 31 SBC).
+12. **PARA LA ACEPTACIÓN DEL LOTE / SERVICIO:** Inspección y evaluación técnica de conformidad en almacén.
+13. **FORMA DE PAGO:** 100% contra entrega a satisfacción, informe de conformidad y factura oficial.
+14. **APLICACIÓN DE MULTAS:** 0.25% por día de retraso injustificado.
 
----
-
-# 📌 REGLAS DE FIDELIDAD Y EXTRACCIÓN DE ÍTEMS (PUNTO 3):
+# 📌 REGLAS DE FIDELIDAD Y EXTRACCIÓN DE ÍTEMS:
 1. **Extracción Total de Ítems:** Extrae cada bien, herramienta, material o servicio solicitado. No omitas ninguno.
 2. **Reconocimiento de Cantidades:** Identifica correctamente las cantidades numéricas aun si están escritas en palabras en español (ej: "dos palas" -> Cantidad: 2, Descripción: "PALAS"; "una cinta..." -> Cantidad: 1, Descripción: "CINTA AISLANTE 1000V"; "20 alicates..." -> Cantidad: 20, Descripción: "ALICATES UNIVERSALES 8 PULGADAS").
 3. **Limpieza de Descripción:** NO incluyas palabras de cantidad ("DOS", "UNA", "TRES", etc.) dentro de la descripción del ítem; trasládalas al campo "cantidad".
 4. **Dimensiones y Especificaciones Técnicas:** Conserva las medidas, calibres y voltajes ("8 PULGADAS", "1000V", "6 PULGADAS") en la descripción y redacta características técnicas completas con normas ASTM/IEC/ISO para cada ítem.
 5. **Copia Fiel y Coherencia:** Redacta Antecedentes y Justificación basados de forma exhaustiva y exclusiva en los ítems solicitados, sin mezclar rubros diferentes.
 
-DEBES DEVOLVER ESTRICTAMENTE UN OBJETO JSON VÁLIDO con la siguiente estructura:
+DEBES RESPONDER EXCLUSIVAMENTE UN OBJETO JSON VÁLIDO CON ESTA ESTRUCTURA:
 {
-  "categoria_detectada": "Bienes" | "Servicios" | "Salud Ocupacional" | "Obras",
-  "titulo_proceso": "TÍTULO EXACTO DEL PROCESO COPIADO LITERALMENTE EN MAYÚSCULAS",
-  "tipo_tabla_sugerido": "MATRIZ_SERVICIOS" | "BIENES_3_COLS" | "BIENES_SIMPLE" | "SALUD_OCUPACIONAL" | "FICHAS_DINAMICAS" | "TABLA_DINAMICA",
-  "seccion3_introduccion_texto": "Texto introductorio previo a la tabla si existe",
-  "columnas_tabla": ["Encabezados de la tabla"],
-  "antecedentes_texto": "Texto completo de antecedentes",
-  "justificacion_texto": "Texto completo de justificación",
-  "calidad_texto": "Texto de calidad",
-  "ambito_aplicacion": "Texto de ámbito de aplicación",
-  "metodo_seleccion_texto": "Texto de método de selección",
-  "vigencia_propuesta_texto": "Texto de vigencia de propuesta",
-  "categoria_texto": "Texto de categoría",
-  "lugar_entrega": "Texto de lugar de entrega",
-  "tiempo_entrega_texto": "Texto de tiempo/plazo de entrega",
-  "forma_adjudicacion": "Texto de forma de adjudicación",
-  "aceptacion_lote": "Texto de aceptación del lote",
-  "forma_pago_texto": "Texto de forma de pago",
-  "multas_texto": "Texto de aplicación de multas",
-  "puntos_14": {
-    "1": "Texto antecedentes",
-    "2": "Texto justificación",
-    "4": "Texto calidad",
-    "5": "Texto ámbito de aplicación",
-    "6": "Texto método de selección",
-    "7": "Texto vigencia de propuesta",
-    "8": "Texto categoría",
-    "9": "Texto lugar de entrega",
-    "10": "Texto tiempo de entrega",
-    "11": "Texto forma de adjudicación",
-    "12": "Texto aceptación del lote",
-    "13": "Texto forma de pago",
-    "14": "Texto aplicación de multas"
-  },
+  "titulo_proceso": "ESPECIFICACIONES TÉCNICAS - ADQUISICIÓN DE ...",
+  "categoria_detectada": "Bienes" | "Servicios" | "Salud Ocupacional",
+  "tipo_tabla_sugerido": "BIENES_SIMPLE" | "SALUD_OCUPACIONAL" | "MATRIZ_SERVICIOS",
+  "antecedentes_texto": "Texto amplio de 3 párrafos de antecedentes",
+  "justificacion_texto": "Texto amplio de 4 párrafos de justificación basado en los ítems solicitados",
+  "calidad_texto": "Texto amplio de calidad",
+  "ambito_aplicacion": "Texto amplio de ámbito",
+  "metodo_seleccion_texto": "Menor Precio (Art. 31 del Reglamento SBC)",
+  "vigencia_propuesta_texto": "30 días calendario computables a partir de la fecha de presentación",
+  "categoria_texto": "Bienes y Herramientas",
+  "lugar_entrega": "Almacenes ENDE DEORURO S.A., Oruro",
+  "tiempo_entrega_texto": "Máximo 30 días calendario",
+  "forma_adjudicacion": "Por ítem requerido, formalizada por Orden de Compra (Art. 31 SBC)",
+  "aceptacion_lote": "Inspección técnica de conformidad al momento de la entrega",
+  "forma_pago_texto": "El pago se realizará contra entrega a satisfacción...",
+  "multas_texto": "Multa del 0.25% por cada día de retraso",
   "items": [
     {
       "item": 1,
-      "descripcion": "DESCRIPCIÓN DEL ÍTEM EN MAYÚSCULAS",
-      "cantidad": 1,
-      "unidad": "PZA" | "SRV" | "ESTUDIO" | "LOTE" | "GLB",
-      "precioUnitarioEstimado": 0,
-      "caracteristicasTecnicas": "Texto de características o especificación técnica requerida",
-      "especificacionMinima": "Especificación mínima requerida",
-      "productoEntregable": "Entregable o informe requerido",
-      "propuestoOferente": "Cumple según especificaciones técnicas"
+      "descripcion": "DESCRIPCIÓN DEL ÍTEM",
+      "cantidad": 20,
+      "unidad": "PZA",
+      "caracteristicasTecnicas": "Especificación técnica detallada con normas aplicables"
     }
   ]
 }`;
 
-  // Instrucción para que la IA redacte y complete el TDR oficial de 14 puntos
-  let userContent: string = `Toma este requerimiento/borrador base para el proceso ${adquisicion.codigo} y REDACTA un documento formal de Especificaciones Técnicas (ET) o Términos de Referencia (TdR) con la estructura oficial de 14 puntos de ENDE DEORURO S.A.\n` +
-    `Detecta automáticamente el rubro (Opción A: Bienes/Herramientas u Opción B: Salud Ocupacional/Laboratorio), adapta la tabla del Punto 3 y redacta ampliamente Antecedentes, Justificación y los demás puntos normativos.\n\n` +
-    `INSUMO BASE PROVISTO:\n`;
-
+  let userContent: string = `Requerimiento / Solicitud:\n`;
   if (input.nombreArchivo) userContent += `Archivo: ${input.nombreArchivo}\n`;
-  if (input.documentText) userContent += `\n${"=".repeat(60)}\n${input.documentText}\n${"=".repeat(60)}\n`;
-  if (input.insumoTexto) userContent += `\nInstrucción adicional: ${input.insumoTexto}\n`;
+  if (input.documentText) userContent += `${input.documentText}\n`;
+  if (input.insumoTexto) userContent += `Instrucción: ${input.insumoTexto}\n`;
 
   const messages: ChatMessage[] = [{ role: "system", content: systemPrompt }];
 
@@ -229,59 +201,25 @@ DEBES DEVOLVER ESTRICTAMENTE UN OBJETO JSON VÁLIDO con la siguiente estructura:
     });
   }
 
-  const aiRaw = await callOpenCodeGo(messages, 0.0);
+  const aiRaw = await callOpenCodeGo(messages, 0.1);
 
   if (aiRaw) {
     try {
       const cleanJson = aiRaw.replace(/```json/gi, "").replace(/```/g, "").trim();
       const parsed = JSON.parse(cleanJson);
       if (parsed.items && Array.isArray(parsed.items) && parsed.items.length > 0) {
-        const { cleanInstitutionalText } = require("./markdownTdrParser");
-        const rawPuntos14 = {
-          ...(literalParsed?.puntos_detectados || {}),
-          ...(parsed.puntos_14 || {}),
-        };
-
-        const mergedPuntos14: { [num: number]: string } = {};
-        for (const [k, v] of Object.entries(rawPuntos14)) {
-          if (v && typeof v === "string") {
-            mergedPuntos14[Number(k)] = cleanInstitutionalText(v);
-          }
-        }
-
-        // Enriquecer Antecedentes y Justificación con los estándares institucionales de ENDE DEORURO
         const isSalud = (parsed.categoria_detectada as string) === "Salud Ocupacional" ||
           (parsed.titulo_proceso || "").toLowerCase().includes("oftalmo") ||
           (parsed.titulo_proceso || "").toLowerCase().includes("laboratorio") ||
           (parsed.tipo_tabla_sugerido === "SALUD_OCUPACIONAL");
 
-        const defaultAntecedentes = isSalud ? GOLD_STANDARD_HEALTH_ANTECEDENTES : GOLD_STANDARD_TOOLS_ANTECEDENTES;
-        const defaultJustificacion = isSalud ? GOLD_STANDARD_HEALTH_JUSTIFICACION : GOLD_STANDARD_TOOLS_JUSTIFICACION;
-
-        const rawAntecedentes = cleanInstitutionalText(literalParsed?.antecedentes_texto || parsed.antecedentes_texto || parsed.puntos_14?.["1"] || adquisicion.antecedentes_texto || "");
-        const finalAntecedentes = rawAntecedentes.length > 50 ? rawAntecedentes : defaultAntecedentes;
-
-        const rawJustificacion = cleanInstitutionalText(literalParsed?.justificacion_texto || parsed.justificacion_texto || parsed.puntos_14?.["2"] || adquisicion.justificacion_texto || "");
-        const finalJustificacion = rawJustificacion.length > 50 ? rawJustificacion : defaultJustificacion;
-
-        const enrichedItems: ItemAdquisicion[] = (
-          literalParsed?.items && literalParsed.items.length > 0
-            ? literalParsed.items
-            : parsed.items
-        ).map((it: any, idx: number) => {
+        const enrichedItems: ItemAdquisicion[] = parsed.items.map((it: any, idx: number) => {
           const num = it.item || idx + 1;
           const desc = (it.descripcion || it.nombre || `ÍTEM #${num}`).toUpperCase();
           const cant = Number(it.cantidad) || 1;
-          const unidad = (it.unidad || (isSalud ? "ESTUDIO" : (parsed.tipo_tabla_sugerido === "MATRIZ_SERVICIOS" ? "SRV" : "PZA"))).toUpperCase();
-          
-          let carac = it.caracteristicasTecnicas || it.especificacionMinima || it.caracteristicas || it.especificacion || "";
-          if (!carac || carac.length < 5) {
-            carac = isSalud
-              ? "Examen médico ocupacional con evaluación especializada, informe clínico individual y recomendaciones según protocolo de salud"
-              : `Fabricación en acero forjado de alta resistencia, tratamiento anticorrosión y homologación según norma técnica aplicable`;
-          }
-
-          const entregable = it.productoEntregable || it.propuestoOferente || (isSalud ? "Certificado médico de aptitud e informe clínico" : "Bienes nuevos con certificado de garantía oficial");
+          const unidad = (it.unidad || (isSalud ? "ESTUDIO" : "PZA")).toUpperCase();
+          const carac = it.caracteristicasTecnicas || it.especificacionMinima || it.caracteristicas || "Conforme a especificaciones técnicas y normas aplicables.";
+          const entregable = it.productoEntregable || it.propuestoOferente || (isSalud ? "Certificado médico e informe clínico" : `Entrega física de ${cant} ${unidad}`);
 
           return {
             id: `item-ia-${Date.now()}-${idx}`,
@@ -299,92 +237,81 @@ DEBES DEVOLVER ESTRICTAMENTE UN OBJETO JSON VÁLIDO con la siguiente estructura:
               ? [desc, carac, entregable]
               : [String(num), desc, carac, String(cant)],
             fichaTecnica: {
-              uso: isSalud ? "Medicina del Trabajo y Salud Ocupacional" : "Personal Operativo y Cuadrillas de Mantenimiento",
-              normaCertificacion: isSalud ? "Acreditación y Control de Calidad Sanitario" : "Norma ASTM A36 / ISO 9001 / IEEE / Aislación 1000V",
-              material: isSalud ? "Metodología Analítica Validada" : "Acero forjado con tratamiento térmico y aislamiento de seguridad",
+              uso: isSalud ? "Medicina del Trabajo y Salud Ocupacional" : "Personal Operativo y Cuadrillas de Mantenimiento ENDE DEORURO",
+              normaCertificacion: isSalud ? "Acreditación Sanitaria" : "Normas ASTM / IEC / ISO",
+              material: isSalud ? "Metodología Analítica" : "Acero forjado con aislamiento dieléctrico",
               color: "Estándar",
-              dimensiones: "Según requerimiento técnico",
-              categoriaItem: isSalud ? "Servicios de Salud Ocupacional" : "Herramientas y Equipos de Seguridad",
+              dimensiones: "Según requerimiento",
+              categoriaItem: isSalud ? "Salud Ocupacional" : "Herramientas",
               caracteristicasDetalle: [carac],
             },
           };
         });
 
+        const puntos14: { [num: number]: string } = {
+          1: parsed.antecedentes_texto || "",
+          2: parsed.justificacion_texto || "",
+          4: parsed.calidad_texto || "",
+          5: parsed.ambito_aplicacion || "",
+          6: parsed.metodo_seleccion_texto || "",
+          7: parsed.vigencia_propuesta_texto || "",
+          8: parsed.categoria_texto || "",
+          9: parsed.lugar_entrega || "",
+          10: parsed.tiempo_entrega_texto || "",
+          11: parsed.forma_adjudicacion || "",
+          12: parsed.aceptacion_lote || "",
+          13: parsed.forma_pago_texto || "",
+          14: parsed.multas_texto || "",
+        };
+
         return {
-          titulo_proceso: literalParsed?.titulo_proceso || parsed.titulo_proceso || adquisicion.titulo_proceso,
-          antecedentes_texto: finalAntecedentes,
-          justificacion_texto: finalJustificacion,
-          calidad_texto: cleanInstitutionalText(literalParsed?.calidad_texto || parsed.calidad_texto || parsed.puntos_14?.["4"] || (isSalud ? "Cumplimiento obligatorio de credenciales sanitarias y control de calidad médico." : "Los bienes deberán ser nuevos, de primer uso y fabricados bajo normas de calidad aplicables con garantía oficial.")),
-          ambito_aplicacion: cleanInstitutionalText(literalParsed?.ambito_aplicacion || parsed.ambito_aplicacion || parsed.puntos_14?.["5"] || "Personal institucional y áreas operativas de la Distribuidora de Electricidad ENDE DEORURO S.A."),
-          metodo_seleccion_texto: cleanInstitutionalText(literalParsed?.metodo_seleccion_texto || parsed.metodo_seleccion_texto || parsed.puntos_14?.["6"] || "Menor Precio (Art. 31 del Reglamento SBC)."),
-          vigencia_propuesta_texto: cleanInstitutionalText(literalParsed?.vigencia_propuesta_texto || parsed.vigencia_propuesta_texto || parsed.puntos_14?.["7"] || "Tendrá una validez mínima de 30 días calendario computables a partir de la presentación de la propuesta."),
-          categoria_texto: cleanInstitutionalText(literalParsed?.categoria_texto || parsed.categoria_texto || parsed.puntos_14?.["8"] || (isSalud ? "Salud Ocupacional y Medicina del Trabajo." : "Bienes, Herramientas y Suministros Oficiales.")),
-          lugar_entrega: cleanInstitutionalText(literalParsed?.lugar_entrega || parsed.lugar_entrega || parsed.puntos_14?.["9"] || "Almacenes / Instalaciones de ENDE DEORURO S.A., Oruro - Bolivia."),
-          tiempo_entrega_texto: cleanInstitutionalText(literalParsed?.tiempo_entrega_texto || parsed.tiempo_entrega_texto || parsed.puntos_14?.["10"] || `Máximo ${adquisicion.plazo_entrega_dias || 30} días calendario computables a partir del día siguiente hábil de la recepción de la Orden de Compra.`),
-          forma_adjudicacion: cleanInstitutionalText(literalParsed?.forma_adjudicacion || parsed.forma_adjudicacion || parsed.puntos_14?.["11"] || "Por Ítem requerido, formalizada por Orden de Compra (Art. 31 SBC)."),
-          aceptacion_lote: cleanInstitutionalText(literalParsed?.aceptacion_lote || parsed.aceptacion_lote || parsed.puntos_14?.["12"] || "El personal técnico de ENDE DEORURO realizará una evaluación técnica de conformidad el día de la entrega."),
-          forma_pago_texto: cleanInstitutionalText(literalParsed?.forma_pago_texto || parsed.forma_pago_texto || parsed.puntos_14?.["13"] || "El pago se realizará contra entrega satisfactoria del producto o servicio, conformidad emitida por ENDE DEORURO S.A. y presentación de Nota de Entrega, Solicitud de Pago y Factura oficial."),
-          multas_texto: cleanInstitutionalText(literalParsed?.multas_texto || parsed.multas_texto || parsed.puntos_14?.["14"] || `Ante el incumplimiento de los plazos establecidos, se aplicará la multa del ${adquisicion.multa_diaria_porcentaje || 0.25}% por cada día de retraso injustificado.`),
-          seccion3_introduccion_texto: cleanInstitutionalText(literalParsed?.seccion3_introduccion_texto || parsed.seccion3_introduccion_texto || "Detalle técnico y especificaciones de los requerimientos:"),
-          tipo_tabla_sugerido: isSalud ? "SALUD_OCUPACIONAL" : (literalParsed?.tipo_tabla_sugerido || parsed.tipo_tabla_sugerido || "BIENES_SIMPLE"),
-          columnas_tabla_tdr: isSalud ? ["EXAMEN / SERVICIO REQUERIDO", "ESPECIFICACIÓN MÍNIMA REQUERIDA", "PROPUESTO / INFORMAR"] : ["No.", "DESCRIPCIÓN DEL ÍTEM", "CARACTERÍSTICAS / ESPECIFICACIÓN TÉCNICA", "CANT."],
-          puntos_detectados: mergedPuntos14,
-          puntos_14_texto: mergedPuntos14,
+          titulo_proceso: parsed.titulo_proceso || adquisicion.titulo_proceso,
+          antecedentes_texto: parsed.antecedentes_texto || "",
+          justificacion_texto: parsed.justificacion_texto || "",
+          calidad_texto: parsed.calidad_texto || "",
+          ambito_aplicacion: parsed.ambito_aplicacion || "",
+          metodo_seleccion_texto: parsed.metodo_seleccion_texto || "",
+          vigencia_propuesta_texto: parsed.vigencia_propuesta_texto || "",
+          categoria_texto: parsed.categoria_texto || (isSalud ? "Salud Ocupacional" : "Bienes y Herramientas"),
+          lugar_entrega: parsed.lugar_entrega || "Almacenes ENDE DEORURO S.A., Oruro",
+          tiempo_entrega_texto: parsed.tiempo_entrega_texto || "Máximo 30 días calendario",
+          forma_adjudicacion: parsed.forma_adjudicacion || "Por ítem requerido (Art. 31 SBC)",
+          aceptacion_lote: parsed.aceptacion_lote || "Inspección técnica de conformidad en almacén",
+          forma_pago_texto: parsed.forma_pago_texto || "Contra entrega a satisfacción y factura oficial",
+          multas_texto: parsed.multas_texto || "Multa del 0.25% por día de retraso",
+          seccion3_introduccion_texto: "Detalle de especificaciones técnicas requeridas:",
+          tipo_tabla_sugerido: isSalud ? "SALUD_OCUPACIONAL" : "BIENES_SIMPLE",
+          columnas_tabla_tdr: isSalud
+            ? ["EXAMEN / SERVICIO REQUERIDO", "ESPECIFICACIÓN MÍNIMA REQUERIDA", "PROPUESTO / INFORMAR"]
+            : ["No.", "DESCRIPCIÓN DEL ÍTEM", "CARACTERÍSTICAS / ESPECIFICACIÓN TÉCNICA", "CANT."],
+          puntos_detectados: puntos14,
+          puntos_14_texto: puntos14,
           items: enrichedItems,
         };
       }
     } catch (e) {
-      console.warn("Could not parse JSON from AI, using literal parser:", e);
+      console.warn("Could not parse JSON from AI:", e);
     }
   }
 
-  // Fallback 1: Si se parseó texto literal de Markdown, devolver la copia fiel
-  if (literalParsed && (literalParsed.items.length > 0 || literalParsed.antecedentes_texto)) {
-    return {
-      titulo_proceso: literalParsed.titulo_proceso || adquisicion.titulo_proceso,
-      antecedentes_texto: literalParsed.antecedentes_texto || adquisicion.antecedentes_texto,
-      justificacion_texto: literalParsed.justificacion_texto || adquisicion.justificacion_texto,
-      calidad_texto: literalParsed.calidad_texto || adquisicion.calidad_texto,
-      ambito_aplicacion: literalParsed.ambito_aplicacion || adquisicion.ambito_aplicacion,
-      metodo_seleccion_texto: literalParsed.metodo_seleccion_texto || adquisicion.metodo_seleccion_texto,
-      vigencia_propuesta_texto: literalParsed.vigencia_propuesta_texto || adquisicion.vigencia_propuesta_texto,
-      categoria_texto: literalParsed.categoria_texto || adquisicion.categoria_texto,
-      lugar_entrega: literalParsed.lugar_entrega || adquisicion.lugar_entrega,
-      tiempo_entrega_texto: literalParsed.tiempo_entrega_texto || adquisicion.tiempo_entrega_texto,
-      forma_adjudicacion: literalParsed.forma_adjudicacion || adquisicion.forma_adjudicacion,
-      aceptacion_lote: literalParsed.aceptacion_lote || adquisicion.aceptacion_lote,
-      forma_pago_texto: literalParsed.forma_pago_texto || adquisicion.forma_pago_texto,
-      multas_texto: literalParsed.multas_texto || adquisicion.multas_texto,
-      seccion3_introduccion_texto: literalParsed.seccion3_introduccion_texto || adquisicion.seccion3_introduccion_texto,
-      tipo_tabla_sugerido: literalParsed.tipo_tabla_sugerido || adquisicion.tipo_tabla_tdr,
-      columnas_tabla_tdr: literalParsed.columnas_tabla_tdr || adquisicion.columnas_tabla_tdr,
-      puntos_detectados: literalParsed.puntos_detectados || {},
-      puntos_14_texto: literalParsed.puntos_14_texto || literalParsed.puntos_detectados || {},
-      items: literalParsed.items.length > 0 ? literalParsed.items : adquisicion.items,
-    };
-  }
-
-  // Fallback 2: Devolver los datos del expediente sin inventar herramientas
+  // Fallback institucional en caso de fallo de red
   return {
     titulo_proceso: adquisicion.titulo_proceso,
-    antecedentes_texto: adquisicion.antecedentes_texto,
-    justificacion_texto: adquisicion.justificacion_texto,
-    calidad_texto: adquisicion.calidad_texto,
-    ambito_aplicacion: adquisicion.ambito_aplicacion,
-    metodo_seleccion_texto: adquisicion.metodo_seleccion_texto,
-    vigencia_propuesta_texto: adquisicion.vigencia_propuesta_texto,
-    categoria_texto: adquisicion.categoria_texto,
-    lugar_entrega: adquisicion.lugar_entrega,
-    tiempo_entrega_texto: adquisicion.tiempo_entrega_texto,
-    forma_adjudicacion: adquisicion.forma_adjudicacion,
-    aceptacion_lote: adquisicion.aceptacion_lote,
-    forma_pago_texto: adquisicion.forma_pago_texto,
-    multas_texto: adquisicion.multas_texto,
-    seccion3_introduccion_texto: adquisicion.seccion3_introduccion_texto,
-    tipo_tabla_sugerido: adquisicion.tipo_tabla_tdr || "BIENES_SIMPLE",
-    columnas_tabla_tdr: adquisicion.columnas_tabla_tdr,
-    puntos_14_texto: adquisicion.puntos_14_texto,
-    items: adquisicion.items,
+    antecedentes_texto: adquisicion.antecedentes_texto || "La DISTRIBUIDORA DE ELECTRICIDAD ENDE DEORURO S.A. requiere la adquisición de bienes y servicios para sus operaciones.",
+    justificacion_texto: adquisicion.justificacion_texto || "La adquisición es necesaria para garantizar la continuidad del suministro de energía eléctrica.",
+    calidad_texto: "Conforme a normas técnicas aplicables ASTM/IEC/ISO.",
+    ambito_aplicacion: "Personal técnico y operativo de ENDE DEORURO S.A.",
+    metodo_seleccion_texto: "Menor Precio (Art. 31 SBC).",
+    vigencia_propuesta_texto: "30 días calendario.",
+    categoria_texto: "Bienes y Herramientas",
+    lugar_entrega: "Almacenes ENDE DEORURO S.A., Oruro",
+    tiempo_entrega_texto: "Máximo 30 días calendario",
+    forma_adjudicacion: "Por ítem requerido (Art. 31 SBC)",
+    aceptacion_lote: "Inspección técnica de conformidad el día de la entrega",
+    forma_pago_texto: "Contra entrega a satisfacción y factura oficial",
+    multas_texto: "Multa del 0.25% por cada día de retraso",
+    tipo_tabla_sugerido: "BIENES_SIMPLE",
+    items: adquisicion.items || [],
   };
 }
 
