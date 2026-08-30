@@ -4,11 +4,12 @@ import { Adquisicion, ItemAdquisicion } from "@/types";
 const VPS_API_URL = "http://85.31.230.163:8080/api/generar-especificaciones";
 
 /**
- * Limpieza profunda de Markdown y caracteres de formato
+ * Limpieza profunda de Markdown, comillas y caracteres estructurales
  */
-function cleanMarkdownText(text: string): string {
+function cleanFormatting(text: string): string {
   if (!text) return "";
   return text
+    .replace(/[\"\'\“\”\«\»\`]/g, "")
     .replace(/<br\s*\/?>/gi, " ")
     .replace(/<\/?[^>]+(>|$)/g, "")
     .replace(/\*\*/g, "")
@@ -20,18 +21,17 @@ function cleanMarkdownText(text: string): string {
 }
 
 /**
- * Extrae ítems limpios del texto plano/Markdown con máxima precisión
+ * Parser determinista y ultra-preciso de cláusulas y tablas para extraer todos los ítems
  */
-function parseItemsFromRawInput(text: string, existingItems: ItemAdquisicion[]): Array<{
+function parseItemsDeterministic(text: string, existingItems: ItemAdquisicion[]): Array<{
   numero: number;
   descripcion: string;
   unidad: string;
   cantidad: number;
   caracteristicas: string;
 }> {
-  // Si el usuario provee un texto nuevo, ese texto tiene PRIORIDAD ABSOLUTA sobre items antiguos
-  if (text && text.trim().length > 5) {
-    const clean = cleanMarkdownText(text);
+  if (text && text.trim().length > 3) {
+    let clean = cleanFormatting(text);
     const itemsFound: Array<{
       numero: number;
       descripcion: string;
@@ -65,39 +65,52 @@ function parseItemsFromRawInput(text: string, existingItems: ItemAdquisicion[]):
 
     if (itemsFound.length > 0) return itemsFound;
 
-    // 2. Separar por comas, 'y', saltos de línea o dos puntos
-    const segments = clean.split(/(?:\r?\n|;|\s+y\s+|,\s*)/i);
-    for (const seg of segments) {
-      const trimmed = seg.trim().replace(/^adquisición\s+de\s+[^:]*:\s*/i, "").trim();
+    // 2. Extraer texto después del prefijo institucional si existe
+    clean = clean.replace(/^(?:adquisición|contratación|servicio|compra)\s+(?:de|para)\s+[^:]*:\s*/i, "").trim();
+
+    // 3. Dividir por conectores de lista: " y ", ",", ";", "\n"
+    const clauses = clean.split(/(?:\r?\n|;|\s+y\s+|,\s*)/i);
+
+    for (const clause of clauses) {
+      const trimmed = clause.trim();
       if (!trimmed || trimmed.length < 3) continue;
 
-      const matchNumList = trimmed.match(/^(\d+)[\.\-\)]\s+(.+)/);
-      const matchCantDesc = trimmed.match(/^(\d+)\s*(?:pzas?|unidades?|pares?|estudios?|juegos?|global|lote)?\s*(?:de\s+)?(.+)/i);
+      // Buscar cantidad estrictamente al inicio de la cláusula
+      const match = trimmed.match(/^(\d+)\s*(?:pzas?|unidades?|pares?|estudios?|juegos?|global|lote)?\s*(?:de\s+)?(.+)$/i);
 
-      if (matchNumList) {
-        itemsFound.push({
-          numero: itemsFound.length + 1,
-          descripcion: matchNumList[2].trim().toUpperCase(),
-          unidad: "PZA",
-          cantidad: 1,
-          caracteristicas: "Conforme a especificaciones técnicas y estándares de calidad de ENDE DEORURO S.A.",
-        });
-      } else if (matchCantDesc) {
-        const cant = parseInt(matchCantDesc[1]) || 1;
-        const desc = matchCantDesc[2].trim().replace(/\.$/, "").toUpperCase();
-        itemsFound.push({
-          numero: itemsFound.length + 1,
-          descripcion: desc,
-          unidad: "PZA",
-          cantidad: cant,
-          caracteristicas: `Fabricación homologada con estándares de seguridad industrial, aislamiento de seguridad y especificación técnica requerida por ENDE DEORURO S.A.`,
-        });
+      let cant = 1;
+      let desc = trimmed;
+      let unidad = "PZA";
+
+      if (match) {
+        cant = parseInt(match[1]) || 1;
+        desc = match[2].trim();
       }
+
+      desc = desc.replace(/[\:\-\.\,\;]+$/, "").trim();
+      if (desc.length < 2) continue;
+
+      let carac = "Fabricación homologada con estándares de seguridad industrial y especificación técnica requerida por ENDE DEORURO S.A.";
+      if (desc.toLowerCase().includes("alicate")) {
+        carac = "Fabricación en acero forjado de alta resistencia, aislamiento dieléctrico 1000V conforme a norma ASTM/IEC 60900, mango ergonómico antideslizante.";
+      } else if (desc.toLowerCase().includes("destornillador")) {
+        carac = "Varilla de acero aleado templado de alta tenacidad, punta plana magnetizada endurecida y mango ergonómico aislado 1000V para trabajos en redes eléctricas.";
+      } else if (desc.toLowerCase().includes("guante") || desc.toLowerCase().includes("bota") || desc.toLowerCase().includes("casco")) {
+        carac = "Equipo de protección personal certificado conforme a norma ANSI / ASTM de seguridad industrial.";
+      }
+
+      itemsFound.push({
+        numero: itemsFound.length + 1,
+        descripcion: desc.toUpperCase(),
+        unidad,
+        cantidad: cant,
+        caracteristicas: carac,
+      });
     }
 
     if (itemsFound.length > 0) return itemsFound;
 
-    // 3. Fallback de texto simple
+    // 4. Fallback de texto simple
     itemsFound.push({
       numero: 1,
       descripcion: clean.toUpperCase(),
@@ -108,14 +121,13 @@ function parseItemsFromRawInput(text: string, existingItems: ItemAdquisicion[]):
     return itemsFound;
   }
 
-  // Si no hay texto nuevo, usar existingItems
   if (existingItems && existingItems.length > 0) {
     return existingItems.map((it, idx) => ({
       numero: it.item || idx + 1,
-      descripcion: cleanMarkdownText(it.descripcion).toUpperCase(),
-      unidad: cleanMarkdownText(it.unidad) || "PZA",
+      descripcion: cleanFormatting(it.descripcion).toUpperCase(),
+      unidad: cleanFormatting(it.unidad) || "PZA",
       cantidad: Number(it.cantidad) || 1,
-      caracteristicas: cleanMarkdownText(it.caracteristicasTecnicas || it.especificacionMinima || "Según especificación técnica requerida por ENDE DEORURO S.A."),
+      caracteristicas: cleanFormatting(it.caracteristicasTecnicas || it.especificacionMinima || "Según especificación técnica requerida por ENDE DEORURO S.A."),
     }));
   }
 
@@ -144,19 +156,19 @@ export async function POST(req: NextRequest) {
     }
 
     const rawInputText = documentText || insumoTexto || "";
-    const itemsForVps = parseItemsFromRawInput(rawInputText, adquisicion.items || []);
+    const itemsForVps = parseItemsDeterministic(rawInputText, adquisicion.items || []);
 
     // Extraer título limpio a partir del requerimiento
-    let titulo = cleanMarkdownText(adquisicion.titulo_proceso || "");
+    let titulo = cleanFormatting(adquisicion.titulo_proceso || "");
     if (rawInputText && rawInputText.length > 5) {
       const matchTitulo = rawInputText.match(/^(?:adquisición\s+de|contratación\s+de|servicio\s+de)\s+([^:\n]+)/i);
       if (matchTitulo && matchTitulo[1]) {
-        titulo = `ADQUISICIÓN DE ${matchTitulo[1].trim().toUpperCase()}`;
+        titulo = `ADQUISICIÓN DE ${cleanFormatting(matchTitulo[1]).toUpperCase()}`;
       } else if (!titulo || titulo === "ADQUISICIÓN DE BIENES") {
-        titulo = `ADQUISICIÓN DE ${itemsForVps[0]?.descripcion || "BIENES Y HERRAMIENTAS"}`;
+        titulo = `ADQUISICIÓN DE ${itemsForVps[0]?.descripcion || "HERRAMIENTAS Y EQUIPOS"}`;
       }
     }
-    if (!titulo) titulo = "ADQUISICIÓN DE BIENES Y MATERIALES";
+    if (!titulo) titulo = "ADQUISICIÓN DE HERRAMIENTAS Y MATERIALES";
 
     const isSalud = (adquisicion.categoria as string) === "Salud Ocupacional" ||
       titulo.toLowerCase().includes("oftalmo") ||
@@ -173,10 +185,10 @@ export async function POST(req: NextRequest) {
       ? "1. NECESIDAD INSTITUCIONAL:\nLa ejecución de los exámenes médicos ocupacionales es un requisito legal y técnico indispensable para evaluar la aptitud física y médica del personal, detectando precozmente cualquier alteración de la salud vinculada a las actividades operativas.\n\n2. COBERTURA Y ALCANCE:\nEl servicio especializado permitirá contar con diagnósticos certeros, certificados médicos de aptitud laboral e informes individuales confidenciales que respaldan los programas de vigilancia epidemiológica de la empresa.\n\n3. MITIGACIÓN DE RIESGOS LABORALES:\nLa prevención de enfermedades laborales y accidentes mediante el control médico continuo garantiza un entorno laboral seguro y reduce el ausentismo laboral, optimizando el rendimiento institucional.\n\n4. DECLARACIÓN DE IMPERIOSA NECESIDAD:\nPor las razones expuestas y en resguardo del bienestar del capital humano de la empresa, resulta imperiosa y justificada la contratación del presente servicio especializado de salud ocupacional."
       : `1. IDENTIFICACIÓN DE LA NECESIDAD:\nLa permanente ejecución de maniobras en redes eléctricas de distribución y subestaciones exige que el personal cuente con herramientas certificadas de alta resistencia y propiedades dieléctricas (1000V) para prevenir descargas eléctricas y accidentes de trabajo.\n\n2. CONDICIONES OPERATIVAS Y DE SEGURIDAD:\nEl desgaste natural de las herramientas de uso continuo en cuadrillas de emergencia y mantenimiento requiere su oportuna reposición con ítems homologados que garanticen la integridad física del trabajador y la precisión en los trabajos de campo.\n\n3. MITIGACIÓN DE RIESGOS Y CONTINUIDAD:\nContar con herramientas en óptimas condiciones minimiza los tiempos de interrupción del suministro eléctrico durante fallas imprevistas, permitiendo una rápida restitución del servicio en cumplimiento de los índices de calidad exigidos por la Autoridad de Fiscalización de Electricidad y Tecnología Nuclear (AETN).\n\n4. DECLARACIÓN IMPERIOSA DE ADQUISICIÓN:\nPor consiguiente, la adquisición de ${itemsForVps.map(i => `${i.cantidad} ${i.descripcion.toLowerCase()}`).join(", ")} constituye una inversión operativa prioritaria e indispensable para el cumplimiento ininterrumpido de los planes de mantenimiento y seguridad laboral de ENDE DEORURO S.A.`;
 
-    const elaborado = cleanMarkdownText(adquisicion.elaborado_por || adquisicion.responsable_proceso || "Ing. Responsable Técnico ENDE DEORURO S.A.");
-    const plazoEntrega = cleanMarkdownText(adquisicion.tiempo_entrega_texto || `Máximo ${adquisicion.plazo_entrega_dias || 30} días calendario`);
-    const lugarEntrega = cleanMarkdownText(adquisicion.lugar_entrega || "Almacenes ENDE DEORURO S.A., Oruro");
-    const vigencia = cleanMarkdownText(adquisicion.vigencia_propuesta_texto || "30 días calendario");
+    const elaborado = cleanFormatting(adquisicion.elaborado_por || adquisicion.responsable_proceso || "Ing. Responsable Técnico ENDE DEORURO S.A.");
+    const plazoEntrega = cleanFormatting(adquisicion.tiempo_entrega_texto || `Máximo ${adquisicion.plazo_entrega_dias || 30} días calendario`);
+    const lugarEntrega = cleanFormatting(adquisicion.lugar_entrega || "Almacenes ENDE DEORURO S.A., Oruro");
+    const vigencia = cleanFormatting(adquisicion.vigencia_propuesta_texto || "30 días calendario");
 
     const vpsPayload = {
       titulo_adquisicion: titulo,
@@ -205,7 +217,7 @@ export async function POST(req: NextRequest) {
       console.warn("VPS call error, procediendo con datos enriquecidos:", e.message);
     }
 
-    // 2. Mapear los ítems recibidos al formato de la tabla del visor
+    // 2. Mapear todos los ítems extraídos al formato de la tabla del visor
     const mappedItems: ItemAdquisicion[] = itemsForVps.map((it, idx) => ({
       id: `item-vps-${Date.now()}-${idx}`,
       item: it.numero,
@@ -216,11 +228,11 @@ export async function POST(req: NextRequest) {
       precioTotalEstimado: 0,
       caracteristicasTecnicas: it.caracteristicas,
       especificacionMinima: it.caracteristicas,
-      productoEntregable: "Conforme a especificaciones técnicas y entrega oficial",
-      propuestoOferente: "Cumple con los requisitos solicitados",
+      productoEntregable: `Entrega física de ${it.cantidad} ${it.unidad} con certificado de garantía`,
+      propuestoOferente: "Cumple con los requisitos técnicos solicitados",
       valores_columnas: isSalud
         ? [it.descripcion, it.caracteristicas, "Cumple según metodología médica"]
-        : [String(it.numero), it.descripcion, it.caracteristicas, String(it.cantidad)],
+        : [String(it.numero), it.descripcion, it.caracteristicas, `Entrega de ${it.cantidad} ${it.unidad}`],
       fichaTecnica: {
         uso: isSalud ? "Medicina del Trabajo y Salud Ocupacional" : "Personal Operativo y Cuadrillas de Mantenimiento ENDE DEORURO S.A.",
         normaCertificacion: isSalud ? "Acreditación y Control de Calidad Sanitario" : "Norma ASTM / ISO 9001 / IEC 60900 (Aislación 1000V)",
@@ -252,10 +264,8 @@ export async function POST(req: NextRequest) {
         "El pago se realizará contra entrega satisfactoria del producto o servicio, conformidad emitida por ENDE DEORURO S.A. y entrega de la documentación de respaldo: Nota de Entrega, Solicitud de Pago y Factura oficial.",
       multas_texto: `Ante el incumplimiento de los plazos establecidos en la Orden de Compra, se aplicará la multa del ${adquisicion.multa_diaria_porcentaje || 0.25}% por cada día de retraso injustificado.`,
       seccion3_introduccion_texto: "Detalle técnico y especificaciones de las herramientas requeridas:",
-      tipo_tabla_sugerido: isSalud ? ("SALUD_OCUPACIONAL" as const) : ("BIENES_SIMPLE" as const),
-      columnas_tabla_tdr: isSalud
-        ? ["EXAMEN / SERVICIO REQUERIDO", "ESPECIFICACIÓN MÍNIMA REQUERIDA", "PROPUESTO / INFORMAR"]
-        : ["No.", "DESCRIPCIÓN DEL ÍTEM", "CARACTERÍSTICAS / ESPECIFICACIÓN TÉCNICA", "CANT."],
+      tipo_tabla_sugerido: "BIENES_SIMPLE" as const,
+      columnas_tabla_tdr: ["No.", "DESCRIPCIÓN DEL ÍTEM", "CARACTERÍSTICAS / ESPECIFICACIÓN TÉCNICA", "CANT."],
       items: mappedItems,
       vpsData: vpsData,
     };
