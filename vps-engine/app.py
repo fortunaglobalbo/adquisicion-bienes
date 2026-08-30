@@ -223,25 +223,38 @@ DEBES RESPONDER EXCLUSIVAMENTE UN OBJETO JSON VÁLIDO CON ESTA ESTRUCTURA:
 }"""
 
 def extract_json_from_deepseek(raw: str) -> Dict[str, Any]:
-    """Analizador tolerante multi-etapa con escape caracter a caracter de strings."""
-    clean = re.sub(r"^```json\s*", "", raw, flags=re.IGNORECASE)
-    clean = re.sub(r"```\s*$", "", clean).strip()
+    """Analizador tolerante multi-etapa con escape de strings y búsqueda directa."""
+    text = raw.strip()
+    if text.startswith("```json"):
+        text = text[7:]
+    elif text.startswith("```"):
+        text = text[3:]
+    if text.endswith("```"):
+        text = text[:-3]
+    text = text.strip()
     
-    match = re.search(r"(\{.*\})", clean, re.DOTALL)
-    if match:
-        clean = match.group(1)
-        
+    # Intento 1: Parseo directo estándar
     try:
-        return json.loads(clean)
+        return json.loads(text)
     except Exception:
         pass
-        
-    # Etapa 2: Escapar saltos de línea y tabulaciones dentro de strings caracter por caracter
-    def escape_control_chars_in_strings(text: str) -> str:
+
+    # Intento 2: Buscar el primer { y el último }
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        sub = text[start:end+1]
+        try:
+            return json.loads(sub)
+        except Exception:
+            pass
+
+    # Intento 3: Reparar caracteres de escape dentro de strings
+    def escape_control_chars_in_strings(s: str) -> str:
         out = []
         in_string = False
         escaped = False
-        for ch in text:
+        for ch in s:
             if ch == '"' and not escaped:
                 in_string = not in_string
                 out.append(ch)
@@ -261,13 +274,14 @@ def extract_json_from_deepseek(raw: str) -> Dict[str, Any]:
         return "".join(out)
 
     try:
-        repaired = escape_control_chars_in_strings(clean)
+        target = text[start:end+1] if (start != -1 and end != -1) else text
+        repaired = escape_control_chars_in_strings(target)
         repaired = re.sub(r",\s*(\}|\])", r"\1", repaired)
         return json.loads(repaired)
     except Exception as e:
-        print(f"JSON stage 2 repair error: {e}")
+        print(f"JSON stage 3 repair error: {e}")
 
-    # Etapa 3: Extracción por expresiones regulares
+    # Intento 4: Extracción por expresiones regulares
     result = {
         "titulo_proceso": "ESPECIFICACIONES TÉCNICAS - ADQUISICIÓN DE HERRAMIENTAS Y SUMINISTROS",
         "categoria_detectada": "Bienes",
@@ -277,15 +291,15 @@ def extract_json_from_deepseek(raw: str) -> Dict[str, Any]:
         "items": []
     }
     
-    m_ant = re.search(r'"antecedentes_texto"\s*:\s*"((?:[^"\\]|\\.)*)"', clean)
+    m_ant = re.search(r'"antecedentes_texto"\s*:\s*"((?:[^"\\]|\\.)*)"', text)
     if m_ant:
         result["antecedentes_texto"] = m_ant.group(1).replace("\\n", "\n").replace('\\"', '"')
         
-    m_just = re.search(r'"justificacion_texto"\s*:\s*"((?:[^"\\]|\\.)*)"', clean)
+    m_just = re.search(r'"justificacion_texto"\s*:\s*"((?:[^"\\]|\\.)*)"', text)
     if m_just:
         result["justificacion_texto"] = m_just.group(1).replace("\\n", "\n").replace('\\"', '"')
         
-    m_items = re.search(r'"items"\s*:\s*\[(.*?)\]\s*(?:,|\})', clean, re.DOTALL)
+    m_items = re.search(r'"items"\s*:\s*\[(.*?)\]\s*(?:,|\})', text, re.DOTALL)
     if m_items:
         items_str = m_items.group(1)
         raw_items = re.findall(r"\{[^{}]*\}", items_str)
