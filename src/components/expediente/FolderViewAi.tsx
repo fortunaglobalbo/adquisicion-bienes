@@ -50,12 +50,15 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
     return "MEMO_PAGO";
   };
 
-  // Helper para descargar docx generado
-  const handleDownloadDocx = async (doc?: Documento, liveAdquisicion?: Adquisicion) => {
+  // Helper para descargar docx generado garantizando 100% coherencia con los cambios en vivo en pantalla
+  const handleDownloadDocx = async (docOrAdq?: Documento | Adquisicion, liveAdquisicion?: Adquisicion) => {
     try {
+      const isAdq = !!(docOrAdq && ("titulo_proceso" in docOrAdq || "items" in docOrAdq || "codigo" in docOrAdq));
+      const currentAdq: Adquisicion = isAdq ? (docOrAdq as Adquisicion) : (liveAdquisicion || adquisicion);
+      const doc: Documento | undefined = isAdq ? undefined : (docOrAdq as Documento);
+
       setDownloadingDocId(doc?.id || "direct");
       const tipo = getDocType();
-      const currentAdq = liveAdquisicion || adquisicion;
 
       // Obtener datos de plantilla activa
       let templateData: any = undefined;
@@ -77,7 +80,7 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
         body: JSON.stringify({
           tipo,
           adquisicion: currentAdq,
-          justificacionTexto: insumoExtra || undefined,
+          justificacionTexto: insumoExtra || currentAdq.justificacion_texto || undefined,
           templateData,
         }),
       });
@@ -90,21 +93,22 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = doc?.nombre_original || `${tipo}_${adquisicion.codigo}_Oficial.docx`;
+      a.download = doc?.nombre_original || `${tipo}_${currentAdq.codigo}_Oficial.docx`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       a.remove();
     } catch (err: any) {
-      alert("Error al descargar documento: " + err.message);
+      alert("Error al descargar documento Word: " + err.message);
     } finally {
       setDownloadingDocId(null);
     }
   };
 
   // Helper para descargar directamente el PDF oficial como archivo sin mostrar vista previa
-  const handleDownloadPdf = async (liveAdquisicion?: Adquisicion) => {
-    const targetAdq = liveAdquisicion || adquisicion;
+  const handleDownloadPdf = async (docOrAdq?: Documento | Adquisicion, liveAdquisicion?: Adquisicion) => {
+    const isAdq = !!(docOrAdq && ("titulo_proceso" in docOrAdq || "items" in docOrAdq || "codigo" in docOrAdq));
+    const targetAdq: Adquisicion = isAdq ? (docOrAdq as Adquisicion) : (liveAdquisicion || adquisicion);
     const tipo = getDocType();
     try {
       setDownloadingDocId("pdf-direct");
