@@ -102,16 +102,63 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
     }
   };
 
-  // Helper para descargar o imprimir PDF oficial con 100% fidelidad (incluye logo oficial y 14 puntos)
+  // Helper para descargar directamente el PDF oficial como archivo sin mostrar vista previa
   const handleDownloadPdf = async (liveAdquisicion?: Adquisicion) => {
+    const targetAdq = liveAdquisicion || adquisicion;
+    const tipo = getDocType();
     try {
       setDownloadingDocId("pdf-direct");
-      // Abrir el diálogo nativo de impresión / guardar como PDF de alta resolución
+      
+      // 1. Intentar descargar directamente el PDF oficial generado en el VPS
+      const vpsRes = await fetch("/api/proxy/generar-especificaciones", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          titulo_adquisicion: targetAdq.titulo_proceso,
+          justificacion: targetAdq.justificacion_texto,
+          items: (targetAdq.items || []).map((it, idx) => ({
+            numero: it.item || idx + 1,
+            descripcion: it.descripcion,
+            unidad: it.unidad || "Pza",
+            cantidad: it.cantidad || 1,
+            caracteristicas: it.caracteristicasTecnicas || it.especificacionMinima || "Conforme a especificaciones",
+          })),
+          elaborado: targetAdq.elaborado_por || targetAdq.responsable_proceso,
+          plazo_entrega: targetAdq.tiempo_entrega_texto || `${targetAdq.plazo_entrega_dias || 30} días`,
+          lugar_entrega: targetAdq.lugar_entrega,
+          vigencia_propuesta: targetAdq.vigencia_propuesta_texto || "30 días",
+        }),
+      });
+
+      if (vpsRes.ok) {
+        const vpsData = await vpsRes.json();
+        const pdfFileName = vpsData.pdf_file;
+        if (pdfFileName) {
+          const downloadRes = await fetch(`/api/proxy/generar-especificaciones?file=${encodeURIComponent(pdfFileName)}`);
+          if (downloadRes.ok) {
+            const blob = await downloadRes.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `${tipo}_${targetAdq.codigo}_Oficial.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            a.remove();
+            return;
+          }
+        }
+      }
+
+      // Fallback si el VPS no responde: imprimir directo
       if (typeof window !== "undefined") {
         window.print();
       }
     } catch (err: any) {
-      console.warn("Error al imprimir/descargar PDF:", err);
+      console.warn("Error al descargar PDF:", err);
+      if (typeof window !== "undefined") {
+        window.print();
+      }
     } finally {
       setDownloadingDocId(null);
     }
