@@ -15,6 +15,8 @@ import {
   Layers,
   CheckCircle2,
   RefreshCw,
+  HelpCircle,
+  Link2,
 } from "lucide-react";
 import { Carpeta, Adquisicion } from "@/types";
 import { DataStore } from "@/lib/store/dataStore";
@@ -54,6 +56,53 @@ export const FolderManagerModal: React.FC<FolderManagerModalProps> = ({
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [targetUploadCarpeta, setTargetUploadCarpeta] = useState<Carpeta | null>(null);
+
+  // Estado de guía expandida
+  const [expandedGuideId, setExpandedGuideId] = useState<string | null>(null);
+
+  // Guías predefinidas para carpetas 1 a 8
+  const defaultGuides: Record<number, { queHace: string; deQuienDepende: string; pasos: string[] }> = {
+    1: {
+      queHace: "Especificaciones Técnicas oficiales de los bienes y herramientas a adquirir.",
+      deQuienDepende: "Insumo inicial o nota técnica de requerimiento cargada por el solicitante.",
+      pasos: ["1. Cargar requerimiento", "2. Generar con IA", "3. Descargar Word Oficial (.docx)"],
+    },
+    2: {
+      queHace: "Solicitud de Inicio de proceso formal (Formulario S1-N014) y partida presupuestaria.",
+      deQuienDepende: "Carpeta 1 (TDR / Especificaciones Técnicas).",
+      pasos: ["1. Subir Formulario S1-N014", "2. Verificar partida", "3. Guardar en expediente"],
+    },
+    3: {
+      queHace: "Cuadro de Justificación técnica de la necesidad y previsión de precio aprobada.",
+      deQuienDepende: "Carpeta 1 (TDR) y Carpeta 2 (S1-N014).",
+      pasos: ["1. Subir informe de justificación", "2. Comprobar monto referencial en Bs."],
+    },
+    4: {
+      queHace: "Registro y extracción OCR de proformas/cotizaciones presentadas por proveedores con NIT.",
+      deQuienDepende: "Carpeta 1 (TDR con lista de ítems a cotizar).",
+      pasos: ["1. Subir cotizaciones", "2. OCR extrae precios y NIT", "3. Seleccionar menor costo"],
+    },
+    5: {
+      queHace: "Memorándum formal de Solicitud de Inicio dirigido a Contrataciones.",
+      deQuienDepende: "Carpeta 1 (TDR), Carpeta 2 (Partida) y Carpeta 3 (Justificación).",
+      pasos: ["1. Presionar Generar con IA", "2. Revisar borrador", "3. Descargar documento"],
+    },
+    6: {
+      queHace: "Solicitud de Cotización Oficial (Formulario S2-N014) para el proveedor adjudicado.",
+      deQuienDepende: "Carpeta 1 (Ítems) y Carpeta 4 (Proveedor con menor precio).",
+      pasos: ["1. Verificar proponente", "2. Generar pliego S-2", "3. Enviar a proveedor"],
+    },
+    7: {
+      queHace: "Informe Técnico de Conformidad y Recepción Definitiva (Formulario A6-N014).",
+      deQuienDepende: "Carpeta 1 (TDR), Carpeta 4 (Cotizaciones) y Carpeta 6 (S-2).",
+      pasos: ["1. Generar con IA", "2. Certificar 100% de cumplimiento", "3. Descargar acta"],
+    },
+    8: {
+      queHace: "Memorándum de Solicitud de Pago y Desembolso contable con documentos de respaldo.",
+      deQuienDepende: "Carpeta 7 (Informe de Conformidad) y Carpeta 6 (Formulario S-2).",
+      pasos: ["1. Generar con IA", "2. Verificar adjuntos", "3. Remitir a Finanzas"],
+    },
+  };
 
   const handleCreateWithAi = async () => {
     if (!aiPrompt.trim()) return;
@@ -151,35 +200,50 @@ export const FolderManagerModal: React.FC<FolderManagerModalProps> = ({
       formData.append("fk_carpeta", String(targetUploadCarpeta.numero));
       formData.append("nombre_plantilla", file.name);
 
-      const res = await fetch("http://85.31.230.163:8080/api/convertir-plantilla", {
+      // Usar proxy interno seguro de Next.js
+      const res = await fetch("/api/proxy/convertir-plantilla", {
         method: "POST",
         body: formData,
       });
 
-      if (!res.ok) throw new Error("Error al convertir la plantilla en el VPS");
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || "Error al convertir la plantilla en el VPS");
+      }
 
       const result = await res.json();
+      const ia = result.analisis_ia || {};
 
-      DataStore.updateCarpeta(targetUploadCarpeta.id, {
+      // Actualizar carpeta con plantilla y análisis IA del documento
+      const folderUpdates: Partial<Carpeta> = {
         plantilla_asociada_nombre: file.name,
         plantilla_asociada_url: result.download_docx,
-      });
+      };
 
-      // Actualizar también en Plantillas de DataStore
+      if (ia.descripcion) {
+        folderUpdates.descripcion = ia.descripcion;
+      }
+      if (ia.titulo_sugerido && targetUploadCarpeta.numero > 8) {
+        folderUpdates.nombre = ia.titulo_sugerido;
+      }
+
+      DataStore.updateCarpeta(targetUploadCarpeta.id, folderUpdates);
+
+      // Actualizar en Plantillas de DataStore
       const plantillas = DataStore.getPlantillas();
       const existing = plantillas.find((p) => p.fk_carpeta === targetUploadCarpeta.numero);
       if (existing) {
         await DataStore.updatePlantilla(existing.id, {
           nombre_archivo: result.nombre_archivo,
-          descripcion: `Plantilla personalizada convertida con pdf2docx (${file.name})`,
+          descripcion: ia.descripcion || `Plantilla personalizada convertida con pdf2docx (${file.name})`,
           tipo_doc: file.name.toLowerCase().endsWith(".pdf") ? "PDF_CONVERTIDO" : "DOCX",
         });
       }
 
       const updated = DataStore.getCarpetasByAdquisicion(adquisicion.id);
       onCarpetasUpdated(updated);
-      setSuccessMsg(`Plantilla "${file.name}" convertida a Word y asignada a la Carpeta ${targetUploadCarpeta.numero}`);
-      setTimeout(() => setSuccessMsg(null), 5000);
+      setSuccessMsg(`✨ Plantilla "${file.name}" analizada con IA y asignada a la Carpeta ${targetUploadCarpeta.numero}.`);
+      setTimeout(() => setSuccessMsg(null), 6000);
     } catch (err: any) {
       alert("Error al procesar plantilla: " + err.message);
     } finally {
@@ -201,7 +265,7 @@ export const FolderManagerModal: React.FC<FolderManagerModalProps> = ({
             <div>
               <h4 className="text-sm font-bold text-on-surface">Estructura Dinámica de Carpetas</h4>
               <p className="text-xs text-on-surface-variant">
-                Puedes añadir nuevas carpetas, cambiar su orden (subir/bajar) y asignarles plantillas oficiales en PDF o Word.
+                Administra tus carpetas, consulta el paso a paso, sube plantillas oficiales o crea nuevas con el Asistente IA.
               </p>
             </div>
           </div>
@@ -387,7 +451,7 @@ export const FolderManagerModal: React.FC<FolderManagerModalProps> = ({
         />
 
         {/* Lista Reordenable de Carpetas */}
-        <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+        <div className="space-y-3 max-h-[440px] overflow-y-auto pr-1">
           {carpetas
             .sort((a, b) => a.numero - b.numero)
             .map((folder, index) => {
@@ -395,144 +459,221 @@ export const FolderManagerModal: React.FC<FolderManagerModalProps> = ({
               const isFirst = index === 0;
               const isLast = index === carpetas.length - 1;
               const isUploading = uploadingFolderId === folder.id;
+              const isGuideOpen = expandedGuideId === folder.id;
 
               return (
                 <div
                   key={folder.id}
-                  className="p-3 bg-surface border border-outline-variant hover:border-primary/50 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all"
+                  className="p-3.5 bg-surface border border-outline-variant hover:border-primary/50 rounded-xl space-y-2.5 transition-all shadow-sm"
                 >
-                  {/* Número y Controles de Orden (Subir/Bajar) */}
-                  <div className="flex items-center gap-2 shrink-0">
-                    <div className="w-8 h-8 rounded-lg bg-surface-container-high border border-outline-variant flex items-center justify-center font-bold text-xs text-primary">
-                      {folder.numero}
+                  {/* Fila Principal de la Carpeta */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    {/* Número y Controles de Orden (Subir/Bajar) */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="w-8 h-8 rounded-lg bg-surface-container-high border border-outline-variant flex items-center justify-center font-bold text-xs text-primary font-mono">
+                        {folder.numero}
+                      </div>
+
+                      <div className="flex flex-col gap-0.5">
+                        <button
+                          type="button"
+                          disabled={isFirst}
+                          onClick={() => handleMoveUp(folder)}
+                          title="Subir posición"
+                          className="p-1 hover:bg-surface-container rounded text-on-surface-variant hover:text-primary disabled:opacity-20"
+                        >
+                          <ArrowUp className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isLast}
+                          onClick={() => handleMoveDown(folder)}
+                          title="Bajar posición"
+                          className="p-1 hover:bg-surface-container rounded text-on-surface-variant hover:text-primary disabled:opacity-20"
+                        >
+                          <ArrowDown className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
 
-                    <div className="flex flex-col gap-0.5">
-                      <button
-                        type="button"
-                        disabled={isFirst}
-                        onClick={() => handleMoveUp(folder)}
-                        title="Subir posición"
-                        className="p-1 hover:bg-surface-container rounded text-on-surface-variant hover:text-primary disabled:opacity-20"
-                      >
-                        <ArrowUp className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        disabled={isLast}
-                        onClick={() => handleMoveDown(folder)}
-                        title="Bajar posición"
-                        className="p-1 hover:bg-surface-container rounded text-on-surface-variant hover:text-primary disabled:opacity-20"
-                      >
-                        <ArrowDown className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Nombre y Descripción de la Carpeta */}
-                  <div className="flex-1 min-w-0">
-                    {isEditing ? (
-                      <div className="space-y-2">
-                        <input
-                          type="text"
-                          value={editNombre}
-                          onChange={(e) => setEditNombre(e.target.value)}
-                          className="w-full text-xs font-bold p-1.5 bg-surface-container border border-primary rounded"
-                        />
-                        <input
-                          type="text"
-                          value={editDesc}
-                          onChange={(e) => setEditDesc(e.target.value)}
-                          className="w-full text-[11px] p-1.5 bg-surface-container border border-outline-variant rounded"
-                        />
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleSaveEdit(folder.id)}
-                            className="px-2 py-1 bg-primary text-on-primary text-[11px] font-bold rounded flex items-center gap-1"
-                          >
-                            <Check className="w-3 h-3" /> Guardar
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setEditingId(null)}
-                            className="px-2 py-1 text-on-surface-variant text-[11px] hover:bg-surface-container rounded flex items-center gap-1"
-                          >
-                            <X className="w-3 h-3" /> Cancelar
-                          </button>
+                    {/* Nombre y Descripción */}
+                    <div className="flex-1 min-w-0">
+                      {isEditing ? (
+                        <div className="space-y-2">
+                          <input
+                            type="text"
+                            value={editNombre}
+                            onChange={(e) => setEditNombre(e.target.value)}
+                            className="w-full text-xs font-bold p-1.5 bg-surface-container border border-primary rounded"
+                          />
+                          <input
+                            type="text"
+                            value={editDesc}
+                            onChange={(e) => setEditDesc(e.target.value)}
+                            className="w-full text-[11px] p-1.5 bg-surface-container border border-outline-variant rounded"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleSaveEdit(folder.id)}
+                              className="px-2 py-1 bg-primary text-on-primary text-[11px] font-bold rounded flex items-center gap-1"
+                            >
+                              <Check className="w-3 h-3" /> Guardar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingId(null)}
+                              className="px-2 py-1 text-on-surface-variant text-[11px] hover:bg-surface-container rounded flex items-center gap-1"
+                            >
+                              <X className="w-3 h-3" /> Cancelar
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ) : (
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-xs text-on-surface">{folder.nombre}</span>
-                          <span className="px-2 py-0.5 text-[10px] font-mono bg-surface-container text-on-surface-variant rounded">
-                            {folder.documentos?.length || 0} docs
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-on-surface-variant truncate mt-0.5">
-                          {folder.descripcion || "Sin descripción"}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Plantilla Asignada y Botones de Acción */}
-                  <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-between sm:justify-end">
-                    {/* Botón Subir Plantilla */}
-                    <button
-                      type="button"
-                      disabled={isUploading}
-                      onClick={() => triggerUploadTemplate(folder)}
-                      className={`flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-semibold rounded-lg border transition-all ${
-                        folder.plantilla_asociada_nombre
-                          ? "bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100"
-                          : "bg-surface-container border-outline-variant hover:border-primary text-on-surface"
-                      }`}
-                      title="Asignar plantilla oficial en PDF o Word"
-                    >
-                      {isUploading ? (
-                        <>
-                          <RefreshCw className="w-3 h-3 animate-spin text-primary" />
-                          <span>Procesando...</span>
-                        </>
-                      ) : folder.plantilla_asociada_nombre ? (
-                        <>
-                          <FileText className="w-3 h-3 text-emerald-600" />
-                          <span className="max-w-[110px] truncate">{folder.plantilla_asociada_nombre}</span>
-                        </>
                       ) : (
-                        <>
-                          <Upload className="w-3 h-3 text-primary" />
-                          <span>Subir Plantilla</span>
-                        </>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-xs text-on-surface">{folder.nombre}</span>
+                            <span className="px-2 py-0.5 text-[10px] font-mono bg-surface-container text-on-surface-variant rounded">
+                              {folder.documentos?.length || 0} docs
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-on-surface-variant truncate mt-0.5">
+                            {folder.descripcion || "Sin descripción"}
+                          </p>
+                        </div>
                       )}
-                    </button>
+                    </div>
 
-                    {/* Editar */}
-                    {!isEditing && (
+                    {/* Acciones: Plantilla, Guía, Editar, Eliminar */}
+                    <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-between sm:justify-end">
+                      {/* Botón Subir Plantilla */}
                       <button
                         type="button"
-                        onClick={() => handleStartEdit(folder)}
-                        title="Editar nombre y descripción"
-                        className="p-1.5 hover:bg-surface-container text-on-surface-variant hover:text-primary rounded-lg"
+                        disabled={isUploading}
+                        onClick={() => triggerUploadTemplate(folder)}
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-semibold rounded-lg border transition-all ${
+                          folder.plantilla_asociada_nombre
+                            ? "bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100"
+                            : "bg-surface-container border-outline-variant hover:border-primary text-on-surface"
+                        }`}
+                        title="Subir plantilla en PDF o Word. La IA la analizará automáticamente."
                       >
-                        <Edit2 className="w-3.5 h-3.5" />
+                        {isUploading ? (
+                          <>
+                            <RefreshCw className="w-3 h-3 animate-spin text-primary" />
+                            <span>Analizando...</span>
+                          </>
+                        ) : folder.plantilla_asociada_nombre ? (
+                          <>
+                            <FileText className="w-3 h-3 text-emerald-600" />
+                            <span className="max-w-[100px] truncate">{folder.plantilla_asociada_nombre}</span>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-3 h-3 text-primary" />
+                            <span>Subir Plantilla</span>
+                          </>
+                        )}
                       </button>
-                    )}
 
-                    {/* Eliminar (si hay más de 1 carpeta) */}
-                    {carpetas.length > 1 && (
+                      {/* Botón Ver Guía */}
                       <button
                         type="button"
-                        onClick={() => handleDelete(folder)}
-                        title="Eliminar carpeta"
-                        className="p-1.5 hover:bg-red-50 text-on-surface-variant hover:text-red-600 rounded-lg"
+                        onClick={() => setExpandedGuideId(isGuideOpen ? null : folder.id)}
+                        className={`flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold rounded-lg border transition-all ${
+                          isGuideOpen
+                            ? "bg-primary text-on-primary border-primary shadow-sm"
+                            : "bg-surface-container border-outline-variant hover:border-primary text-on-surface-variant hover:text-on-surface"
+                        }`}
+                        title="Ver propósito, dependencias y pasos de esta carpeta"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>💡 Guía</span>
                       </button>
-                    )}
+
+                      {/* Editar */}
+                      {!isEditing && (
+                        <button
+                          type="button"
+                          onClick={() => handleStartEdit(folder)}
+                          title="Editar nombre y descripción"
+                          className="p-1.5 hover:bg-surface-container text-on-surface-variant hover:text-primary rounded-lg"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+
+                      {/* Eliminar (si hay más de 1 carpeta) */}
+                      {carpetas.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(folder)}
+                          title="Eliminar carpeta"
+                          className="p-1.5 hover:bg-red-50 text-on-surface-variant hover:text-red-600 rounded-lg"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
+
+                  {/* Panel de Guía Paso a Paso y Dependencias (Expandible) */}
+                  {isGuideOpen && (
+                    <div className="pt-2 border-t border-outline-variant/60 space-y-2 animate-fadeIn text-xs">
+                      {(() => {
+                        const guide = defaultGuides[folder.numero] || {
+                          queHace: folder.descripcion || "Documento oficial del expediente.",
+                          deQuienDepende: folder.plantilla_asociada_nombre
+                            ? `Plantilla oficial asignada: ${folder.plantilla_asociada_nombre}`
+                            : "Expediente general del proceso y especificaciones técnicas.",
+                          pasos: [
+                            "1. Subir la plantilla oficial (.docx / .pdf)",
+                            "2. Generar el borrador con la IA",
+                            "3. Descargar el documento oficial listo para firmar",
+                          ],
+                        };
+
+                        return (
+                          <>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              <div className="p-2.5 bg-surface-container-low rounded-lg border border-outline-variant/40">
+                                <span className="font-bold text-primary flex items-center gap-1 text-[11px] mb-1">
+                                  <HelpCircle className="w-3.5 h-3.5" /> ¿Para qué sirve esta carpeta?
+                                </span>
+                                <p className="text-[11.5px] text-on-surface leading-relaxed">
+                                  {guide.queHace}
+                                </p>
+                              </div>
+
+                              <div className="p-2.5 bg-surface-container-low rounded-lg border border-outline-variant/40">
+                                <span className="font-bold text-secondary flex items-center gap-1 text-[11px] mb-1">
+                                  <Link2 className="w-3.5 h-3.5" /> ¿De qué información depende?
+                                </span>
+                                <p className="text-[11.5px] text-on-surface-variant leading-relaxed">
+                                  {guide.deQuienDepende}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="p-2.5 bg-surface-container-low rounded-lg border border-outline-variant/40">
+                              <span className="font-bold text-on-surface flex items-center gap-1 text-[11px] mb-1.5">
+                                🚶‍♂️ Pasos a seguir (1, 2, 3):
+                              </span>
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                {guide.pasos.map((p, idx) => (
+                                  <div
+                                    key={idx}
+                                    className="p-1.5 bg-surface rounded text-[11px] text-on-surface border border-outline-variant/30"
+                                  >
+                                    {p}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  )}
                 </div>
               );
             })}

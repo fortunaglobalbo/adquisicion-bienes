@@ -353,65 +353,6 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
 
   return (
     <div className="flex flex-col h-full space-y-4 w-full">
-      {/* Guía Inteligente Paso a Paso para No-Técnicos */}
-      <FolderAiGuideBanner
-        carpeta={carpeta}
-        adquisicion={adquisicion}
-        todasCarpetas={todasCarpetas}
-      />
-
-      {/* Barra de Gestión de Plantilla Oficial de la Carpeta */}
-      <div className="bg-surface-container-low border border-outline-variant/60 rounded-lg p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div className="flex items-center gap-2.5">
-          <div className="p-1.5 bg-primary/10 text-primary rounded">
-            <FileText className="w-4 h-4" />
-          </div>
-          <div>
-            <span className="text-xs font-bold text-on-surface">
-              Plantilla Oficial de Carpeta {carpeta.numero} ({carpeta.nombre})
-            </span>
-            <p className="text-[11px] text-on-surface-variant">
-              Sube tu plantilla oficial en PDF o Word (.docx). El VPS la convertirá con pdf2docx para usarla como molde editable.
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <input
-            ref={templateInputRef}
-            type="file"
-            className="hidden"
-            accept=".pdf,.docx,.doc"
-            onChange={handleTemplateUpload}
-          />
-          <button
-            type="button"
-            disabled={templateUploading}
-            onClick={() => templateInputRef.current?.click()}
-            className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-surface border border-outline-variant hover:border-primary text-on-surface text-xs font-semibold rounded-md shadow-sm transition-all disabled:opacity-50"
-          >
-            {templateUploading ? (
-              <>
-                <RefreshCw className="w-3.5 h-3.5 animate-spin text-primary" />
-                <span>Convirtiendo con pdf2docx...</span>
-              </>
-            ) : (
-              <>
-                <Upload className="w-3.5 h-3.5 text-primary" />
-                <span>Subir Plantilla (.pdf / .docx)</span>
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {templateSuccessMsg && (
-        <div className="p-3 bg-emerald-50 border border-emerald-300 text-emerald-800 rounded-md text-xs flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-          <span>{templateSuccessMsg}</span>
-        </div>
-      )}
-
       {/* For Carpeta 1: Full-Screen Direct Document Editor & Viewer (TDR) */}
       {carpeta.numero === 1 ? (
         <TdrDocumentViewer
