@@ -529,6 +529,178 @@ async def generar_especificaciones(payload: Dict[str, Any]):
         "download_pdf": f"/download/{docx_file}"
     }
 
+@app.post("/api/convertir-plantilla")
+async def convertir_plantilla(
+    file: UploadFile = File(...),
+    fk_carpeta: int = Form(1),
+    nombre_plantilla: Optional[str] = Form(None)
+):
+    """
+    Convierte una plantilla subida por el usuario (PDF o DOCX) en un molde editable con pdf2docx y MarkItDown.
+    """
+    filename = file.filename or "plantilla.pdf"
+    ext = os.path.splitext(filename)[1].lower()
+    contents = await file.read()
+    
+    extracted_text = extract_text_from_file_bytes(contents, filename)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    if ext == ".pdf" and Converter:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_pdf:
+            tmp_pdf.write(contents)
+            pdf_path = tmp_pdf.name
+            
+        out_docx_name = f"plantilla_carpeta_{fk_carpeta}_{timestamp}.docx"
+        out_docx_path = os.path.join(OUTPUT_DIR, out_docx_name)
+        try:
+            cv = Converter(pdf_path)
+            cv.convert(out_docx_path)
+            cv.close()
+        except Exception as e:
+            print(f"Error en pdf2docx convert: {e}")
+            out_docx_name = filename
+        finally:
+            if os.path.exists(pdf_path):
+                os.remove(pdf_path)
+    else:
+        out_docx_name = f"plantilla_carpeta_{fk_carpeta}_{timestamp}{ext}"
+        out_docx_path = os.path.join(OUTPUT_DIR, out_docx_name)
+        with open(out_docx_path, "wb") as f:
+            f.write(contents)
+
+    return {
+        "success": True,
+        "fk_carpeta": fk_carpeta,
+        "nombre_archivo": out_docx_name,
+        "download_docx": f"/download/{out_docx_name}",
+        "texto_extraido_preview": extracted_text[:1000],
+        "total_caracteres": len(extracted_text)
+    }
+
+@app.post("/api/procesar-proforma-ocr")
+async def procesar_proforma_ocr(
+    file: Optional[UploadFile] = File(None),
+    texto: Optional[str] = Form(None),
+    imageBase64: Optional[str] = Form(None)
+):
+    """
+    Extrae datos de cotizaciones / proformas escaneadas (Carpetas 2, 3 y 4) usando Tesseract OCR + MarkItDown + DeepSeek.
+    """
+    extracted_text = ""
+    if file:
+        contents = await file.read()
+        extracted_text = extract_text_from_file_bytes(contents, file.filename or "proforma.pdf")
+    elif imageBase64:
+        b64_data = imageBase64.split(",")[-1]
+        file_bytes = base64.b64decode(b64_data)
+        extracted_text = extract_text_from_file_bytes(file_bytes, "proforma.png")
+    elif texto:
+        extracted_text = texto
+
+    prompt = f"""Analiza esta cotización/proforma para ENDE DEORURO S.A. y extrae los datos clave en JSON estricto:
+{{
+  "proveedor": "Nombre o Razón Social del Proveedor",
+  "nit": "NIT si figura",
+  "monto_total_bs": 12500.0,
+  "plazo_entrega_dias": 30,
+  "validez_propuesta_dias": 30,
+  "cumple_especificaciones": true,
+  "items": [
+    {{
+      "item": 1,
+      "descripcion": "DESCRIPCIÓN DEL ÍTEM",
+      "cantidad": 10,
+      "precio_unitario_bs": 100.0,
+      "precio_total_bs": 1000.0
+    }}
+  ]
+}}
+
+Texto de la proforma:
+{extracted_text}"""
+
+    res = call_deepseek_ai(prompt)
+    return {
+        "success": True,
+        "data": res,
+        "extracted_text_preview": extracted_text[:500]
+    }
+
+@app.post("/api/procesar-solicitud-inicio")
+async def procesar_solicitud_inicio(req: ProcessRequest):
+    """Genera la Solicitud de Inicio (Carpeta 5) con DeepSeek IA y motor VPS."""
+    extracted = req.documentText or req.insumoTexto or ""
+    adq = req.adquisicion or {}
+    
+    prompt = f"""Genera la SOLICITUD DE INICIO DE CONTRATACIÓN formal para ENDE DEORURO S.A. en JSON:
+{{
+  "objeto": "SOLICITUD DE INICIO DEL PROCESO DE CONTRATACIÓN PARA {adq.get('titulo_proceso', '')}",
+  "parrafo1": "Por medio de la presente, me dirijo a su autoridad para solicitar formalmente el inicio del proceso...",
+  "justificacion": "La presente solicitud responde a la necesidad técnica de...",
+  "partida": "{adq.get('partida_presupuestaria', '39500 - Herramientas Menores')}",
+  "prevision_presupuesto": {adq.get('prevision_presupuesto', 0)},
+  "fecha_solicitud": "{datetime.now().strftime('%d de %B de %Y')}"
+}}
+
+Contexto:
+{extracted}"""
+
+    res = call_deepseek_ai(prompt)
+    return {"success": True, "data": res}
+
+@app.post("/api/procesar-form-s2")
+async def procesar_form_s2(req: ProcessRequest):
+    """Genera el Formulario S-2 (Carpeta 6) con DeepSeek IA."""
+    adq = req.adquisicion or {}
+    prompt = f"""Genera el FORMULARIO S-2 (Solicitud de Cotización / Propuesta) para ENDE DEORURO S.A. en JSON:
+{{
+  "senores": "PROPONENTE / PROVEEDOR",
+  "tiempo_entrega": "30 días calendario",
+  "validez_oferta": "30 días calendario",
+  "observaciones": "SE ADJUNTA ESPECIFICACIONES TÉCNICAS OFICIALES",
+  "nota_adicional": "ADJUNTAR FOTOCOPIA SIMPLE DE SU RNC - NIT Y REGISTRO EN FUNDEMPRESA/SEPREC"
+}}
+
+Proceso: {adq.get('titulo_proceso', '')}"""
+
+    res = call_deepseek_ai(prompt)
+    return {"success": True, "data": res}
+
+@app.post("/api/procesar-informe-conformidad")
+async def procesar_informe_conformidad(req: ProcessRequest):
+    """Genera el Informe Técnico de Conformidad (Carpeta 7) con DeepSeek IA."""
+    adq = req.adquisicion or {}
+    prompt = f"""Genera el INFORME TÉCNICO DE CONFORMIDAD Y RECEPCIÓN DEFINITIVA para ENDE DEORURO S.A. en JSON:
+{{
+  "conclusion": "Habiéndose verificado el cumplimiento estricto del 100% de las especificaciones técnicas requeridas, cantidades y calidad de los bienes/servicios entregados, se emite la CONFORMIDAD TÉCNICA Y RECEPCIÓN DEFINITIVA sin observaciones.",
+  "recomendacion": "Se recomienda proceder al pago correspondiente de acuerdo al contrato/orden de compra y reglamentación interna de la empresa."
+}}
+
+Proceso: {adq.get('titulo_proceso', '')}"""
+
+    res = call_deepseek_ai(prompt)
+    return {"success": True, "data": res}
+
+@app.post("/api/procesar-memo-pago")
+async def procesar_memo_pago(req: ProcessRequest):
+    """Genera el Memorándum de Pago (Carpeta 8) con DeepSeek IA."""
+    adq = req.adquisicion or {}
+    prompt = f"""Genera el MEMORÁNDUM DE SOLICITUD DE DESEMBOLSO Y PAGO para ENDE DEORURO S.A. en JSON:
+{{
+  "objeto": "SOLICITUD DE PAGO CORRESPONDIENTE AL PROCESO {adq.get('titulo_proceso', '')}",
+  "monto_literal": "{adq.get('prevision_presupuesto', 0)} Bolivianos",
+  "documentos_adjuntos": [
+    "Nota de Entrega / Acta de Recepción Definitiva",
+    "Informe Técnico de Conformidad Aprobado",
+    "Factura Comercial Original",
+    "Orden de Compra / Contrato Administrativo",
+    "Formulario S-2 de Adjudicación"
+  ]
+}}"""
+
+    res = call_deepseek_ai(prompt)
+    return {"success": True, "data": res}
+
 @app.post("/api/pdf-to-docx")
 async def pdf_to_docx_convert(file: UploadFile = File(...)):
     """Convierte un PDF a DOCX editable con pdf2docx."""
