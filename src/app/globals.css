@@ -42,3 +42,72 @@ always-on-top-app {
   pointer-events: none !important;
 }
 
+/* ============================================================
+   ESTILOS DE IMPRESIÓN Y EXPORTACIÓN PDF OFICIAL (ENDE DEORURO)
+   ============================================================ */
+@media print {
+  @page {
+    size: letter portrait;
+    margin: 12mm 15mm 15mm 15mm;
+  }
+
+  html, body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11pt !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Ocultar elementos de navegación y herramientas */
+  nav,
+  aside,
+  header,
+  .topbar,
+  .sidebar,
+  button,
+  .no-print,
+  [role="dialog"] {
+    display: none !important;
+  }
+
+  /* Mostrar la hoja completa sin bordes de app ni sombras */
+  main, .page-sheet, .document-container {
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Asegurar que las imágenes (logo) se impriman a color */
+  img {
+    max-width: 100% !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Tablas y bordes nítidos */
+  table {
+    page-break-inside: auto !important;
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    page-break-after: auto !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  th, td {
+    border-color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+

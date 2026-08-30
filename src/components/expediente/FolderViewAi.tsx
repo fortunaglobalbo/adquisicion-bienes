@@ -102,61 +102,16 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
     }
   };
 
-  // Helper para descargar PDF oficial generado a través del VPS LibreOffice microservice
+  // Helper para descargar o imprimir PDF oficial con 100% fidelidad (incluye logo oficial y 14 puntos)
   const handleDownloadPdf = async (liveAdquisicion?: Adquisicion) => {
-    const currentAdq = liveAdquisicion || adquisicion;
-    const tipo = getDocType();
-
     try {
       setDownloadingDocId("pdf-direct");
-
-      // Para Carpeta 1 (TDR / Espec Técnicas), invocar el motor VPS (DeepSeek + python-docx + LibreOffice)
-      if (carpeta.numero === 1) {
-        const payload = {
-          titulo_adquisicion: currentAdq.titulo_proceso || "ADQUISICIÓN DE BIENES",
-          justificacion: currentAdq.justificacion_texto || "Garantizar la continuidad operativa institucional",
-          items: (currentAdq.items || []).map((it, idx) => ({
-            numero: it.item || idx + 1,
-            descripcion: it.descripcion || `ÍTEM ${idx + 1}`,
-            unidad: it.unidad || "Pza",
-            cantidad: Number(it.cantidad) || 1,
-            caracteristicas: it.caracteristicasTecnicas || it.especificacionMinima || "Según especificación técnica",
-          })),
-          elaborado: currentAdq.elaborado_por || currentAdq.responsable_proceso || currentAdq.solicitud_inicio_de_nombre || "Responsable Técnico ENDE DEORURO S.A.",
-          plazo_entrega: currentAdq.tiempo_entrega_texto || `${currentAdq.plazo_entrega_dias || 30} días calendario`,
-          lugar_entrega: currentAdq.lugar_entrega || "Almacenes ENDE DEORURO S.A., Oruro",
-          vigencia_propuesta: currentAdq.vigencia_propuesta_texto || "30 días calendario",
-        };
-
-        const res = await fetch("/api/proxy/generar-especificaciones", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        const data = await res.json();
-        if (data.status === "success" && data.download_pdf) {
-          const downloadUrl = `/api/proxy/generar-especificaciones?path=${encodeURIComponent(data.download_pdf)}&filename=${encodeURIComponent(data.pdf_file || `TDR_${currentAdq.codigo}_Oficial.pdf`)}`;
-          const pdfRes = await fetch(downloadUrl);
-          if (pdfRes.ok) {
-            const blob = await pdfRes.blob();
-            const a = document.createElement("a");
-            a.href = URL.createObjectURL(blob);
-            a.download = data.pdf_file || `TDR_${currentAdq.codigo}_Oficial.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(a.href);
-            return;
-          }
-        }
+      // Abrir el diálogo nativo de impresión / guardar como PDF de alta resolución
+      if (typeof window !== "undefined") {
+        window.print();
       }
-
-      // Fallback universal para todas las carpetas: Impresión / Exportación PDF nativa del navegador
-      window.print();
     } catch (err: any) {
-      console.warn("VPS PDF fallback a impresión local:", err);
-      window.print();
+      console.warn("Error al imprimir/descargar PDF:", err);
     } finally {
       setDownloadingDocId(null);
     }
