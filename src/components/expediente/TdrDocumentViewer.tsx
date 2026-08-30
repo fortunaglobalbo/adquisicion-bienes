@@ -93,6 +93,17 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
       : "BIENES_SIMPLE")
   );
 
+  // Sincronizar docData cuando cambian las props de adquisicion
+  useEffect(() => {
+    setDocData({
+      ...adquisicion,
+      mes_anio_documento: adquisicion.mes_anio_documento || getMesAnioActual(),
+    });
+    if (adquisicion.tipo_tabla_tdr) {
+      setTipoTablaTdr(adquisicion.tipo_tabla_tdr);
+    }
+  }, [adquisicion]);
+
   // Update field helper
   const handleTextChange = (field: keyof Adquisicion, value: any) => {
     setDocData((prev) => ({
@@ -178,6 +189,10 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
       });
 
       const result = await res.json();
+      if (!res.ok || result.error) {
+        throw new Error(result.error || "Error al generar con IA");
+      }
+
       const aiData = result.data || {};
       const aiItems = aiData.items || [];
       const detectedPuntos = aiData.puntos_14_texto || aiData.puntos_detectados || {};
