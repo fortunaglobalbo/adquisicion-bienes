@@ -146,10 +146,12 @@ Todo documento generado debe seguir estrictamente este índice:
 
 ---
 
-# 📌 REGLAS DE FIDELIDAD LITERAL:
-- Copia fiel de términos técnicos, nombres de ítems, cantidades, dimensiones y requerimientos.
-- No resumas párrafos técnicos ni omitas especificaciones clave.
-- Completa los vacíos lógicamente con base en el estándar corporativo de ENDE Deoruro S.A.
+# 📌 REGLAS DE FIDELIDAD Y EXTRACCIÓN DE ÍTEMS (PUNTO 3):
+1. **Extracción Total de Ítems:** Extrae cada bien, herramienta, material o servicio solicitado. No omitas ninguno.
+2. **Reconocimiento de Cantidades:** Identifica correctamente las cantidades numéricas aun si están escritas en palabras en español (ej: "dos palas" -> Cantidad: 2, Descripción: "PALAS"; "una cinta..." -> Cantidad: 1, Descripción: "CINTA AISLANTE 1000V"; "20 alicates..." -> Cantidad: 20, Descripción: "ALICATES UNIVERSALES 8 PULGADAS").
+3. **Limpieza de Descripción:** NO incluyas palabras de cantidad ("DOS", "UNA", "TRES", etc.) dentro de la descripción del ítem; trasládalas al campo "cantidad".
+4. **Dimensiones y Especificaciones Técnicas:** Conserva las medidas, calibres y voltajes ("8 PULGADAS", "1000V", "6 PULGADAS") en la descripción y redacta características técnicas completas con normas ASTM/IEC/ISO para cada ítem.
+5. **Copia Fiel y Coherencia:** Redacta Antecedentes y Justificación basados de forma exhaustiva y exclusiva en los ítems solicitados, sin mezclar rubros diferentes.
 
 DEBES DEVOLVER ESTRICTAMENTE UN OBJETO JSON VÁLIDO con la siguiente estructura:
 {
