@@ -56,58 +56,48 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 1. Ejecutar análisis y redacción 100% autónoma con DeepSeek IA
-    const aiResult = await extractTdrFromDocumentOrImageWithAI(adquisicion, {
-      insumoTexto,
-      documentText: extractedText,
-      imageBase64: finalImageBase64?.startsWith("data:image") ? finalImageBase64 : undefined,
-      nombreArchivo,
-    });
-
-    // 2. Enviar los datos analizados por la IA directamente al VPS para compilar DOCX y PDF nativos
-    let vpsData: any = null;
+    // 1. Procesar con el motor unificado del VPS Linux (MarkItDown + OCR Tesseract + DeepSeek + python-docx)
+    let vpsResponse: any = null;
     try {
-      const vpsPayload = {
-        titulo_adquisicion: aiResult.titulo_proceso || adquisicion.titulo_proceso,
-        justificacion: aiResult.justificacion_texto || adquisicion.justificacion_texto,
-        items: (aiResult.items || []).map((it: any, idx: number) => ({
-          numero: it.item || idx + 1,
-          descripcion: it.descripcion,
-          unidad: it.unidad || "Pza",
-          cantidad: it.cantidad || 1,
-          caracteristicas: it.caracteristicasTecnicas || it.especificacionMinima || "Conforme a especificaciones",
-        })),
-        elaborado: adquisicion.elaborado_por || adquisicion.responsable_proceso || "Ing. Responsable Técnico ENDE DEORURO S.A.",
-        plazo_entrega: aiResult.tiempo_entrega_texto || `${adquisicion.plazo_entrega_dias || 30} días calendario`,
-        lugar_entrega: aiResult.lugar_entrega || "Almacenes ENDE DEORURO S.A., Oruro",
-        vigencia_propuesta: aiResult.vigencia_propuesta_texto || "30 días calendario",
-      };
-
-      const vpsRes = await fetch(VPS_API_URL, {
+      const vpsRes = await fetch("http://85.31.230.163:8080/api/procesar-documento", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(vpsPayload),
-        signal: AbortSignal.timeout(45000),
+        body: JSON.stringify({
+          insumoTexto,
+          documentText: extractedText,
+          imageBase64: finalImageBase64,
+          nombreArchivo,
+          adquisicion,
+        }),
+        signal: AbortSignal.timeout(60000),
       });
 
       if (vpsRes.ok) {
-        vpsData = await vpsRes.json();
+        vpsResponse = await vpsRes.json();
       }
     } catch (e: any) {
-      console.warn("VPS compile status:", e.message);
+      console.warn("VPS Engine offline o lento, usando fallback local:", e.message);
+    }
+
+    let aiResult: any = vpsResponse?.data;
+
+    // 2. Fallback de alta resiliencia local con extractTdrFromDocumentOrImageWithAI si fuera necesario
+    if (!aiResult || !aiResult.items || aiResult.items.length === 0) {
+      aiResult = await extractTdrFromDocumentOrImageWithAI(adquisicion, {
+        insumoTexto,
+        documentText: extractedText,
+        imageBase64: finalImageBase64?.startsWith("data:image") ? finalImageBase64 : undefined,
+        nombreArchivo,
+      });
     }
 
     return NextResponse.json({
       success: true,
-      data: {
-        ...aiResult,
-        vpsData,
-      },
-      vps_status: vpsData ? "success" : "fallback",
-      docx_file: vpsData?.docx_file,
-      pdf_file: vpsData?.pdf_file,
-      download_docx: vpsData?.download_docx,
-      download_pdf: vpsData?.download_pdf,
+      data: aiResult,
+      vps_status: vpsResponse?.success ? "vps_engine_online" : "fallback_local",
+      docx_file: vpsResponse?.docx_file,
+      download_docx: vpsResponse?.download_docx,
+      download_pdf: vpsResponse?.download_pdf,
     });
   } catch (err: any) {
     console.error("Error en generate-tdr:", err);
