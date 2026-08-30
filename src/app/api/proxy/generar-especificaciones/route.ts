@@ -56,15 +56,32 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Parámetro 'path' requerido" }, { status: 400 });
     }
 
-    const fileUrl = filePath.startsWith("http") ? filePath : `${BACKEND_URL}${filePath}`;
-    const fileRes = await fetch(fileUrl, {
-      signal: AbortSignal.timeout(30000),
-    });
+    // Los archivos generados se almacenan y sirven en el worker Python FastAPI (puerto 8000)
+    const PYTHON_WORKER_URL = "http://85.31.230.163:8000";
+    const GO_API_URL = "http://85.31.230.163:8080";
 
-    if (!fileRes.ok) {
+    const candidateUrls = [
+      `${PYTHON_WORKER_URL}${filePath.startsWith("/") ? "" : "/"}${filePath}`,
+      `${GO_API_URL}${filePath.startsWith("/") ? "" : "/"}${filePath}`,
+    ];
+
+    let fileRes: Response | null = null;
+    for (const url of candidateUrls) {
+      try {
+        const res = await fetch(url, {
+          signal: AbortSignal.timeout(15000),
+        });
+        if (res.ok) {
+          fileRes = res;
+          break;
+        }
+      } catch {}
+    }
+
+    if (!fileRes || !fileRes.ok) {
       return NextResponse.json(
-        { error: `No se pudo descargar el archivo: ${fileRes.status}` },
-        { status: fileRes.status }
+        { error: `No se pudo descargar el archivo de los servidores de generación (404 Not Found).` },
+        { status: 404 }
       );
     }
 
