@@ -20,7 +20,7 @@ function cleanMarkdownText(text: string): string {
 }
 
 /**
- * Extrae ítems limpios del texto plano/Markdown
+ * Extrae ítems limpios del texto plano/Markdown con máxima precisión
  */
 function parseItemsFromRawInput(text: string, existingItems: ItemAdquisicion[]): Array<{
   numero: number;
@@ -29,63 +29,50 @@ function parseItemsFromRawInput(text: string, existingItems: ItemAdquisicion[]):
   cantidad: number;
   caracteristicas: string;
 }> {
-  if (existingItems && existingItems.length > 0) {
-    return existingItems.map((it, idx) => ({
-      numero: it.item || idx + 1,
-      descripcion: cleanMarkdownText(it.descripcion).toUpperCase(),
-      unidad: cleanMarkdownText(it.unidad) || "PZA",
-      cantidad: Number(it.cantidad) || 1,
-      caracteristicas: cleanMarkdownText(it.caracteristicasTecnicas || it.especificacionMinima || "Según especificación técnica requerida por ENDE DEORURO S.A."),
-    }));
-  }
+  // Si el usuario provee un texto nuevo, ese texto tiene PRIORIDAD ABSOLUTA sobre items antiguos
+  if (text && text.trim().length > 5) {
+    const clean = cleanMarkdownText(text);
+    const itemsFound: Array<{
+      numero: number;
+      descripcion: string;
+      unidad: string;
+      cantidad: number;
+      caracteristicas: string;
+    }> = [];
 
-  if (!text || typeof text !== "string") {
-    return [
-      {
-        numero: 1,
-        descripcion: "BIEN O SERVICIO PRINCIPAL",
-        unidad: "PZA",
-        cantidad: 1,
-        caracteristicas: "Conforme a normas técnicas y requerimiento institucional",
-      },
-    ];
-  }
-
-  const itemsFound: Array<{
-    numero: number;
-    descripcion: string;
-    unidad: string;
-    cantidad: number;
-    caracteristicas: string;
-  }> = [];
-
-  const lines = text.split("\n");
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (trimmed.startsWith("|") && !trimmed.includes("---") && !trimmed.toLowerCase().includes("ítem") && !trimmed.toLowerCase().includes("descripcion")) {
-      const parts = trimmed.split("|").map((p) => cleanMarkdownText(p.trim())).filter(Boolean);
-      if (parts.length >= 2) {
-        const num = parseInt(parts[0]) || itemsFound.length + 1;
-        const desc = parts[1] || `ÍTEM ${num}`;
-        const cant = parseInt(parts[2]) || parseInt(parts[3]) || 1;
-        const unidad = parts[3]?.length <= 6 ? parts[3] : (parts[2]?.length <= 6 ? parts[2] : "PZA");
-        const carac = parts[4] || parts[2] || "Conforme a especificaciones técnicas oficiales";
-        itemsFound.push({
-          numero: num,
-          descripcion: desc.toUpperCase(),
-          unidad: unidad.toUpperCase(),
-          cantidad: cant,
-          caracteristicas: carac,
-        });
+    // 1. Tablas Markdown (| 1 | Alicate | 10 | PZA | ...)
+    const lines = clean.split("\n");
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith("|") && !trimmed.includes("---") && !trimmed.toLowerCase().includes("ítem") && !trimmed.toLowerCase().includes("descripcion")) {
+        const parts = trimmed.split("|").map((p) => p.trim()).filter(Boolean);
+        if (parts.length >= 2) {
+          const num = parseInt(parts[0]) || itemsFound.length + 1;
+          const desc = parts[1] || `ÍTEM ${num}`;
+          const cant = parseInt(parts[2]) || parseInt(parts[3]) || 1;
+          const unidad = parts[3]?.length <= 6 ? parts[3] : (parts[2]?.length <= 6 ? parts[2] : "PZA");
+          const carac = parts[4] || parts[2] || "Conforme a especificaciones técnicas oficiales";
+          itemsFound.push({
+            numero: num,
+            descripcion: desc.toUpperCase(),
+            unidad: unidad.toUpperCase(),
+            cantidad: cant,
+            caracteristicas: carac,
+          });
+        }
       }
     }
-  }
 
-  if (itemsFound.length === 0) {
-    for (const line of lines) {
-      const cleanLine = cleanMarkdownText(line);
-      const matchNumList = cleanLine.match(/^(\d+)[\.\-\)]\s+(.+)/);
-      const matchCantDesc = cleanLine.match(/^(\d+)\s+(pzas?|unidades?|pares?|estudios?|juegos?|global|lote)?\s*(de\s+)?(.+)/i);
+    if (itemsFound.length > 0) return itemsFound;
+
+    // 2. Separar por comas, 'y', saltos de línea o dos puntos
+    const segments = clean.split(/(?:\r?\n|;|\s+y\s+|,\s*)/i);
+    for (const seg of segments) {
+      const trimmed = seg.trim().replace(/^adquisición\s+de\s+[^:]*:\s*/i, "").trim();
+      if (!trimmed || trimmed.length < 3) continue;
+
+      const matchNumList = trimmed.match(/^(\d+)[\.\-\)]\s+(.+)/);
+      const matchCantDesc = trimmed.match(/^(\d+)\s*(?:pzas?|unidades?|pares?|estudios?|juegos?|global|lote)?\s*(?:de\s+)?(.+)/i);
 
       if (matchNumList) {
         itemsFound.push({
@@ -97,31 +84,50 @@ function parseItemsFromRawInput(text: string, existingItems: ItemAdquisicion[]):
         });
       } else if (matchCantDesc) {
         const cant = parseInt(matchCantDesc[1]) || 1;
-        const unidad = matchCantDesc[2] ? matchCantDesc[2].toUpperCase() : "PZA";
-        const desc = matchCantDesc[4].trim().toUpperCase();
+        const desc = matchCantDesc[2].trim().replace(/\.$/, "").toUpperCase();
         itemsFound.push({
           numero: itemsFound.length + 1,
           descripcion: desc,
-          unidad,
+          unidad: "PZA",
           cantidad: cant,
-          caracteristicas: "Fabricación homologada con estándares de seguridad, material forjado y especificación técnica",
+          caracteristicas: `Fabricación homologada con estándares de seguridad industrial, aislamiento de seguridad y especificación técnica requerida por ENDE DEORURO S.A.`,
         });
       }
     }
-  }
 
-  if (itemsFound.length === 0) {
-    const firstLine = lines.find((l) => l.trim().length > 3)?.trim() || "ADQUISICIÓN REQUERIDA";
+    if (itemsFound.length > 0) return itemsFound;
+
+    // 3. Fallback de texto simple
     itemsFound.push({
       numero: 1,
-      descripcion: cleanMarkdownText(firstLine).toUpperCase(),
+      descripcion: clean.toUpperCase(),
       unidad: "PZA",
       cantidad: 1,
-      caracteristicas: cleanMarkdownText(text.substring(0, 300)) || "Conforme a especificaciones técnicas de ENDE DEORURO S.A.",
+      caracteristicas: "Conforme a especificaciones técnicas y requerimientos de ENDE DEORURO S.A.",
     });
+    return itemsFound;
   }
 
-  return itemsFound;
+  // Si no hay texto nuevo, usar existingItems
+  if (existingItems && existingItems.length > 0) {
+    return existingItems.map((it, idx) => ({
+      numero: it.item || idx + 1,
+      descripcion: cleanMarkdownText(it.descripcion).toUpperCase(),
+      unidad: cleanMarkdownText(it.unidad) || "PZA",
+      cantidad: Number(it.cantidad) || 1,
+      caracteristicas: cleanMarkdownText(it.caracteristicasTecnicas || it.especificacionMinima || "Según especificación técnica requerida por ENDE DEORURO S.A."),
+    }));
+  }
+
+  return [
+    {
+      numero: 1,
+      descripcion: "BIEN O SERVICIO PRINCIPAL",
+      unidad: "PZA",
+      cantidad: 1,
+      caracteristicas: "Conforme a normas técnicas y requerimiento institucional",
+    },
+  ];
 }
 
 export async function POST(req: NextRequest) {
@@ -137,10 +143,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Adquisición requerida" }, { status: 400 });
     }
 
-    const rawInputText = documentText || insumoTexto || adquisicion.justificacion_texto || "";
+    const rawInputText = documentText || insumoTexto || "";
     const itemsForVps = parseItemsFromRawInput(rawInputText, adquisicion.items || []);
 
-    const titulo = cleanMarkdownText(adquisicion.titulo_proceso || "ADQUISICIÓN DE BIENES").toUpperCase();
+    // Extraer título limpio a partir del requerimiento
+    let titulo = cleanMarkdownText(adquisicion.titulo_proceso || "");
+    if (rawInputText && rawInputText.length > 5) {
+      const matchTitulo = rawInputText.match(/^(?:adquisición\s+de|contratación\s+de|servicio\s+de)\s+([^:\n]+)/i);
+      if (matchTitulo && matchTitulo[1]) {
+        titulo = `ADQUISICIÓN DE ${matchTitulo[1].trim().toUpperCase()}`;
+      } else if (!titulo || titulo === "ADQUISICIÓN DE BIENES") {
+        titulo = `ADQUISICIÓN DE ${itemsForVps[0]?.descripcion || "BIENES Y HERRAMIENTAS"}`;
+      }
+    }
+    if (!titulo) titulo = "ADQUISICIÓN DE BIENES Y MATERIALES";
+
     const isSalud = (adquisicion.categoria as string) === "Salud Ocupacional" ||
       titulo.toLowerCase().includes("oftalmo") ||
       titulo.toLowerCase().includes("laboratorio") ||
@@ -149,12 +166,12 @@ export async function POST(req: NextRequest) {
     // Redacción Oficial y Extensa de Antecedentes (3 párrafos formales de ENDE DEORURO)
     const antecedentesExtenso = isSalud
       ? "La DISTRIBUIDORA DE ELECTRICIDAD ENDE DEORURO S.A., como empresa filial de ENDE Corporación, tiene el firme compromiso de velar por la salud, seguridad ocupacional y bienestar integral de todo su personal operativo, técnico y administrativo en estricto cumplimiento de la Ley General de Higiene, Seguridad Ocupacional y Bienestar (D.L. 16998).\n\nEn el marco del Plan Anual de Salud Ocupacional y Medicina del Trabajo, la empresa programa de manera periódica la realización de exámenes médicos especializados, estudios de laboratorio y evaluaciones clínicas ocupacionales a fin de monitorear oportunamente las condiciones de salud de los trabajadores expuestos a diversos factores de riesgo laboral.\n\nEn virtud a lo establecido en la normativa legal vigente, reglamentos internos y el Reglamento de Adquisición de Bienes, Construcción de Obras y Contratación de Servicios (SBC) de ENDE DEORURO S.A., se promueve el presente proceso de contratación para la prestación del servicio médico ocupacional."
-      : "La DISTRIBUIDORA DE ELECTRICIDAD ENDE DEORURO S.A., en su condición de empresa distribuidora de energía eléctrica en el departamento de Oruro y filial de ENDE Corporación, tiene la misión fundamental de garantizar la continuidad, confiabilidad y calidad del suministro de energía eléctrica a toda la población usuaria e industrial de su área de concesión.\n\nPara el desarrollo eficiente de las operaciones técnicas, mantenimiento preventivo y correctivo de redes de media y baja tensión, subestaciones y atención de emergencias, se requiere dotar al personal técnico y cuadrillas de campo con herramientas, equipos y materiales de primer nivel que cumplan rigurosamente con los estándares y normas técnicas aplicables (ASTM, IEC, ISO).\n\nEn el marco de la normativa sectorial y el Reglamento de Adquisición de Bienes, Construcción de Obras y Contratación de Servicios (SBC) vigente en ENDE DEORURO S.A., se tramita el presente proceso de adquisición a solicitud de la unidad correspondiente, orientada a mantener la capacidad operativa y altos estándares de seguridad industrial.";
+      : `La DISTRIBUIDORA DE ELECTRICIDAD ENDE DEORURO S.A., en su condición de empresa distribuidora de energía eléctrica en el departamento de Oruro y filial de ENDE Corporación, tiene la misión fundamental de garantizar la continuidad, confiabilidad y calidad del suministro de energía eléctrica a toda la población usuaria e industrial de su área de concesión.\n\nPara el desarrollo eficiente de las operaciones técnicas, mantenimiento preventivo y correctivo de redes de media y baja tensión, subestaciones y atención de emergencias, se requiere dotar al personal técnico y cuadrillas de campo con herramientas y materiales de primer nivel que cumplan rigurosamente con los estándares y normas técnicas aplicables (ASTM, IEC, ISO).\n\nEn el marco de la normativa sectorial y el Reglamento de Adquisición de Bienes, Construcción de Obras y Contratación de Servicios (SBC) vigente en ENDE DEORURO S.A., se tramita el presente proceso para la "${titulo}" a solicitud de la unidad correspondiente, orientada a mantener la capacidad operativa y altos estándares de seguridad industrial.`;
 
     // Redacción Oficial y Extensa de Justificación (4 párrafos fundamentados)
     const justificacionExtensa = isSalud
       ? "1. NECESIDAD INSTITUCIONAL:\nLa ejecución de los exámenes médicos ocupacionales es un requisito legal y técnico indispensable para evaluar la aptitud física y médica del personal, detectando precozmente cualquier alteración de la salud vinculada a las actividades operativas.\n\n2. COBERTURA Y ALCANCE:\nEl servicio especializado permitirá contar con diagnósticos certeros, certificados médicos de aptitud laboral e informes individuales confidenciales que respaldan los programas de vigilancia epidemiológica de la empresa.\n\n3. MITIGACIÓN DE RIESGOS LABORALES:\nLa prevención de enfermedades laborales y accidentes mediante el control médico continuo garantiza un entorno laboral seguro y reduce el ausentismo laboral, optimizando el rendimiento institucional.\n\n4. DECLARACIÓN DE IMPERIOSA NECESIDAD:\nPor las razones expuestas y en resguardo del bienestar del capital humano de la empresa, resulta imperiosa y justificada la contratación del presente servicio especializado de salud ocupacional."
-      : "1. IDENTIFICACIÓN DE LA NECESIDAD:\nLa permanente ejecución de maniobras en redes eléctricas de distribución y subestaciones exige que el personal cuente con herramientas certificadas de alta resistencia y propiedades dieléctricas para prevenir descargas eléctricas y accidentes de trabajo.\n\n2. CONDICIONES OPERATIVAS Y DE SEGURIDAD:\nEl desgaste natural de las herramientas de uso continuo en cuadrillas de emergencia y mantenimiento requiere su oportuna reposición con ítems homologados que garanticen la integridad física del trabajador y la precisión en los trabajos de campo.\n\n3. MITIGACIÓN DE RIESGOS Y CONTINUIDAD:\nContar con herramientas en óptimas condiciones minimiza los tiempos de interrupción del suministro eléctrico durante fallas imprevistas, permitiendo una rápida restitución del servicio en cumplimiento de los índices de calidad exigidos por la Autoridad de Fiscalización de Electricidad y Tecnología Nuclear (AETN).\n\n4. DECLARACIÓN IMPERIOSA DE ADQUISICIÓN:\nPor consiguiente, la adquisición solicitada constituye una inversión operativa prioritaria e indispensable para el cumplimiento ininterrumpido de los planes de mantenimiento y seguridad laboral de ENDE DEORURO S.A.";
+      : `1. IDENTIFICACIÓN DE LA NECESIDAD:\nLa permanente ejecución de maniobras en redes eléctricas de distribución y subestaciones exige que el personal cuente con herramientas certificadas de alta resistencia y propiedades dieléctricas (1000V) para prevenir descargas eléctricas y accidentes de trabajo.\n\n2. CONDICIONES OPERATIVAS Y DE SEGURIDAD:\nEl desgaste natural de las herramientas de uso continuo en cuadrillas de emergencia y mantenimiento requiere su oportuna reposición con ítems homologados que garanticen la integridad física del trabajador y la precisión en los trabajos de campo.\n\n3. MITIGACIÓN DE RIESGOS Y CONTINUIDAD:\nContar con herramientas en óptimas condiciones minimiza los tiempos de interrupción del suministro eléctrico durante fallas imprevistas, permitiendo una rápida restitución del servicio en cumplimiento de los índices de calidad exigidos por la Autoridad de Fiscalización de Electricidad y Tecnología Nuclear (AETN).\n\n4. DECLARACIÓN IMPERIOSA DE ADQUISICIÓN:\nPor consiguiente, la adquisición de ${itemsForVps.map(i => `${i.cantidad} ${i.descripcion.toLowerCase()}`).join(", ")} constituye una inversión operativa prioritaria e indispensable para el cumplimiento ininterrumpido de los planes de mantenimiento y seguridad laboral de ENDE DEORURO S.A.`;
 
     const elaborado = cleanMarkdownText(adquisicion.elaborado_por || adquisicion.responsable_proceso || "Ing. Responsable Técnico ENDE DEORURO S.A.");
     const plazoEntrega = cleanMarkdownText(adquisicion.tiempo_entrega_texto || `Máximo ${adquisicion.plazo_entrega_dias || 30} días calendario`);
@@ -205,12 +222,12 @@ export async function POST(req: NextRequest) {
         ? [it.descripcion, it.caracteristicas, "Cumple según metodología médica"]
         : [String(it.numero), it.descripcion, it.caracteristicas, String(it.cantidad)],
       fichaTecnica: {
-        uso: isSalud ? "Medicina del Trabajo y Salud Ocupacional" : "Personal Operativo y Mantenimiento ENDE DEORURO S.A.",
-        normaCertificacion: isSalud ? "Acreditación y Control de Calidad Sanitario" : "Norma ASTM / ISO 9001 / Aislamiento de Seguridad",
-        material: isSalud ? "Metodología Analítica Validada" : "Material forjado homologado de alta resistencia mecánica",
+        uso: isSalud ? "Medicina del Trabajo y Salud Ocupacional" : "Personal Operativo y Cuadrillas de Mantenimiento ENDE DEORURO S.A.",
+        normaCertificacion: isSalud ? "Acreditación y Control de Calidad Sanitario" : "Norma ASTM / ISO 9001 / IEC 60900 (Aislación 1000V)",
+        material: isSalud ? "Metodología Analítica Validada" : "Acero forjado con aislamiento dieléctrico de alta seguridad",
         color: "Estándar",
         dimensiones: "Según requerimiento técnico",
-        categoriaItem: isSalud ? "Servicios de Salud Ocupacional" : "Bienes y Suministros Oficiales",
+        categoriaItem: isSalud ? "Servicios de Salud Ocupacional" : "Herramientas de Mano Aisladas",
         caracteristicasDetalle: [it.caracteristicas],
       },
     }));
@@ -221,12 +238,12 @@ export async function POST(req: NextRequest) {
       justificacion_texto: justificacionExtensa,
       calidad_texto: isSalud
         ? "Cumplimiento obligatorio de credenciales sanitarias, habilitación del SEDES y control de calidad médico ocupacional."
-        : "Los bienes deberán ser nuevos, de primer uso y fabricados bajo normas de calidad aplicables (ASTM/ISO) con garantía oficial del fabricante.",
+        : "Los bienes deberán ser nuevos, de primer uso y fabricados bajo normas de calidad aplicables (ASTM/IEC/ISO) con garantía oficial del fabricante.",
       ambito_aplicacion:
         "Personal institucional y áreas operativas de la Distribuidora de Electricidad ENDE DEORURO S.A.",
       metodo_seleccion_texto: "Menor Precio (Art. 31 del Reglamento SBC).",
       vigencia_propuesta_texto: "Tendrá una validez mínima de 30 días calendario computables a partir de la fecha de presentación de la propuesta.",
-      categoria_texto: isSalud ? "Salud Ocupacional y Medicina del Trabajo." : "Bienes, Herramientas y Suministros Oficiales.",
+      categoria_texto: isSalud ? "Salud Ocupacional y Medicina del Trabajo." : "Herramientas y Equipos de Seguridad.",
       lugar_entrega: lugarEntrega,
       tiempo_entrega_texto: `Máximo ${adquisicion.plazo_entrega_dias || 30} días calendario computables a partir del día siguiente hábil de la recepción de la Orden de Compra.`,
       forma_adjudicacion: "Por Ítem requerido, formalizada por Orden de Compra (Art. 31 SBC).",
@@ -234,7 +251,7 @@ export async function POST(req: NextRequest) {
       forma_pago_texto:
         "El pago se realizará contra entrega satisfactoria del producto o servicio, conformidad emitida por ENDE DEORURO S.A. y entrega de la documentación de respaldo: Nota de Entrega, Solicitud de Pago y Factura oficial.",
       multas_texto: `Ante el incumplimiento de los plazos establecidos en la Orden de Compra, se aplicará la multa del ${adquisicion.multa_diaria_porcentaje || 0.25}% por cada día de retraso injustificado.`,
-      seccion3_introduccion_texto: "Detalle técnico y especificaciones de los requerimientos:",
+      seccion3_introduccion_texto: "Detalle técnico y especificaciones de las herramientas requeridas:",
       tipo_tabla_sugerido: isSalud ? ("SALUD_OCUPACIONAL" as const) : ("BIENES_SIMPLE" as const),
       columnas_tabla_tdr: isSalud
         ? ["EXAMEN / SERVICIO REQUERIDO", "ESPECIFICACIÓN MÍNIMA REQUERIDA", "PROPUESTO / INFORMAR"]
