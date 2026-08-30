@@ -7,18 +7,46 @@ interface ChatMessage {
   content: string | Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }>;
 }
 
+const DEFAULT_OPENCODE_KEY = "sk-uiqURVX900evBUHKomZL4LjIe3L1NvILaNAcATY4oZ6rWvDMoVAt9ODP3F6Q8g97";
+const DEFAULT_OPENCODE_BASE_URL = "https://opencode.ai/zen/go/v1";
+const DEFAULT_OPENCODE_MODEL = "deepseek-v4-flash-vision-exp";
+
+export function extractJsonFromText(text: string): any {
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {}
+
+  const cleaned = text.replace(/```json/gi, "").replace(/```/g, "").trim();
+  try {
+    return JSON.parse(cleaned);
+  } catch {}
+
+  const firstBrace = text.indexOf("{");
+  const lastBrace = text.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    const jsonSubstring = text.substring(firstBrace, lastBrace + 1);
+    try {
+      return JSON.parse(jsonSubstring);
+    } catch {
+      try {
+        const sanitised = jsonSubstring
+          .replace(/,\s*([\]}])/g, "$1")
+          .replace(/[\x00-\x1F\x7F-\x9F]/g, " ");
+        return JSON.parse(sanitised);
+      } catch {}
+    }
+  }
+  return null;
+}
+
 export async function callOpenCodeGo(
   messages: ChatMessage[],
-  temperature = 0.2
+  temperature = 0.1
 ): Promise<string> {
-  const apiKey = process.env.OPENCODE_GO_API_KEY;
-  const baseUrl = (process.env.OPENCODE_GO_BASE_URL || "https://opencode.ai/zen/go/v1").replace(/\/+$/, "");
-  const model = process.env.OPENCODE_GO_MODEL || "deepseek-v4-flash-vision-exp";
-
-  if (!apiKey || apiKey === "tu_api_key_de_opencode_aqui") {
-    console.warn("OpenCode Go API Key no configurada. Usando generador estructurado institucional local.");
-    return "";
-  }
+  const apiKey = process.env.OPENCODE_GO_API_KEY || DEFAULT_OPENCODE_KEY;
+  const baseUrl = (process.env.OPENCODE_GO_BASE_URL || DEFAULT_OPENCODE_BASE_URL).replace(/\/+$/, "");
+  const model = process.env.OPENCODE_GO_MODEL || DEFAULT_OPENCODE_MODEL;
 
   try {
     const res = await fetch(`${baseUrl}/chat/completions`, {
@@ -180,10 +208,11 @@ DEBES RESPONDER EXCLUSIVAMENTE UN OBJETO JSON VÁLIDO CON ESTA ESTRUCTURA:
   ]
 }`;
 
+  const rawText = (input.documentText || input.insumoTexto || "").trim();
   let userContent: string = `Requerimiento / Solicitud:\n`;
   if (input.nombreArchivo) userContent += `Archivo: ${input.nombreArchivo}\n`;
-  if (input.documentText) userContent += `${input.documentText}\n`;
-  if (input.insumoTexto) userContent += `Instrucción: ${input.insumoTexto}\n`;
+  if (rawText) userContent += `${rawText}\n`;
+  else if (adquisicion.titulo_proceso) userContent += `${adquisicion.titulo_proceso}\n`;
 
   const messages: ChatMessage[] = [{ role: "system", content: systemPrompt }];
 
@@ -206,9 +235,8 @@ DEBES RESPONDER EXCLUSIVAMENTE UN OBJETO JSON VÁLIDO CON ESTA ESTRUCTURA:
 
   if (aiRaw) {
     try {
-      const cleanJson = aiRaw.replace(/```json/gi, "").replace(/```/g, "").trim();
-      const parsed = JSON.parse(cleanJson);
-      if (parsed.items && Array.isArray(parsed.items) && parsed.items.length > 0) {
+      const parsed = extractJsonFromText(aiRaw);
+      if (parsed && parsed.items && Array.isArray(parsed.items) && parsed.items.length > 0) {
         const isSalud = (parsed.categoria_detectada as string) === "Salud Ocupacional" ||
           (parsed.titulo_proceso || "").toLowerCase().includes("oftalmo") ||
           (parsed.titulo_proceso || "").toLowerCase().includes("laboratorio") ||

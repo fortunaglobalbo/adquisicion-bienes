@@ -161,13 +161,12 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
           ...docData,
           tipo_tabla_tdr: tipoTablaTdr,
         },
-        insumoTexto: aiPrompt,
+        documentText: markdownTdrText.trim() || aiPrompt.trim(),
+        insumoTexto: markdownTdrText.trim() || aiPrompt.trim(),
         nombreArchivo: uploadedAiFile?.name,
       };
 
-      if (aiInputMode === "markdown" && markdownTdrText.trim()) {
-        payload.documentText = markdownTdrText;
-      } else if (uploadedAiFile?.base64) {
+      if (uploadedAiFile?.base64) {
         if (uploadedAiFile.type.startsWith("image/")) {
           payload.imageBase64 = uploadedAiFile.base64;
         } else {
