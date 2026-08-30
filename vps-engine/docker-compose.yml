@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  ende-document-ai:
+    build: .
+    container_name: ende-document-ai-engine
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      - OPENCODE_GO_API_KEY=sk-uiqURVX900evBUHKomZL4LjIe3L1NvILaNAcATY4oZ6rWvDMoVAt9ODP3F6Q8g97
+      - OPENCODE_GO_BASE_URL=https://opencode.ai/zen/go/v1
+      - OPENCODE_GO_MODEL=deepseek-v4-flash-vision-exp
+    volumes:
+      - /tmp/ende_docs:/tmp/ende_docs
