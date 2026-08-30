@@ -222,6 +222,84 @@ DEBES RESPONDER EXCLUSIVAMENTE UN OBJETO JSON VÁLIDO CON ESTA ESTRUCTURA:
   ]
 }"""
 
+def extract_json_from_deepseek(raw: str) -> Dict[str, Any]:
+    """Analizador tolerante multi-etapa con escape caracter a caracter de strings."""
+    clean = re.sub(r"^```json\s*", "", raw, flags=re.IGNORECASE)
+    clean = re.sub(r"```\s*$", "", clean).strip()
+    
+    match = re.search(r"(\{.*\})", clean, re.DOTALL)
+    if match:
+        clean = match.group(1)
+        
+    try:
+        return json.loads(clean)
+    except Exception:
+        pass
+        
+    # Etapa 2: Escapar saltos de línea y tabulaciones dentro de strings caracter por caracter
+    def escape_control_chars_in_strings(text: str) -> str:
+        out = []
+        in_string = False
+        escaped = False
+        for ch in text:
+            if ch == '"' and not escaped:
+                in_string = not in_string
+                out.append(ch)
+            elif ch == '\\' and not escaped:
+                escaped = True
+                out.append(ch)
+            elif in_string and ch == '\n':
+                out.append('\\n')
+            elif in_string and ch == '\r':
+                pass
+            elif in_string and ch == '\t':
+                out.append('\\t')
+            else:
+                if escaped:
+                    escaped = False
+                out.append(ch)
+        return "".join(out)
+
+    try:
+        repaired = escape_control_chars_in_strings(clean)
+        repaired = re.sub(r",\s*(\}|\])", r"\1", repaired)
+        return json.loads(repaired)
+    except Exception as e:
+        print(f"JSON stage 2 repair error: {e}")
+
+    # Etapa 3: Extracción por expresiones regulares
+    result = {
+        "titulo_proceso": "ESPECIFICACIONES TÉCNICAS - ADQUISICIÓN DE HERRAMIENTAS Y SUMINISTROS",
+        "categoria_detectada": "Bienes",
+        "tipo_tabla_sugerido": "BIENES_SIMPLE",
+        "antecedentes_texto": "",
+        "justificacion_texto": "",
+        "items": []
+    }
+    
+    m_ant = re.search(r'"antecedentes_texto"\s*:\s*"((?:[^"\\]|\\.)*)"', clean)
+    if m_ant:
+        result["antecedentes_texto"] = m_ant.group(1).replace("\\n", "\n").replace('\\"', '"')
+        
+    m_just = re.search(r'"justificacion_texto"\s*:\s*"((?:[^"\\]|\\.)*)"', clean)
+    if m_just:
+        result["justificacion_texto"] = m_just.group(1).replace("\\n", "\n").replace('\\"', '"')
+        
+    m_items = re.search(r'"items"\s*:\s*\[(.*?)\]\s*(?:,|\})', clean, re.DOTALL)
+    if m_items:
+        items_str = m_items.group(1)
+        raw_items = re.findall(r"\{[^{}]*\}", items_str)
+        for idx, r_it in enumerate(raw_items):
+            try:
+                fixed_it = escape_control_chars_in_strings(r_it)
+                fixed_it = re.sub(r",\s*(\}|\])", r"\1", fixed_it)
+                it_obj = json.loads(fixed_it)
+                result["items"].append(it_obj)
+            except Exception:
+                pass
+                
+    return result
+
 def call_deepseek_ai(user_prompt: str) -> Dict[str, Any]:
     """Llama a DeepSeek IA y retorna el JSON estructurado de 14 puntos e ítems."""
     headers = {
@@ -243,21 +321,7 @@ def call_deepseek_ai(user_prompt: str) -> Dict[str, Any]:
         raise Exception(f"DeepSeek API Error [{res.status_code}]: {res.text}")
     
     raw = res.json()["choices"][0]["message"]["content"]
-    
-    # Limpieza tolerante de JSON
-    clean = re.sub(r"^```json\s*", "", raw, flags=re.IGNORECASE)
-    clean = re.sub(r"```\s*$", "", clean).strip()
-    
-    match = re.search(r"(\{.*\})", clean, re.DOTALL)
-    if match:
-        clean = match.group(1)
-        
-    try:
-        return json.loads(clean)
-    except:
-        # Arreglar saltos de línea crudos dentro de strings
-        fixed = re.sub(r'("(?:[^"\\]|\\.)*")', lambda m: m.group(0).replace("\n", "\\n").replace("\r", ""), clean)
-        return json.loads(fixed)
+    return extract_json_from_deepseek(raw)
 
 
 # ============================================================================
