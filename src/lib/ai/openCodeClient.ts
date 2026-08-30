@@ -128,8 +128,8 @@ Todo documento generado debe seguir estrictamente este índice:
 - **Índice de Contenido:** Numeral del 1 al 14.
 
 ### LOS 14 PUNTOS OBLIGATORIOS:
-1. **ANTECEDENTES:** Contexto operativo, normativo o institucional de ENDE DEORURO S.A. (Mínimo 3 párrafos formales extensos).
-2. **JUSTIFICACIÓN / NECESIDAD:** Justificación exhaustiva (Mínimo 4 párrafos formales detallando necesidad técnica, problemas de campo, mitigación de riesgos de accidentes y declaración imperiosa basada estrictamente en los ítems solicitados).
+1. **ANTECEDENTES:** Contexto operativo y normativo institucional de ENDE DEORURO S.A. (Extensión controlada: MÍNIMO 5 LÍNEAS, MÁXIMO 8 LÍNEAS).
+2. **JUSTIFICACIÓN / NECESIDAD:** Justificación técnica de la necesidad operativa, continuidad del servicio eléctrico y mitigación de riesgos de accidentes basada en los ítems solicitados (Extensión controlada: MÍNIMO 5 LÍNEAS, MÁXIMO 8 LÍNEAS).
 3. **ESPECIFICACIÓN TÉCNICA:** Tabla completa con todos los ítems individuales solicitados, reconociendo cantidades (incluso escritas en palabras: 'dos palas' -> Cantidad 2, 'una cinta' -> Cantidad 1), unidad ('PZA', 'ROLLO', etc.) y especificaciones técnicas detalladas con normas ASTM/IEC/ISO.
 4. **CALIDAD:** Estándares normativos aplicables (ASTM/IEC/ISO), garantía técnica mínima de 12 meses y certificados del fabricante.
 5. **ÁMBITO DE APLICACIÓN:** Cuadrillas técnicas, personal operativo y subestaciones de ENDE DEORURO S.A.
@@ -144,21 +144,22 @@ Todo documento generado debe seguir estrictamente este índice:
 14. **APLICACIÓN DE MULTAS:** 0.25% por día de retraso injustificado.
 
 # 📌 REGLAS DE FIDELIDAD Y EXTRACCIÓN DE ÍTEMS:
-1. **Extracción Total de Ítems:** Extrae cada bien, herramienta, material o servicio solicitado. No omitas ninguno.
-2. **Reconocimiento de Cantidades:** Identifica correctamente las cantidades numéricas aun si están escritas en palabras en español (ej: "dos palas" -> Cantidad: 2, Descripción: "PALAS"; "una cinta..." -> Cantidad: 1, Descripción: "CINTA AISLANTE 1000V"; "20 alicates..." -> Cantidad: 20, Descripción: "ALICATES UNIVERSALES 8 PULGADAS").
-3. **Limpieza de Descripción:** NO incluyas palabras de cantidad ("DOS", "UNA", "TRES", etc.) dentro de la descripción del ítem; trasládalas al campo "cantidad".
-4. **Dimensiones y Especificaciones Técnicas:** Conserva las medidas, calibres y voltajes ("8 PULGADAS", "1000V", "6 PULGADAS") en la descripción y redacta características técnicas completas con normas ASTM/IEC/ISO para cada ítem.
-5. **Copia Fiel y Coherencia:** Redacta Antecedentes y Justificación basados de forma exhaustiva y exclusiva en los ítems solicitados, sin mezclar rubros diferentes.
+1. **Extensión de Antecedentes y Justificación:** Mínimo 5 líneas y máximo 8 líneas de redacción formal para cada una.
+2. **Extracción Total de Ítems:** Extrae cada bien, herramienta, material o servicio solicitado. No omitas ninguno.
+3. **Reconocimiento de Cantidades:** Identifica correctamente las cantidades numéricas aun si están escritas en palabras en español (ej: "dos palas" -> Cantidad: 2, Descripción: "PALAS"; "una cinta..." -> Cantidad: 1, Descripción: "CINTA AISLANTE 1000V"; "20 alicates..." -> Cantidad: 20, Descripción: "ALICATES UNIVERSALES 8 PULGADAS").
+4. **Limpieza de Descripción:** NO incluyas palabras de cantidad ("DOS", "UNA", "TRES", etc.) dentro de la descripción del ítem; trasládalas al campo "cantidad".
+5. **Dimensiones y Especificaciones Técnicas:** Conserva las medidas, calibres y voltajes ("8 PULGADAS", "1000V", "6 PULGADAS") en la descripción y redacta características técnicas completas con normas ASTM/IEC/ISO para cada ítem.
+6. **Copia Fiel y Coherencia:** Redacta Antecedentes y Justificación basados exclusivamente en los ítems solicitados, sin mezclar rubros diferentes.
 
 DEBES RESPONDER EXCLUSIVAMENTE UN OBJETO JSON VÁLIDO CON ESTA ESTRUCTURA:
 {
   "titulo_proceso": "ESPECIFICACIONES TÉCNICAS - ADQUISICIÓN DE ...",
   "categoria_detectada": "Bienes" | "Servicios" | "Salud Ocupacional",
   "tipo_tabla_sugerido": "BIENES_SIMPLE" | "SALUD_OCUPACIONAL" | "MATRIZ_SERVICIOS",
-  "antecedentes_texto": "Texto amplio de 3 párrafos de antecedentes",
-  "justificacion_texto": "Texto amplio de 4 párrafos de justificación basado en los ítems solicitados",
-  "calidad_texto": "Texto amplio de calidad",
-  "ambito_aplicacion": "Texto amplio de ámbito",
+  "antecedentes_texto": "Texto formal de 5 a 8 líneas de antecedentes",
+  "justificacion_texto": "Texto formal de 5 a 8 líneas de justificación basado en los ítems solicitados",
+  "calidad_texto": "Texto de calidad",
+  "ambito_aplicacion": "Texto de ámbito",
   "metodo_seleccion_texto": "Menor Precio (Art. 31 del Reglamento SBC)",
   "vigencia_propuesta_texto": "30 días calendario computables a partir de la fecha de presentación",
   "categoria_texto": "Bienes y Herramientas",
