@@ -19,6 +19,7 @@ import {
   BookOpen,
   Edit3,
   Layers,
+  FileDown,
 } from "lucide-react";
 import { Adquisicion, ItemAdquisicion, Plantilla, CampoMoldeLibre, TipoTablaTDR } from "@/types";
 import { Modal } from "@/components/ui/Modal";
@@ -31,12 +32,14 @@ import { getMesAnioActual } from "@/lib/utils/dateUtils";
 interface TdrDocumentViewerProps {
   adquisicion: Adquisicion;
   onDownloadDocx: (liveData?: Adquisicion) => void;
+  onDownloadPdf?: (liveData?: Adquisicion) => void;
   onAdquisicionUpdated?: (updated: Adquisicion) => void;
 }
 
 export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
   adquisicion,
   onDownloadDocx,
+  onDownloadPdf,
   onAdquisicionUpdated,
 }) => {
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -559,6 +562,15 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
           >
             <Download className="w-4 h-4 text-secondary-container" />
             <span>Descargar Word (.docx)</span>
+          </button>
+
+          <button
+            onClick={() => onDownloadPdf ? onDownloadPdf(docData) : window.print()}
+            className="flex items-center gap-2 px-4 py-2.5 bg-red-700 hover:bg-red-800 text-white font-sans text-sm font-bold rounded shadow transition-all active:scale-95"
+            title="Descargar o imprimir este documento oficial en formato PDF institucional"
+          >
+            <FileDown className="w-4 h-4 text-red-200" />
+            <span>Descargar PDF Oficial</span>
           </button>
         </div>
 

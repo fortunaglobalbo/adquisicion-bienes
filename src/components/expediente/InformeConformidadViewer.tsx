@@ -16,18 +16,21 @@ import {
   Building2,
   Check,
   Layers,
+  FileDown,
 } from "lucide-react";
 import { getFechaTextoActual } from "@/lib/utils/dateUtils";
 
 interface InformeConformidadViewerProps {
   adquisicion: Adquisicion;
   onDownloadDocx: (liveData?: Adquisicion) => void;
+  onDownloadPdf?: (liveData?: Adquisicion) => void;
   onAdquisicionUpdated?: (updated: Adquisicion) => void;
 }
 
 export const InformeConformidadViewer: React.FC<InformeConformidadViewerProps> = ({
   adquisicion,
   onDownloadDocx,
+  onDownloadPdf,
   onAdquisicionUpdated,
 }) => {
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -256,6 +259,16 @@ export const InformeConformidadViewer: React.FC<InformeConformidadViewerProps> =
           >
             <Download className="w-4 h-4" />
             <span>Descargar Word (.docx)</span>
+          </button>
+
+          {/* Direct PDF Export Button */}
+          <button
+            onClick={() => onDownloadPdf ? onDownloadPdf(docData) : window.print()}
+            className="flex items-center gap-2 px-4 py-2.5 bg-red-700 hover:bg-red-800 text-white font-sans text-sm font-semibold rounded shadow transition-all active:scale-95"
+            title="Descargar o imprimir Informe de Conformidad en formato PDF oficial"
+          >
+            <FileDown className="w-4 h-4 text-red-200" />
+            <span>Descargar PDF Oficial</span>
           </button>
 
           {/* Save Button */}
