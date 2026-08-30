@@ -15,15 +15,52 @@ export async function POST(req: NextRequest) {
       nombreArchivo?: string;
     };
 
-    if (!adquisicion) {
-      return NextResponse.json({ error: "Adquisición requerida" }, { status: 400 });
+    let extractedText = documentText || insumoTexto || "";
+    let finalImageBase64 = imageBase64;
+
+    // Procesamiento inteligente según el tipo de archivo cargado
+    if (imageBase64 && !imageBase64.startsWith("data:image")) {
+      const b64Data = imageBase64.includes(",") ? imageBase64.split(",")[1] : imageBase64;
+      const fileBuffer = Buffer.from(b64Data, "base64");
+      const lowerName = (nombreArchivo || "").toLowerCase();
+
+      if (lowerName.endsWith(".docx") || lowerName.endsWith(".doc")) {
+        try {
+          const mammoth = require("mammoth");
+          const { value } = await mammoth.extractRawText({ buffer: fileBuffer });
+          if (value && value.trim()) {
+            extractedText = `${value}\n\n${extractedText}`;
+          }
+        } catch (e: any) {
+          console.warn("Error extrayendo texto de Word (.docx):", e.message);
+        }
+      } else if (lowerName.endsWith(".pdf")) {
+        try {
+          const pdfParse = require("pdf-parse");
+          const pdfData = await pdfParse(fileBuffer);
+          if (pdfData.text && pdfData.text.trim()) {
+            extractedText = `${pdfData.text}\n\n${extractedText}`;
+          }
+        } catch (e: any) {
+          console.warn("Error extrayendo texto de PDF:", e.message);
+        }
+      } else if (lowerName.endsWith(".txt") || lowerName.endsWith(".md") || lowerName.endsWith(".csv")) {
+        try {
+          const textDecoded = fileBuffer.toString("utf-8");
+          if (textDecoded && textDecoded.trim()) {
+            extractedText = `${textDecoded}\n\n${extractedText}`;
+          }
+        } catch (e: any) {
+          console.warn("Error decodificando archivo de texto plano:", e.message);
+        }
+      }
     }
 
     // 1. Ejecutar análisis y redacción 100% autónoma con DeepSeek IA
     const aiResult = await extractTdrFromDocumentOrImageWithAI(adquisicion, {
       insumoTexto,
-      documentText,
-      imageBase64,
+      documentText: extractedText,
+      imageBase64: finalImageBase64?.startsWith("data:image") ? finalImageBase64 : undefined,
       nombreArchivo,
     });
 

@@ -167,15 +167,8 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
       };
 
       if (uploadedAiFile?.base64) {
-        if (uploadedAiFile.type.startsWith("image/")) {
-          payload.imageBase64 = uploadedAiFile.base64;
-        } else {
-          const fileText = uploadedAiFile.base64
-            ? atob(uploadedAiFile.base64.split(",")[1] || uploadedAiFile.base64)
-            : "";
-          payload.documentText = fileText || `Archivo adjunto: ${uploadedAiFile.name}. Por favor procesa el requerimiento.`;
-          payload.nombreArchivo = uploadedAiFile.name;
-        }
+        payload.imageBase64 = uploadedAiFile.base64;
+        payload.nombreArchivo = uploadedAiFile.name;
       }
 
       const res = await fetch("/api/ai/generate-tdr", {
