@@ -133,20 +133,30 @@ export interface Adquisicion {
   form_s2_observaciones?: string; // ej. "SE ADJUNTA ESPECIFICACIONES TECNICAS"
   form_s2_nota_adicional?: string; // ej. "ADJUNTAR FOTOCOPIA SIMPLE DE SU RNC - NIT"
 
-  // Campos específicos de la Carpeta 7 (Informe de Conformidad y Evaluación - Formulario A6-N014)
-  informe_conf_formulario?: string; // ej. "FORMULARIO A6-N014"
-  informe_conf_fecha?: string; // ej. "Oruro, 29 de julio de 2026"
+  // Campos específicos de la Carpeta 7 (Informe de Conformidad - Adquisiciones)
+  informe_conf_formulario?: string; // ej. "INFORME DE CONFORMIDAD (ADQUISICIONES)"
+  informe_conf_fecha?: string; // ej. "Oruro, 23 de Julio de 2026"
   informe_conf_cite?: string; // ej. "INF.DE ORURO N.º 021/2026"
-  informe_conf_a_nombre?: string; // ej. "Lic. VICENTE PAUL VEGA RAMIREZ"
-  informe_conf_a_cargo?: string; // ej. "SUPERINTENDENCIA DE ADMINISTRACIÓN & FINANZAS"
+  informe_conf_a_nombre?: string; // ej. "LIC. VICENTE PAUL VEGA RAMIREZ"
+  informe_conf_a_cargo?: string; // ej. "SUPERINTENDENTE DE ADMINISTRACIÓN Y FINANZAS a.i."
   informe_conf_via_nombre?: string; // ej. "Lic. RAÚL ALBERTO TORRICO GÓMEZ"
   informe_conf_via_cargo?: string; // ej. "GERENTE GENERAL"
-  informe_conf_de_nombre?: string; // ej. "Ing. TATIANA TORRES ANDRADE"
-  informe_conf_de_cargo?: string; // ej. "SUPERVISOR SEGURIDAD INDUSTRIAL"
+  informe_conf_de_nombre?: string; // ej. "ING. TATIANA TORRES ANDRADE"
+  informe_conf_de_cargo?: string; // ej. "SUPERVISOR DE SEGURIDAD INDUSTRIAL a.i"
   informe_conf_proceso?: string;
-  informe_conf_antecedentes_fecha?: string; // ej. "24/06/2026"
-  informe_conf_antecedentes_nota?: string; // ej. "Nota No. 057/2026"
-  informe_conf_prevision_precio?: number; // ej. 109000.00
+  informe_conf_antecedentes?: string;
+  informe_conf_desarrollo?: string;
+  informe_conf_contrato_nro?: string;
+  informe_conf_items_recepcion?: Array<{
+    numero: number;
+    descripcion: string;
+    fecha_recepcion: string;
+    observaciones: string;
+  }>;
+  informe_conf_conclusiones_texto?: string;
+  informe_conf_antecedentes_fecha?: string;
+  informe_conf_antecedentes_nota?: string;
+  informe_conf_prevision_precio?: number;
   informe_conf_proponentes?: Array<{
     numero: number;
     empresa: string;

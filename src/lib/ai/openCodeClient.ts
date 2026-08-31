@@ -482,72 +482,32 @@ export async function extractInformeConformidadWithAI(
     insumoTexto?: string;
   }
 ): Promise<any> {
-  const systemPrompt = `Eres un auditor legal y técnico experto en compras de ENDE Deoruro S.A. (Bolivia).
-Debes generar o estructurar los datos para el "INFORME DE CONFORMIDAD / INFORME TÉCNICO DE EVALUACIÓN DE COTIZACIONES Y SOLICITUD DE ADJUDICACIÓN (FORMULARIO A6-N014)".
+  const systemPrompt = `Eres un auditor legal y técnico experto en contrataciones de ENDE DEORURO S.A. (Bolivia).
+Debes redactar y estructurar los datos para el "INFORME DE CONFORMIDAD (ADQUISICIONES)" oficial de ENDE DEORURO S.A., con los 4 puntos oficiales:
+1. ANTECEDENTES
+2. DESARROLLO
+3. RECEPCIÓN DE LOS BIENES Y/O SERVICIOS (tabla con N°, DESCRIPCIÓN, FECHA DE RECEPCIÓN, OBSERVACIONES)
+4. CONCLUSIONES
+
 Responde ÚNICAMENTE con un JSON con los siguientes campos:
 {
-  "formulario": "FORMULARIO A6-N014",
-  "fecha": "Oruro, 29 de julio de 2026",
-  "cite": "INF.DE ORURO N.º 021/2026",
-  "a_nombre": "Lic. VICENTE PAUL VEGA RAMIREZ",
-  "a_cargo": "SUPERINTENDENCIA DE ADMINISTRACIÓN & FINANZAS",
-  "via_nombre": "Lic. RAÚL ALBERTO TORRICO GÓMEZ",
-  "via_cargo": "GERENTE GENERAL",
-  "de_nombre": "Ing. TATIANA TORRES ANDRADE",
-  "de_cargo": "SUPERVISOR SEGURIDAD INDUSTRIAL",
-  "proceso": "REMISIÓN DE INFORME TÉCNICO DE EVALUACIÓN DE COTIZACIONES Y SOLICITUD DE ADJUDICACIÓN - PROCESO \\"${adquisicion.titulo_proceso.toUpperCase()}\\" (${adquisicion.solicitud_inicio_numero ? `Solicitud No. ${adquisicion.solicitud_inicio_numero}` : "Solicitud No. 028/2026 S.I."})",
-  "antecedentes_fecha": "24/06/2026",
-  "antecedentes_nota": "Nota No. 057/2026",
-  "prevision_precio": ${adquisicion.prevision_presupuesto || 109000.0},
-  "proponentes": [
+  "fecha": "Oruro, 23 de Julio de 2026",
+  "a_nombre": "LIC. VICENTE PAUL VEGA RAMIREZ",
+  "a_cargo": "SUPERINTENDENTE DE ADMINISTRACIÓN Y FINANZAS a.i.",
+  "de_nombre": "ING. TATIANA TORRES ANDRADE",
+  "de_cargo": "SUPERVISOR DE SEGURIDAD INDUSTRIAL a.i",
+  "proceso": "${adquisicion.titulo_proceso.toUpperCase()}",
+  "antecedentes": "En atención y mantenimiento de las condiciones de orden, calidad y cumplimiento técnico en las instalaciones de la empresa para dar cumplimiento a los estándares operativos.",
+  "desarrollo": "En este sentido en cumplimiento del Reglamento de Adquisición de Bienes, Construcción de Obras Y Contratación de Servicios, se emite la orden/contrato para el proceso \\"${adquisicion.titulo_proceso.toUpperCase()}\\", el cual cumple a cabalidad con las especificaciones técnicas requeridas y condiciones contractuales.",
+  "items_recepcion": [
     {
       "numero": 1,
-      "empresa": "MULTI ENERGÍA",
-      "cotizacion_detalle": "Fechas solicitud de cotización: 10/07/2026\\nCotización cumple con lo solicitado, de acuerdo a las especificaciones técnicas enviadas",
-      "precio": "Bs 70.000,00",
-      "actividad_economica": "No envía NIT",
-      "cumple_tecnico": true,
-      "cumple_legal": false,
-      "es_ganador": false,
-      "observacion": "No acreditó NIT"
-    },
-    {
-      "numero": 2,
-      "empresa": "HERRACRUZ",
-      "cotizacion_detalle": "Fechas solicitud de cotización: 10/07/2026\\nNo envía cotización.",
-      "precio": "No envía propuesta",
-      "actividad_economica": "-",
-      "cumple_tecnico": false,
-      "cumple_legal": false,
-      "es_ganador": false,
-      "observacion": "No presentó propuesta"
-    },
-    {
-      "numero": 3,
-      "empresa": "ARIOL",
-      "cotizacion_detalle": "Fechas solicitud de cotización: 10/07/2026\\nCotización cumple con lo solicitado, de acuerdo a las especificaciones técnicas enviadas",
-      "precio": "Bs 67.240,00",
-      "actividad_economica": "NIT: 6119531015\\nActividad Económica: Comercialización y provisión de bienes",
-      "cumple_tecnico": true,
-      "cumple_legal": true,
-      "es_ganador": true,
-      "observacion": "Oferta habilitada con menor precio ofertado"
-    },
-    {
-      "numero": 4,
-      "empresa": "FEMCO",
-      "cotizacion_detalle": "Fechas solicitud de cotización: 10/07/2026\\nNo envía cotización.",
-      "precio": "No envía propuesta",
-      "actividad_economica": "-",
-      "cumple_tecnico": false,
-      "cumple_legal": false,
-      "es_ganador": false,
-      "observacion": "No presentó propuesta"
+      "descripcion": "RECEPCIÓN Y CONFORMIDAD DE LOS BIENES O SERVICIOS ADQUIRIDOS",
+      "fecha_recepcion": "23/07/2026",
+      "observaciones": "Sin observaciones / Servicio y bienes recibidos a conformidad al 100%"
     }
   ],
-  "empresa_ganadora": "ARIOL",
-  "monto_adjudicado": 67240.0,
-  "monto_adjudicado_literal": "Sesenta y Siete Mil Doscientos Cuarenta 00/100 Bolivianos"
+  "conclusiones_texto": "De acuerdo a la verificación e inspección técnica realizada, como unidad solicitante se expresa la entera conformidad respecto a la prestación del servicio / provisión de bienes señalados. Se concluye que el proveedor cumple satisfactoriamente con el 100% de las especificaciones técnicas exigidas."
 }`;
 
   const userContent = `Datos del proceso:
@@ -577,68 +537,32 @@ Responde ÚNICAMENTE con un JSON con los siguientes campos:
 
   // Fallback
   return {
-    formulario: adquisicion.informe_conf_formulario || "FORMULARIO A6-N014",
-    fecha: adquisicion.informe_conf_fecha || "Oruro, 29 de julio de 2026",
-    cite: adquisicion.informe_conf_cite || "INF.DE ORURO N.º 021/2026",
-    a_nombre: adquisicion.informe_conf_a_nombre || "Lic. VICENTE PAUL VEGA RAMIREZ",
-    a_cargo: adquisicion.informe_conf_a_cargo || "SUPERINTENDENCIA DE ADMINISTRACIÓN & FINANZAS",
-    via_nombre: adquisicion.informe_conf_via_nombre || "Lic. RAÚL ALBERTO TORRICO GÓMEZ",
-    via_cargo: adquisicion.informe_conf_via_cargo || "GERENTE GENERAL",
-    de_nombre: adquisicion.informe_conf_de_nombre || "Ing. TATIANA TORRES ANDRADE",
-    de_cargo: adquisicion.informe_conf_de_cargo || "SUPERVISOR SEGURIDAD INDUSTRIAL",
-    proceso: `REMISIÓN DE INFORME TÉCNICO DE EVALUACIÓN DE COTIZACIONES Y SOLICITUD DE ADJUDICACIÓN - PROCESO "${adquisicion.titulo_proceso.toUpperCase()}" (${adquisicion.solicitud_inicio_numero ? `Solicitud No. ${adquisicion.solicitud_inicio_numero}` : "Solicitud No. 028/2026 S.I."})`,
-    antecedentes_fecha: "24/06/2026",
-    antecedentes_nota: "Nota No. 057/2026",
-    prevision_precio: adquisicion.prevision_presupuesto || 109000.0,
-    proponentes: [
-      {
-        numero: 1,
-        empresa: "MULTI ENERGÍA",
-        cotizacion_detalle: "Fechas solicitud de cotización: 10/07/2026\nCotización cumple con lo solicitado, de acuerdo a las especificaciones técnicas enviadas",
-        precio: "Bs 70.000,00",
-        actividad_economica: "No envía NIT",
-        cumple_tecnico: true,
-        cumple_legal: false,
-        es_ganador: false,
-        observacion: "No acreditó NIT",
-      },
-      {
-        numero: 2,
-        empresa: "HERRACRUZ",
-        cotizacion_detalle: "Fechas solicitud de cotización: 10/07/2026\nNo envía cotización.",
-        precio: "No envía propuesta",
-        actividad_economica: "-",
-        cumple_tecnico: false,
-        cumple_legal: false,
-        es_ganador: false,
-        observacion: "No presentó propuesta",
-      },
-      {
-        numero: 3,
-        empresa: "ARIOL",
-        cotizacion_detalle: "Fechas solicitud de cotización: 10/07/2026\nCotización cumple con lo solicitado, de acuerdo a las especificaciones técnicas enviadas",
-        precio: "Bs 67.240,00",
-        actividad_economica: "NIT: 6119531015\nActividad Económica: Comercialización y provisión de bienes",
-        cumple_tecnico: true,
-        cumple_legal: true,
-        es_ganador: true,
-        observacion: "Oferta habilitada con menor precio ofertado",
-      },
-      {
-        numero: 4,
-        empresa: "FEMCO",
-        cotizacion_detalle: "Fechas solicitud de cotización: 10/07/2026\nNo envía cotización.",
-        precio: "No envía propuesta",
-        actividad_economica: "-",
-        cumple_tecnico: false,
-        cumple_legal: false,
-        es_ganador: false,
-        observacion: "No presentó propuesta",
-      },
-    ],
-    empresa_ganadora: "ARIOL",
-    monto_adjudicado: 67240.0,
-    monto_adjudicado_literal: "Sesenta y Siete Mil Doscientos Cuarenta 00/100 Bolivianos",
+    fecha: adquisicion.informe_conf_fecha || "Oruro, 23 de Julio de 2026",
+    a_nombre: adquisicion.informe_conf_a_nombre || "LIC. VICENTE PAUL VEGA RAMIREZ",
+    a_cargo: adquisicion.informe_conf_a_cargo || "SUPERINTENDENTE DE ADMINISTRACIÓN Y FINANZAS a.i.",
+    de_nombre: adquisicion.informe_conf_de_nombre || "ING. TATIANA TORRES ANDRADE",
+    de_cargo: adquisicion.informe_conf_de_cargo || "SUPERVISOR DE SEGURIDAD INDUSTRIAL a.i",
+    proceso: adquisicion.titulo_proceso ? adquisicion.titulo_proceso.toUpperCase() : "SERVICIO DE LIMPIEZA E HIGIENE PARA LAS DEPENDENCIAS DE ENDE ORURO S.A.",
+    antecedentes: adquisicion.informe_conf_antecedentes || "En atención y mantenimiento de las condiciones de orden, higiene y limpieza en las instalaciones de la empresa para dar cumplimiento a los estándares operativos y de seguridad industrial.",
+    desarrollo: adquisicion.informe_conf_desarrollo || `En este sentido en cumplimiento del Reglamento de Adquisición de Bienes, Construcción de Obras Y Contratación de Servicios, se emite el contrato GG-CTO-26/040014 "${adquisicion.titulo_proceso.toUpperCase()}" para la empresa adjudicada, la cual cumple con las especificaciones técnicas y menor precio que se solicitó en el proceso de adquisición.`,
+    items_recepcion: (adquisicion.items && adquisicion.items.length > 0)
+      ? adquisicion.items.map((it, idx) => ({
+          numero: idx + 1,
+          descripcion: it.descripcion || "ITEM O SERVICIO ADQUIRIDO",
+          fecha_recepcion: "23/07/2026",
+          observaciones: "Sin observaciones / Servicio prestado a conformidad",
+        }))
+      : [
+          {
+            numero: 1,
+            descripcion: "SERVICIO DE LIMPIEZA MES DE JUNIO 2026",
+            fecha_recepcion: "30/06/2026",
+            observaciones: "Sin observaciones / Servicio prestado a conformidad",
+          },
+        ],
+    conclusiones_texto:
+      adquisicion.informe_conf_conclusiones_texto ||
+      "De acuerdo a la verificación e inspección realizada al desempeño de las tareas desempeñadas durante el mes de junio de 2026, como unidad solicitante se expresa la entera conformidad respecto a la prestación del servicio señalado. Se concluye que el proveedor cumple satisfactoriamente con las especificaciones técnicas exigidas.",
   };
 }
 
