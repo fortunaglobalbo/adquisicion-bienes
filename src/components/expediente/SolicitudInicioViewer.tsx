@@ -124,18 +124,19 @@ export const SolicitudInicioViewer: React.FC<SolicitudInicioViewerProps> = ({
     docData.solicitud_inicio_parrafo2 ||
     "Esta solicitud, se realiza en cumplimiento al Reglamento y Manual de Procedimiento de Adquisiciones de Bienes, construcciones de Obras y Contrataciones de Servicio, adjunto a la presente los documentos de respaldo necesarios para el inicio del proceso de contratación:";
 
+  const isDocumentGenerated = !!docData.solicitud_inicio_objeto || !!docData.solicitud_inicio_parrafo1;
+
   return (
-    <div className={`flex flex-col space-y-4 ${isFullScreen ? "fixed inset-0 z-50 bg-surface p-4 overflow-y-auto" : "w-full"}`}>
-      {/* Friendly Toolbar */}
-      <div className="bg-surface-container-lowest border border-outline-variant rounded-lg p-3 shadow-md sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3">
-        {/* Left: Actions */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Direct 1-Click AI Generation */}
+    <div className="flex flex-col items-center gap-6 w-full max-w-full pb-16">
+      {/* Top Floating Toolbar */}
+      <div className="sticky top-16 z-20 w-full max-w-[850px] bg-surface/95 backdrop-blur border border-outline-variant/80 rounded-xl p-3 shadow-md flex flex-wrap justify-between items-center gap-3">
+        {/* Left: AI & Action Buttons */}
+        <div className="flex items-center gap-2">
           <button
             onClick={handleConsolidateAndGenerateWithAi}
             disabled={isAiProcessing}
-            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white font-sans text-sm font-bold rounded shadow transition-all active:scale-95 disabled:opacity-50"
-            title="Generar y redactar automáticamente la Solicitud de Inicio con IA"
+            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-primary to-primary-container hover:opacity-90 text-white font-sans text-xs font-bold rounded-lg shadow-sm transition-all disabled:opacity-50 active:scale-95"
+            title="Redactar automáticamente la Solicitud de Inicio consolidando el TDR y la Partida"
           >
             {isAiProcessing ? (
               <>
@@ -152,26 +153,21 @@ export const SolicitudInicioViewer: React.FC<SolicitudInicioViewerProps> = ({
 
           <button
             onClick={handleSave}
-            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-sans text-sm font-bold rounded shadow transition-all active:scale-95"
-            title="Guardar todos los cambios realizados en el documento"
+            disabled={!isDocumentGenerated}
+            className="flex items-center gap-2 px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-sans text-xs font-bold rounded-lg shadow-sm transition-all disabled:opacity-40"
+            title="Guardar cambios"
           >
             <Save className="w-4 h-4 text-emerald-200" />
             <span>Guardar</span>
           </button>
 
-          {savedFeedback && (
-            <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 bg-emerald-100 px-3 py-1.5 rounded animate-bounce border border-emerald-300">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              ¡Guardado Correctamente!
-            </span>
-          )}
-
           <button
             onClick={() => onDownloadDocx(docData)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-primary text-on-primary hover:bg-primary-container font-sans text-sm font-bold rounded shadow transition-all active:scale-95"
-            title="Descargar la Solicitud de Inicio oficial en formato Microsoft Word (.docx) con texto en tamaño 12"
+            disabled={!isDocumentGenerated}
+            className="flex items-center gap-1.5 px-3 py-2 bg-surface-container-high border border-outline-variant hover:border-primary text-on-surface font-sans text-xs font-semibold rounded-lg shadow-sm transition-all disabled:opacity-40"
+            title="Descargar Word (.docx)"
           >
-            <Download className="w-4 h-4 text-secondary-container" />
+            <Download className="w-4 h-4 text-primary" />
             <span>Descargar Word (.docx)</span>
           </button>
         </div>
@@ -197,37 +193,59 @@ export const SolicitudInicioViewer: React.FC<SolicitudInicioViewerProps> = ({
         </div>
       </div>
 
-      {/* Clean Instructions banner for staff */}
-      <div className="bg-amber-50 border-l-4 border-amber-500 p-2.5 rounded text-xs text-amber-950 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="font-bold uppercase font-mono text-amber-800">✍️ Edición Directa:</span>
-          <span>Puedes hacer clic en cualquier texto para corregir número, fecha, nombres, cargos o párrafos directamente.</span>
-        </div>
-      </div>
-
-      {/* Document Sheet Container (Matching Official Photo 100%) */}
+      {/* Main Container */}
       <div className="w-full flex flex-col items-center py-4 bg-surface-container/60 rounded-lg p-2 md:p-6 overflow-x-auto">
-        <div className="w-full max-w-[850px] bg-white border border-outline-variant shadow-xl rounded-sm p-10 md:p-16 text-on-surface font-sans min-h-[1100px] flex flex-col justify-between relative">
-          
-          {/* Top Page Tag */}
-          <div className="absolute top-2 right-4 text-[10px] font-mono text-outline select-none">
-            SOLICITUD DE INICIO DE PROCESO DE COMPRA
-          </div>
-
-          <div className="space-y-6">
-            {/* Header: Logo & Institutional Subtitle */}
-            <div className="space-y-1">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/logo-ende-deoruro.png"
-                alt="ENDE DEORURO"
-                style={{ maxHeight: "48px", maxWidth: "180px", width: "auto" }}
-                className="h-12 w-auto object-contain"
-              />
-              <p className="text-[11px] font-sans font-bold text-gray-500 tracking-wider pl-12 uppercase">
-                DISTRIBUIDORA DE ELECTRICIDAD ENDE DEORURO S.A.
+        {!isDocumentGenerated ? (
+          <div className="w-full max-w-[850px] bg-white border border-outline-variant/60 shadow-md rounded-xl p-16 min-h-[550px] flex flex-col items-center justify-center text-center space-y-4">
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+              <FileDown className="w-8 h-8 opacity-60" />
+            </div>
+            <div className="max-w-md space-y-1.5">
+              <h4 className="font-bold text-on-surface text-lg">Vista Previa en Blanco</h4>
+              <p className="text-xs text-on-surface-variant leading-relaxed">
+                La Solicitud de Inicio aún no ha sido redactada para este expediente. Haz clic en el botón para generarla automáticamente con la IA.
               </p>
             </div>
+            <button
+              type="button"
+              onClick={handleConsolidateAndGenerateWithAi}
+              disabled={isAiProcessing}
+              className="flex items-center gap-2 px-6 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-lg shadow-sm hover:opacity-90 transition-all disabled:opacity-50"
+            >
+              {isAiProcessing ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Redactando con IA...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 text-yellow-300 fill-yellow-300" />
+                  <span>✨ Generar Solicitud de Inicio con IA</span>
+                </>
+              )}
+            </button>
+          </div>
+        ) : (
+          <div className="w-full max-w-[850px] bg-white border border-outline-variant shadow-xl rounded-sm p-10 md:p-16 text-on-surface font-sans min-h-[1100px] flex flex-col justify-between relative">
+            {/* Top Page Tag */}
+            <div className="absolute top-2 right-4 text-[10px] font-mono text-outline select-none">
+              SOLICITUD DE INICIO DE PROCESO DE COMPRA
+            </div>
+
+            <div className="space-y-6">
+              {/* Header: Logo & Institutional Subtitle */}
+              <div className="space-y-1">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/logo-ende-deoruro.png"
+                  alt="ENDE DEORURO"
+                  style={{ maxHeight: "48px", maxWidth: "180px", width: "auto" }}
+                  className="h-12 w-auto object-contain"
+                />
+                <p className="text-[11px] font-sans font-bold text-gray-500 tracking-wider pl-12 uppercase">
+                  DISTRIBUIDORA DE ELECTRICIDAD ENDE DEORURO S.A.
+                </p>
+              </div>
 
             {/* No. and Date Row */}
             <div className="flex justify-between items-center text-[12pt] pt-4 font-sans">
@@ -409,7 +427,8 @@ export const SolicitudInicioViewer: React.FC<SolicitudInicioViewerProps> = ({
             </div>
           </div>
         </div>
-      </div>
+      )}
+    </div>
 
       {/* Configuration Modal for Recipients & Date */}
       <Modal

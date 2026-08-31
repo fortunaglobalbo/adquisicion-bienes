@@ -536,6 +536,8 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
     </div>
   );
 
+  const isDocumentGenerated = (docData.items && docData.items.length > 0) || (!!docData.antecedentes_texto && docData.antecedentes_texto.trim().length > 20);
+
   return (
     <div className={`space-y-6 select-text text-base ${isFullScreen ? "fixed inset-0 z-50 bg-surface p-4 overflow-y-auto" : ""}`}>
       {/* Top Toolbar */}
@@ -544,39 +546,35 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setShowAiModal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white font-sans text-sm font-bold rounded shadow transition-all active:scale-95"
-            title="Subir foto o documento de cualquier rubro (Salud, Herramientas, etc.) para redactar con IA"
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary to-primary-container text-white font-sans text-xs font-bold rounded-lg shadow-sm hover:opacity-90 transition-all active:scale-95"
+            title="Redactar y generar con IA"
           >
-            <Sparkles className="w-4 h-4 text-yellow-100 fill-yellow-100" />
-            <span>✨ Asistente IA (Foto / Documento)</span>
+            <Sparkles className="w-4 h-4 text-yellow-300 fill-yellow-300" />
+            <span>Generar con IA (1 Clic)</span>
           </button>
 
           <button
             onClick={handleSave}
-            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-sans text-sm font-bold rounded shadow transition-all active:scale-95"
-            title="Guardar todos los cambios realizados en el documento"
+            disabled={!isDocumentGenerated}
+            className="flex items-center gap-1.5 px-3 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-sans text-xs font-bold rounded-lg shadow-sm transition-all disabled:opacity-40"
+            title="Guardar TDR"
           >
             <Save className="w-4 h-4 text-emerald-200" />
-            <span>Guardar TDR</span>
+            <span>Guardar</span>
           </button>
 
-          {savedFeedback && (
-            <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 bg-emerald-100 px-3 py-1.5 rounded animate-bounce border border-emerald-300">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              ¡Guardado Correctamente!
-            </span>
-          )}
           <button
             onClick={() => onDownloadDocx(docData)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-primary text-on-primary hover:bg-primary-container font-sans text-sm font-bold rounded shadow transition-all active:scale-95"
-            title="Descargar este documento oficial en formato Microsoft Word (.docx) con los 14 puntos completos"
+            disabled={!isDocumentGenerated}
+            className="flex items-center gap-1.5 px-3 py-2 bg-surface-container-high border border-outline-variant hover:border-primary text-on-surface font-sans text-xs font-semibold rounded-lg shadow-sm transition-all disabled:opacity-40"
+            title="Descargar archivo Word Oficial Editable"
           >
-            <Download className="w-4 h-4 text-secondary-container" />
+            <Download className="w-4 h-4 text-primary" />
             <span>Descargar Word (.docx)</span>
           </button>
         </div>
 
-        {/* Center: Page Controls / Mode */}
+        {/* Center: View mode & Pages */}
         <div className="flex items-center gap-2">
           <div className="flex items-center bg-surface-container-high rounded p-1 border border-outline-variant text-xs font-mono font-bold">
             <button
@@ -632,21 +630,43 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
 
       {/* Main Pages Container */}
       <div className="flex flex-col items-center gap-8 w-full">
-        {/* PÁGINA 1: PORTADA OFICIAL */}
-        {(viewMode === "continuo" || currentPage === 1) && (
-          <div className="w-full max-w-full lg:max-w-[1050px] bg-white border border-outline-variant shadow-xl rounded-sm p-5 sm:p-10 md:p-14 text-on-surface font-sans min-h-[1050px] flex flex-col justify-between relative">
-            <div className="flex justify-between items-center text-xs text-gray-500 font-mono border-b border-gray-200 pb-1 font-bold">
-              <span>{adquisicion.codigo}</span>
-              <span>PÁGINA 1 DE {totalPages}</span>
+        {!isDocumentGenerated ? (
+          <div className="w-full max-w-full lg:max-w-[1050px] bg-white border border-outline-variant/60 shadow-md rounded-xl p-16 min-h-[550px] flex flex-col items-center justify-center text-center space-y-4">
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+              <FileText className="w-8 h-8 opacity-60" />
             </div>
-
-            <RunningHeader pageNum={1} />
-
-            <div className="text-center my-6 space-y-3">
-              <h2 className="font-black text-xl md:text-2xl text-gray-900 uppercase tracking-wide leading-snug">
-                {docData.titulo_proceso}
-              </h2>
+            <div className="max-w-md space-y-1.5">
+              <h4 className="font-bold text-on-surface text-lg">Vista Previa en Blanco</h4>
+              <p className="text-xs text-on-surface-variant leading-relaxed">
+                El documento de Especificaciones Técnicas (TDR) aún no ha sido redactado. Haz clic en el botón para redactarlo automáticamente con la IA o cargar tu requerimiento.
+              </p>
             </div>
+            <button
+              type="button"
+              onClick={() => setShowAiModal(true)}
+              className="flex items-center gap-2 px-6 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-lg shadow-sm hover:opacity-90 transition-all"
+            >
+              <Sparkles className="w-4 h-4 text-yellow-300 fill-yellow-300" />
+              <span>✨ Redactar y Generar Documento con IA</span>
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* PÁGINA 1: PORTADA OFICIAL */}
+            {(viewMode === "continuo" || currentPage === 1) && (
+              <div className="w-full max-w-full lg:max-w-[1050px] bg-white border border-outline-variant shadow-xl rounded-sm p-5 sm:p-10 md:p-14 text-on-surface font-sans min-h-[1050px] flex flex-col justify-between relative">
+                <div className="flex justify-between items-center text-xs text-gray-500 font-mono border-b border-gray-200 pb-1 font-bold">
+                  <span>{adquisicion.codigo}</span>
+                  <span>PÁGINA 1 DE {totalPages}</span>
+                </div>
+
+                <RunningHeader pageNum={1} />
+
+                <div className="text-center my-6 space-y-3">
+                  <h2 className="font-black text-xl md:text-2xl text-gray-900 uppercase tracking-wide leading-snug">
+                    {docData.titulo_proceso}
+                  </h2>
+                </div>
 
             <div className="border border-gray-400 rounded overflow-hidden text-xs my-4">
               <div className="grid grid-cols-3 bg-gray-100 font-bold border-b border-gray-400 text-center text-gray-900 py-1.5">
@@ -936,7 +956,9 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
             </div>
           </div>
         )}
-      </div>
+      </>
+    )}
+  </div>
 
       {/* Modal Simplificado y Directo de Asistente IA */}
       <Modal

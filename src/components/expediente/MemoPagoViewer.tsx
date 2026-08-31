@@ -164,6 +164,8 @@ export const MemoPagoViewer: React.FC<MemoPagoViewerProps> = ({
     setTimeout(() => setSavedFeedback(false), 2500);
   };
 
+  const isDocumentGenerated = !!docData.memo_pago_objeto || !!docData.memo_pago_monto_total || (docData.items && docData.items.length > 0);
+
   return (
     <div
       className={`flex flex-col space-y-4 ${
@@ -178,7 +180,7 @@ export const MemoPagoViewer: React.FC<MemoPagoViewerProps> = ({
           <button
             onClick={handleGenerateWithAi}
             disabled={isAiProcessing}
-            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white font-sans text-sm font-bold rounded shadow transition-all active:scale-95 disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-primary to-primary-container hover:opacity-90 text-white font-sans text-xs font-bold rounded-lg shadow-sm transition-all active:scale-95 disabled:opacity-50"
             title="Generar y estructurar el Memorándum de Pago con IA"
           >
             {isAiProcessing ? (
@@ -188,7 +190,7 @@ export const MemoPagoViewer: React.FC<MemoPagoViewerProps> = ({
               </>
             ) : (
               <>
-                <Sparkles className="w-4 h-4 text-yellow-100" />
+                <Sparkles className="w-4 h-4 text-yellow-300 fill-yellow-300" />
                 <span>Generar con IA (1-Clic)</span>
               </>
             )}
@@ -197,17 +199,19 @@ export const MemoPagoViewer: React.FC<MemoPagoViewerProps> = ({
           {/* Direct Word Export Button */}
           <button
             onClick={() => onDownloadDocx(docData)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary/90 text-on-primary font-sans text-sm font-semibold rounded shadow transition-all active:scale-95"
+            disabled={!isDocumentGenerated}
+            className="flex items-center gap-1.5 px-3 py-2 bg-surface-container-high border border-outline-variant hover:border-primary text-on-surface font-sans text-xs font-semibold rounded-lg shadow-sm transition-all disabled:opacity-40"
             title="Descargar memorándum en Word (.docx) oficial"
           >
-            <Download className="w-4 h-4" />
+            <Download className="w-4 h-4 text-primary" />
             <span>Descargar Word (.docx)</span>
           </button>
 
           {/* Save Button */}
           <button
             onClick={handleSave}
-            className="flex items-center gap-1.5 px-3.5 py-2.5 bg-surface-container hover:bg-surface-container-high text-on-surface font-sans text-sm font-medium rounded border border-outline-variant transition-colors"
+            disabled={!isDocumentGenerated}
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-surface-container hover:bg-surface-container-high text-on-surface font-sans text-xs font-medium rounded-lg border border-outline-variant transition-colors disabled:opacity-40"
             title="Guardar cambios realizados en el memorándum"
           >
             {savedFeedback ? (
@@ -224,27 +228,10 @@ export const MemoPagoViewer: React.FC<MemoPagoViewerProps> = ({
               </>
             )}
           </button>
-
-          {/* Add Item Button */}
-          <button
-            onClick={handleAddItem}
-            className="flex items-center gap-1.5 px-3.5 py-2.5 bg-secondary-fixed hover:bg-secondary-fixed-dim text-on-secondary-fixed font-sans text-sm font-medium rounded transition-colors"
-            title="Añadir una fila a la tabla de concepto"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Añadir Ítem</span>
-          </button>
         </div>
 
         {/* Right: Badges & View Controls */}
         <div className="flex items-center gap-2 text-xs">
-          <span className="hidden sm:inline-flex px-2.5 py-1 bg-primary-container text-on-primary-container font-mono text-[11px] rounded font-semibold border border-primary/20">
-            Tamaño Carta (Letter)
-          </span>
-          <span className="hidden md:inline-flex px-2.5 py-1 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-medium rounded border border-emerald-500/20">
-            100% Editable
-          </span>
-
           <button
             onClick={() => setIsFullScreen(!isFullScreen)}
             className="p-2 hover:bg-surface-container text-on-surface-variant rounded border border-outline-variant transition-colors"
@@ -257,27 +244,57 @@ export const MemoPagoViewer: React.FC<MemoPagoViewerProps> = ({
 
       {/* Central Workbench with Realistic Carta Sheet */}
       <div className="flex-1 bg-surface-container-low p-4 md:p-8 rounded-xl border border-outline-variant/60 overflow-x-auto flex justify-center shadow-inner">
-        {/* Exact Carta Paper Sheet (8.5in x 11in standard scale) */}
-        <div className="w-full max-w-[816px] min-h-[1056px] bg-white text-slate-900 shadow-2xl p-[48px] md:p-[64px] font-sans text-[13px] leading-relaxed border border-slate-300 relative rounded-sm flex flex-col justify-between">
-          <div>
-            {/* Header Document & Logo */}
-            <div className="flex justify-between items-start border-b border-slate-300 pb-4 mb-6">
-              <div className="flex items-center gap-3">
-                <img
-                  src="/logo-ende-deoruro.png"
-                  alt="ENDE Deoruro"
-                  className="h-12 w-auto object-contain"
-                  onError={(e) => {
-                    (e.target as any).style.display = "none";
-                  }}
-                />
-                <div>
-                  <h2 className="text-xs font-bold text-[#001E40] tracking-wide">
-                    DISTRIBUIDORA DE ELECTRICIDAD ENDE DEORURO S.A.
-                  </h2>
-                  <p className="text-[10px] text-slate-500">Memorándum Institucional de Pago</p>
+        {!isDocumentGenerated ? (
+          <div className="w-full max-w-[816px] bg-white border border-outline-variant/60 shadow-md rounded-xl p-16 min-h-[550px] flex flex-col items-center justify-center text-center space-y-4">
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+              <FileDown className="w-8 h-8 opacity-60" />
+            </div>
+            <div className="max-w-md space-y-1.5">
+              <h4 className="font-bold text-on-surface text-lg">Vista Previa en Blanco</h4>
+              <p className="text-xs text-on-surface-variant leading-relaxed">
+                El Memorándum de Solicitud de Pago aún no ha sido redactado para este expediente. Haz clic en el botón para generarlo automáticamente con la IA.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleGenerateWithAi}
+              disabled={isAiProcessing}
+              className="flex items-center gap-2 px-6 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-lg shadow-sm hover:opacity-90 transition-all disabled:opacity-50"
+            >
+              {isAiProcessing ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Generando con IA...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 text-yellow-300 fill-yellow-300" />
+                  <span>✨ Generar Memorándum de Pago con IA</span>
+                </>
+              )}
+            </button>
+          </div>
+        ) : (
+          <div className="w-full max-w-[816px] min-h-[1056px] bg-white text-slate-900 shadow-2xl p-[48px] md:p-[64px] font-sans text-[13px] leading-relaxed border border-slate-300 relative rounded-sm flex flex-col justify-between">
+            <div>
+              {/* Header Document & Logo */}
+              <div className="flex justify-between items-start border-b border-slate-300 pb-4 mb-6">
+                <div className="flex items-center gap-3">
+                  <img
+                    src="/logo-ende-deoruro.png"
+                    alt="ENDE Deoruro"
+                    className="h-12 w-auto object-contain"
+                    onError={(e) => {
+                      (e.target as any).style.display = "none";
+                    }}
+                  />
+                  <div>
+                    <h2 className="text-xs font-bold text-[#001E40] tracking-wide">
+                      DISTRIBUIDORA DE ELECTRICIDAD ENDE DEORURO S.A.
+                    </h2>
+                    <p className="text-[10px] text-slate-500">Memorándum Institucional de Pago</p>
+                  </div>
                 </div>
-              </div>
               <div className="text-right space-y-1">
                 <div className="flex items-center justify-end gap-1">
                   <span className="text-xs font-bold text-[#003366]">No.</span>
@@ -522,7 +539,8 @@ export const MemoPagoViewer: React.FC<MemoPagoViewerProps> = ({
             />
           </div>
         </div>
-      </div>
+      )}
     </div>
+  </div>
   );
 };

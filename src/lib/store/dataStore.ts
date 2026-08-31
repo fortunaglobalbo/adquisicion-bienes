@@ -306,13 +306,55 @@ export class DataStore {
 
   static getCarpetasByAdquisicion(adquisicionId: string): Carpeta[] {
     const all = this.getAllCarpetas();
-    let folders = all.filter((c) => c.adquisicion_id === adquisicionId);
-    if (folders.length === 0) {
-      folders = createInitialFolders(adquisicionId);
-      all.push(...folders);
+    let adqFolders = all.filter((c) => c.adquisicion_id === adquisicionId).sort((a, b) => a.numero - b.numero);
+
+    if (adqFolders.length === 0) {
+      const initial = createInitialFolders(adquisicionId);
+      all.push(...initial);
+      this.saveAllCarpetas(all);
+      adqFolders = initial;
+    }
+
+    // Sincronizar automáticamente con las plantillas globales para que aplique a todos los expedientes
+    const plantillas = this.getPlantillas();
+    let updatedAny = false;
+    adqFolders.forEach((folder) => {
+      const tpl = plantillas.find((p) => p.fk_carpeta === folder.numero);
+      if (tpl && tpl.nombre_archivo && folder.plantilla_asociada_nombre !== tpl.nombre_archivo) {
+        folder.plantilla_asociada_nombre = tpl.nombre_archivo;
+        folder.plantilla_asociada_url = tpl.ruta_archivo || folder.plantilla_asociada_url;
+        updatedAny = true;
+      }
+    });
+
+    if (updatedAny) {
       this.saveAllCarpetas(all);
     }
-    return folders.sort((a, b) => a.numero - b.numero);
+
+    return adqFolders;
+  }
+
+  // Asignar plantilla globalmente para TODOS los expedientes
+  static setGlobalPlantillaForCarpeta(numeroCarpeta: number, data: { nombre_archivo: string; ruta_archivo?: string; descripcion?: string }) {
+    const plantillas = this.getPlantillas();
+    const existing = plantillas.find((p) => p.fk_carpeta === numeroCarpeta);
+    if (existing) {
+      existing.nombre_archivo = data.nombre_archivo;
+      existing.ruta_archivo = data.ruta_archivo || existing.ruta_archivo;
+      if (data.descripcion) existing.descripcion = data.descripcion;
+      this.saveAllPlantillas(plantillas);
+    }
+
+    // Actualizar todas las carpetas de todos los expedientes
+    const allCarpetas = this.getAllCarpetas();
+    allCarpetas.forEach((c) => {
+      if (c.numero === numeroCarpeta) {
+        c.plantilla_asociada_nombre = data.nombre_archivo;
+        if (data.ruta_archivo) c.plantilla_asociada_url = data.ruta_archivo;
+        if (data.descripcion) c.descripcion = data.descripcion;
+      }
+    });
+    this.saveAllCarpetas(allCarpetas);
   }
 
   static saveAllCarpetas(carpetas: Carpeta[]) {
