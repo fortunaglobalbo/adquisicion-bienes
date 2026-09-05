@@ -755,8 +755,188 @@ Analiza la solicitud y devuelve en JSON estricto:
   "borrador_contenido": "Texto inicial redactado formalmente para ENDE DEORURO S.A. listo para ser usado..."
 }}"""
 
-    res = call_deepseek_ai(prompt)
-    return {"success": True, "data": res}
+
+# ============================================================================
+# 5. MOTOR INTELIGENTE DE PLANTILLAS DOCX (Smart DOCX Filler sin etiquetas)
+# ============================================================================
+
+def inspect_docx_file(docx_path: str) -> dict:
+    doc = docx.Document(docx_path)
+    paragraphs_info = []
+    blank_pattern = re.compile(r'(__{2,}|\[[\w\s\.\,\-]+\]|\.{3,})')
+
+    for idx, p in enumerate(doc.paragraphs):
+        text = p.text.strip()
+        if not text:
+            continue
+        matches = blank_pattern.findall(text)
+        has_colon_prompt = ":" in text and (len(text.split(":", 1)[1].strip()) == 0 or bool(matches))
+        paragraphs_info.append({
+            "index": idx,
+            "text": text,
+            "style": p.style.name if p.style else None,
+            "placeholders": matches,
+            "is_fillable": bool(matches) or has_colon_prompt
+        })
+
+    tables_info = []
+    for t_idx, table in enumerate(doc.tables):
+        rows_data = []
+        for r in table.rows:
+            row_cells = [cell.text.strip().replace('\n', ' ') for cell in r.cells]
+            rows_data.append(row_cells)
+        headers = rows_data[0] if rows_data else []
+        tables_info.append({
+            "table_index": t_idx,
+            "total_rows": len(table.rows),
+            "total_columns": len(table.columns),
+            "headers": headers,
+            "sample_first_row": rows_data[1] if len(rows_data) > 1 else []
+        })
+
+    return {
+        "file": os.path.basename(docx_path),
+        "total_paragraphs": len(doc.paragraphs),
+        "fillable_paragraphs_count": sum(1 for p in paragraphs_info if p["is_fillable"]),
+        "paragraphs": paragraphs_info,
+        "tables": tables_info
+    }
+
+def fill_smart_docx_file(template_path: str, output_path: str, data: dict) -> dict:
+    doc = docx.Document(template_path)
+    stats = {"replaced_placeholders": 0, "updated_sections": 0, "updated_tables": 0}
+
+    def preserve_run_formatting(target_run, source_run):
+        if source_run.font.name:
+            target_run.font.name = source_run.font.name
+        if source_run.font.size:
+            target_run.font.size = source_run.font.size
+        if source_run.font.color and source_run.font.color.rgb:
+            target_run.font.color.rgb = source_run.font.color.rgb
+        target_run.bold = source_run.bold
+        target_run.italic = source_run.italic
+        target_run.underline = source_run.underline
+
+    def replace_text_in_paragraph(paragraph, old_text, new_text):
+        full_text = paragraph.text
+        if old_text not in full_text:
+            return False
+        template_run = paragraph.runs[0] if paragraph.runs else None
+        new_full_text = full_text.replace(old_text, new_text)
+        p_element = paragraph._p
+        for r in paragraph.runs:
+            p_element.remove(r._r)
+        new_run = paragraph.add_run(new_full_text)
+        if template_run:
+            preserve_run_formatting(new_run, template_run)
+        return True
+
+    def set_paragraph_content(paragraph, new_text):
+        if not paragraph.runs:
+            paragraph.add_run(new_text)
+            return
+        template_run = paragraph.runs[0]
+        p_element = paragraph._p
+        for r in paragraph.runs:
+            p_element.remove(r._r)
+        new_run = paragraph.add_run(new_text)
+        preserve_run_formatting(new_run, template_run)
+
+    replacements = data.get("replacements", {})
+    if replacements:
+        for p in doc.paragraphs:
+            for old_val, new_val in replacements.items():
+                if old_val in p.text:
+                    if replace_text_in_paragraph(p, old_val, str(new_val)):
+                        stats["replaced_placeholders"] += 1
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for p in cell.paragraphs:
+                        for old_val, new_val in replacements.items():
+                            if old_val in p.text:
+                                if replace_text_in_paragraph(p, old_val, str(new_val)):
+                                    stats["replaced_placeholders"] += 1
+
+    sections_data = data.get("sections", {})
+    if sections_data:
+        total_p = len(doc.paragraphs)
+        for i, p in enumerate(doc.paragraphs):
+            p_text = p.text.strip().upper()
+            for sec_name, new_content in sections_data.items():
+                sec_upper = sec_name.strip().upper()
+                if sec_upper in p_text and (len(p_text) - len(sec_upper) < 15):
+                    for j in range(i + 1, min(i + 4, total_p)):
+                        next_p = doc.paragraphs[j]
+                        if next_p.text.strip():
+                            set_paragraph_content(next_p, str(new_content))
+                            stats["updated_sections"] += 1
+                            break
+
+    tables_data = data.get("tables", [])
+    for t_spec in tables_data:
+        t_idx = t_spec.get("table_index", 0)
+        if t_idx < len(doc.tables):
+            table = doc.tables[t_idx]
+            new_rows = t_spec.get("rows", [])
+            replace_mode = t_spec.get("mode", "append")
+            if replace_mode == "direct_cells":
+                for r_idx, c_idx, val in t_spec.get("cells", []):
+                    if r_idx < len(table.rows) and c_idx < len(table.rows[r_idx].cells):
+                        table.rows[r_idx].cells[c_idx].text = str(val)
+                stats["updated_tables"] += 1
+            elif replace_mode == "append":
+                for row_data in new_rows:
+                    row = table.add_row()
+                    for c_idx, val in enumerate(row_data):
+                        if c_idx < len(row.cells):
+                            row.cells[c_idx].text = str(val)
+                stats["updated_tables"] += 1
+
+    doc.save(output_path)
+    return stats
+
+@app.post("/api/docx/inspect")
+async def api_inspect_docx(file: UploadFile = File(...)):
+    """Inspecciona cualquier plantilla DOCX y devuelve su estructura editable."""
+    contents = await file.read()
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp:
+        tmp.write(contents)
+        tmp_path = tmp.name
+    try:
+        structure = inspect_docx_file(tmp_path)
+        return {"success": True, "data": structure}
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+@app.post("/api/docx/smart-fill")
+async def api_smart_fill_docx(file: UploadFile = File(...), data_json: str = Form(...)):
+    """Rellena cualquier plantilla DOCX usando datos JSON sin requerir tags predefinidos."""
+    try:
+        data = json.loads(data_json)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"JSON inválido: {e}")
+
+    contents = await file.read()
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp:
+        tmp.write(contents)
+        tmp_path = tmp.name
+
+    out_name = f"filled_{datetime.now().strftime('%Y%m%d_%H%M%S')}.docx"
+    out_path = os.path.join(OUTPUT_DIR, out_name)
+
+    try:
+        stats = fill_smart_docx_file(tmp_path, out_path, data)
+        return {
+            "success": True,
+            "filename": out_name,
+            "download_url": f"/download/{out_name}",
+            "stats": stats
+        }
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
 
 @app.post("/api/pdf-to-docx")
 async def pdf_to_docx_convert(file: UploadFile = File(...)):

@@ -16,9 +16,11 @@ import {
   Layers,
 } from "lucide-react";
 import { VisualTemplateEditor } from "@/components/plantillas/VisualTemplateEditor";
+import { SmartDocxUploader } from "@/components/plantillas/SmartDocxUploader";
 import { Modal } from "@/components/ui/Modal";
 
 export default function PlantillasPage() {
+  const [activeTab, setActiveTab] = useState<"autollenado" | "maquetador">("autollenado");
   const [plantillas, setPlantillas] = useState<Plantilla[]>([]);
   const [activeEditorPlantilla, setActiveEditorPlantilla] = useState<Plantilla | null>(null);
   const [selectedInfoPlantilla, setSelectedInfoPlantilla] = useState<Plantilla | null>(null);
@@ -53,10 +55,10 @@ export default function PlantillasPage() {
             <div>
               <h2 className="font-headline-lg text-2xl font-bold text-on-surface tracking-tight flex items-center gap-2">
                 <Layout className="w-6 h-6 text-primary" />
-                <span>Taller de Maquetación y Plantillas Oficiales</span>
+                <span>Gestor y Autollenado de Plantillas Word (.docx)</span>
               </h2>
               <p className="font-sans text-xs text-on-surface-variant mt-0.5">
-                Distribuidora de Electricidad ENDE Deoruro S.A. • Diseñador Visual de Documentos Word (.docx)
+                Distribuidora de Electricidad ENDE Deoruro S.A. • Motor de Procesamiento Documental & AnythingLLM
               </p>
             </div>
             {globalSavedFeedback && (
@@ -67,11 +69,42 @@ export default function PlantillasPage() {
             )}
           </div>
 
-          {/* Selector Visual de las 8 Carpetas / Plantillas */}
-          <div className="space-y-2">
-            <label className="text-xs font-mono font-bold text-outline uppercase tracking-wider block">
-              Selecciona el Documento Institucional a Maquetar:
-            </label>
+          {/* Selector de Pestañas Principales */}
+          <div className="flex gap-2 p-1 bg-surface-container-low border border-outline-variant rounded-xl w-fit">
+            <button
+              onClick={() => setActiveTab("autollenado")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                activeTab === "autollenado"
+                  ? "bg-primary text-white shadow-sm"
+                  : "text-on-surface hover:bg-surface"
+              }`}
+            >
+              <Sparkles className="w-4 h-4 text-amber-300" />
+              <span>Autollenado Inteligente (Cualquier Plantilla DOCX + AnythingLLM)</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("maquetador")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                activeTab === "maquetador"
+                  ? "bg-primary text-white shadow-sm"
+                  : "text-on-surface hover:bg-surface"
+              }`}
+            >
+              <Layers className="w-4 h-4" />
+              <span>Taller de Maquetación Visual (8 Carpetas ENDE)</span>
+            </button>
+          </div>
+
+          {/* Contenido según la pestaña activa */}
+          {activeTab === "autollenado" ? (
+            <SmartDocxUploader />
+          ) : (
+            <div className="space-y-6">
+              {/* Selector Visual de las 8 Carpetas / Plantillas */}
+              <div className="space-y-2">
+                <label className="text-xs font-mono font-bold text-outline uppercase tracking-wider block">
+                  Selecciona el Documento Institucional a Maquetar:
+                </label>
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
               {plantillas.map((p) => {
                 const isSelected = activeEditorPlantilla?.id === p.id;
@@ -139,10 +172,9 @@ export default function PlantillasPage() {
               <HelpCircle className="w-4 h-4 text-secondary-fixed-variant" />
               <span>¿Cómo se aplican estos cambios en los expedientes?</span>
             </div>
-            <p className="text-on-surface-variant leading-relaxed">
-              Toda modificación en el <strong>orden de páginas</strong>, <strong>firmantes oficiales</strong> (Elaborado, Revisado, Aprobado, Vía Gerencia) o <strong>cláusulas</strong> se almacena de forma centralizada en el sistema. Al ingresar a un expediente o descargar el documento en Word (.docx), el archivo se generará respetando exactamente la maquetación y reglas configuradas aquí.
-            </p>
-          </div>
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </>

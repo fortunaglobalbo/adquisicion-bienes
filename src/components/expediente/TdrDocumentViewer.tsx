@@ -20,10 +20,12 @@ import {
   Edit3,
   Layers,
   FileDown,
+  Upload,
 } from "lucide-react";
 import { Adquisicion, ItemAdquisicion, Plantilla, CampoMoldeLibre, TipoTablaTDR } from "@/types";
 import { Modal } from "@/components/ui/Modal";
 import { InstitutionalLogo } from "../layout/InstitutionalLogo";
+import { SmartDocxUploader } from "@/components/plantillas/SmartDocxUploader";
 import { DataStore } from "@/lib/store/dataStore";
 import { parseMarkdownTdrLiteral, cleanInstitutionalText } from "@/lib/ai/markdownTdrParser";
 import { getMesAnioActual } from "@/lib/utils/dateUtils";
@@ -75,6 +77,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
   const [aiInputMode, setAiInputMode] = useState<"markdown" | "file">("markdown");
   const [markdownTdrText, setMarkdownTdrText] = useState<string>("");
   const [uploadedAiFile, setUploadedAiFile] = useState<{ name: string; base64: string; type: string } | null>(null);
+  const [showSmartDocxModal, setShowSmartDocxModal] = useState(false);
   const [isAiProcessing, setIsAiProcessing] = useState(false);
   const [incluirFotoEnItems, setIncluirFotoEnItems] = useState<boolean>(false);
   const aiFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -554,6 +557,15 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
           </button>
 
           <button
+            onClick={() => setShowSmartDocxModal(true)}
+            className="flex items-center gap-1.5 px-3 py-2 bg-secondary/10 hover:bg-secondary/20 text-secondary border border-secondary/30 font-sans text-xs font-bold rounded-lg shadow-sm transition-all"
+            title="Subir plantilla Word (.docx) y autollenar con AnythingLLM"
+          >
+            <Upload className="w-4 h-4 text-secondary" />
+            <span>Subir Plantilla (.docx)</span>
+          </button>
+
+          <button
             onClick={handleSave}
             disabled={!isDocumentGenerated}
             className="flex items-center gap-1.5 px-3 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-sans text-xs font-bold rounded-lg shadow-sm transition-all disabled:opacity-40"
@@ -641,14 +653,25 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
                 El documento de Especificaciones Técnicas (TDR) aún no ha sido redactado. Haz clic en el botón para redactarlo automáticamente con la IA o cargar tu requerimiento.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => setShowAiModal(true)}
-              className="flex items-center gap-2 px-6 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-lg shadow-sm hover:opacity-90 transition-all"
-            >
-              <Sparkles className="w-4 h-4 text-yellow-300 fill-yellow-300" />
-              <span>✨ Redactar y Generar Documento con IA</span>
-            </button>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => setShowAiModal(true)}
+                className="flex items-center gap-2 px-6 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-lg shadow-sm hover:opacity-90 transition-all"
+              >
+                <Sparkles className="w-4 h-4 text-yellow-300 fill-yellow-300" />
+                <span>✨ Redactar y Generar Documento con IA</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowSmartDocxModal(true)}
+                className="flex items-center gap-2 px-5 py-2.5 bg-surface-container-high border-2 border-primary/40 hover:border-primary text-primary font-bold text-xs rounded-lg shadow-sm hover:bg-primary/5 transition-all"
+              >
+                <Upload className="w-4 h-4 text-primary" />
+                <span>Subir Plantilla Word (.docx) + AnythingLLM</span>
+              </button>
+            </div>
           </div>
         ) : (
           <>
@@ -1075,6 +1098,22 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
               )}
             </button>
           </div>
+        </div>
+      </Modal>
+
+      {/* Modal para Subir Plantilla DOCX + AnythingLLM */}
+      <Modal
+        isOpen={showSmartDocxModal}
+        onClose={() => setShowSmartDocxModal(false)}
+        title="Autollenado Inteligente de Plantillas Word (.docx)"
+        maxWidth="4xl"
+      >
+        <div className="p-2">
+          <SmartDocxUploader
+            onSuccess={() => {
+              setShowSmartDocxModal(false);
+            }}
+          />
         </div>
       </Modal>
     </div>
