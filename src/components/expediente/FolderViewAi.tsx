@@ -308,14 +308,14 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
 
   return (
     <div className="flex flex-col h-full space-y-4 w-full">
-      {/* Barra Superior de Plantilla para esta Carpeta */}
+      {/* Barra Superior Unificada de Carpeta */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-surface-container-low p-2.5 px-4 rounded-xl border border-outline-variant text-xs">
         <div className="flex items-center gap-2">
           <span className="font-bold text-on-surface font-sans">
             📁 Carpeta {carpeta.numero}: {carpeta.nombre}
           </span>
           <span className="text-[11px] text-on-surface-variant font-mono hidden sm:inline">
-            • Plantilla Oficial ENDE
+            • {carpeta.plantilla_asociada_nombre ? `Plantilla: ${carpeta.plantilla_asociada_nombre}` : "Plantilla Oficial ENDE"}
           </span>
         </div>
 
@@ -323,10 +323,10 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
           type="button"
           onClick={() => setShowTranspileModal(true)}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 rounded-lg font-bold font-sans transition-all active:scale-95"
-          title="Subir un Word para maquetarlo en código como plantilla de esta carpeta"
+          title={`Configurar o maquetar plantilla Word (.docx) para la Carpeta ${carpeta.numero}`}
         >
           <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-          <span>🪄 Maquetar Plantilla en Código (DOCX)</span>
+          <span>Configurar / Maquetar Plantilla (.docx)</span>
         </button>
       </div>
 
@@ -545,6 +545,19 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
         onClose={() => setShowTranspileModal(false)}
         fkCarpetaDefault={carpeta.numero}
         adquisicionActual={adquisicion}
+        onTemplateSaved={(tplId) => {
+          const list = DataStore.getPlantillas();
+          const tpl = list.find((p) => p.id === tplId);
+          if (tpl) {
+            const allC = DataStore.getAllCarpetas();
+            const target = allC.find((c) => c.id === carpeta.id);
+            if (target) {
+              target.plantilla_asociada_id = tpl.id;
+              target.plantilla_asociada_nombre = tpl.nombre;
+              DataStore.saveAllCarpetas(allC);
+            }
+          }
+        }}
       />
     </div>
   );

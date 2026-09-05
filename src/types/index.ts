@@ -209,6 +209,7 @@ export interface Carpeta {
   fecha_proceso?: string;
   descripcion: string;
   documentos: Documento[];
+  plantilla_asociada_id?: string;
   plantilla_asociada_nombre?: string;
   plantilla_asociada_url?: string;
   orden?: number;

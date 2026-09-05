@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Upload,
   Sparkles,
@@ -36,6 +36,11 @@ export const TemplateTranspilerModal: React.FC<TemplateTranspilerModalProps> = (
   onTemplateSaved,
 }) => {
   const [fkCarpeta, setFkCarpeta] = useState<number>(fkCarpetaDefault);
+
+  useEffect(() => {
+    setFkCarpeta(fkCarpetaDefault);
+  }, [fkCarpetaDefault]);
+
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [nombrePlantilla, setNombrePlantilla] = useState<string>("");
 

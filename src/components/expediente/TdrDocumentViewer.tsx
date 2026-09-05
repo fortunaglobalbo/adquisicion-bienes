@@ -25,10 +25,10 @@ import {
 import { Adquisicion, ItemAdquisicion, Plantilla, CampoMoldeLibre, TipoTablaTDR } from "@/types";
 import { Modal } from "@/components/ui/Modal";
 import { InstitutionalLogo } from "../layout/InstitutionalLogo";
-import { TemplateTranspilerModal } from "@/components/plantillas/TemplateTranspilerModal";
 import { DataStore } from "@/lib/store/dataStore";
 import { parseMarkdownTdrLiteral, cleanInstitutionalText } from "@/lib/ai/markdownTdrParser";
 import { getMesAnioActual } from "@/lib/utils/dateUtils";
+import { CuadernoNormativoEngine } from "@/lib/ai/cuadernoNormativoEngine";
 
 
 interface TdrDocumentViewerProps {
@@ -50,6 +50,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
   const [showAiModal, setShowAiModal] = useState(false);
   const [savedFeedback, setSavedFeedback] = useState(false);
   const [showFirmaPortada, setShowFirmaPortada] = useState(true);
+  const [hasGenerated, setHasGenerated] = useState(false);
 
   // Cargar plantilla activa de Carpeta 1 (TDR) desde DataStore
   const [activeTemplate, setActiveTemplate] = useState<Plantilla | null>(null);
@@ -77,7 +78,6 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
   const [aiInputMode, setAiInputMode] = useState<"markdown" | "file">("markdown");
   const [markdownTdrText, setMarkdownTdrText] = useState<string>("");
   const [uploadedAiFile, setUploadedAiFile] = useState<{ name: string; base64: string; type: string } | null>(null);
-  const [showSmartDocxModal, setShowSmartDocxModal] = useState(false);
   const [isAiProcessing, setIsAiProcessing] = useState(false);
   const [incluirFotoEnItems, setIncluirFotoEnItems] = useState<boolean>(false);
   const aiFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -99,26 +99,21 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
   // Sincronizar docData cuando cambia el expediente
   useEffect(() => {
     setDocData((prev) => {
-      // Si el estado local ya tiene items y la prop entrante viene vacía por recarga asíncrona, conservar items locales
-      if (prev.items && prev.items.length > 0 && (!adquisicion.items || adquisicion.items.length === 0)) {
-        return {
-          ...adquisicion,
-          items: prev.items,
-          antecedentes_texto: prev.antecedentes_texto || adquisicion.antecedentes_texto,
-          justificacion_texto: prev.justificacion_texto || adquisicion.justificacion_texto,
-          puntos_14_texto: prev.puntos_14_texto || adquisicion.puntos_14_texto,
-          mes_anio_documento: prev.mes_anio_documento || adquisicion.mes_anio_documento || getMesAnioActual(),
-        };
-      }
       return {
+        ...prev,
         ...adquisicion,
-        mes_anio_documento: adquisicion.mes_anio_documento || getMesAnioActual(),
+        items: (adquisicion.items && adquisicion.items.length > 0) ? adquisicion.items : (prev.items || []),
+        antecedentes_texto: adquisicion.antecedentes_texto || prev.antecedentes_texto,
+        justificacion_texto: adquisicion.justificacion_texto || prev.justificacion_texto,
+        calidad_texto: adquisicion.calidad_texto || prev.calidad_texto,
+        puntos_14_texto: adquisicion.puntos_14_texto || prev.puntos_14_texto,
+        mes_anio_documento: adquisicion.mes_anio_documento || prev.mes_anio_documento || getMesAnioActual(),
       };
     });
     if (adquisicion.tipo_tabla_tdr) {
       setTipoTablaTdr(adquisicion.tipo_tabla_tdr);
     }
-  }, [adquisicion.id, adquisicion.fecha_creacion, adquisicion.items?.length]);
+  }, [adquisicion.id]);
 
   // Obtener contenido en vivo de cualquier punto del documento
   const getPuntoContent = (num: number): string => {
@@ -228,88 +223,92 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
       }
 
       const aiData = result.data || {};
-      const aiItems = aiData.items || [];
+      let aiItems = aiData.items || [];
       const detectedPuntos = aiData.puntos_14_texto || aiData.puntos_detectados || {};
+      const detectedTabla = aiData.tipo_tabla_sugerido || "BIENES_SIMPLE";
 
-      if (aiData) {
-        const detectedTabla = aiData.tipo_tabla_sugerido || "BIENES_SIMPLE";
-
-        const updated: Adquisicion = {
-          ...docData,
-          tipo_tabla_tdr: detectedTabla,
-          titulo_proceso: aiData.titulo_proceso || docData.titulo_proceso,
-          elaborado_por: aiData.elaborado_por || docData.elaborado_por,
-          revisado_por: aiData.revisado_por || docData.revisado_por,
-          aprobado_por: aiData.aprobado_por || docData.aprobado_por,
-          antecedentes_texto: aiData.antecedentes_texto || detectedPuntos[1] || docData.antecedentes_texto,
-          justificacion_texto: aiData.justificacion_texto || detectedPuntos[2] || docData.justificacion_texto,
-          calidad_texto: aiData.calidad_texto || detectedPuntos[4] || docData.calidad_texto,
-          ambito_aplicacion: aiData.ambito_aplicacion || detectedPuntos[5] || docData.ambito_aplicacion,
-          metodo_seleccion_texto: aiData.metodo_seleccion_texto || detectedPuntos[6] || docData.metodo_seleccion_texto,
-          vigencia_propuesta_texto: aiData.vigencia_propuesta_texto || detectedPuntos[7] || docData.vigencia_propuesta_texto,
-          categoria_texto: aiData.categoria_texto || detectedPuntos[8] || docData.categoria_texto,
-          lugar_entrega: aiData.lugar_entrega || detectedPuntos[9] || docData.lugar_entrega,
-          tiempo_entrega_texto: aiData.tiempo_entrega_texto || detectedPuntos[10] || docData.tiempo_entrega_texto,
-          forma_adjudicacion: aiData.forma_adjudicacion || detectedPuntos[11] || docData.forma_adjudicacion,
-          aceptacion_lote: aiData.aceptacion_lote || detectedPuntos[12] || docData.aceptacion_lote,
-          forma_pago_texto: aiData.forma_pago_texto || detectedPuntos[13] || docData.forma_pago_texto,
-          multas_texto: aiData.multas_texto || detectedPuntos[14] || docData.multas_texto,
-          puntos_14_texto: Object.keys(detectedPuntos).length > 0 ? detectedPuntos : docData.puntos_14_texto,
-          seccion3_introduccion_texto: aiData.seccion3_introduccion_texto || docData.seccion3_introduccion_texto,
-          columnas_tabla_tdr: aiData.columnas_tabla_tdr || docData.columnas_tabla_tdr,
-          categoria: (aiData.categoria_detectada as any) || docData.categoria,
-          items: aiItems.length > 0 ? aiItems : docData.items,
-        };
-
-        const totalPresupuesto = updated.items.reduce(
-          (sum, it) => sum + (Number(it.precioTotalEstimado) || (Number(it.cantidad) || 1) * (Number(it.precioUnitarioEstimado) || 0)),
-          0
-        );
-        updated.prevision_presupuesto = totalPresupuesto > 0 ? totalPresupuesto : updated.prevision_presupuesto;
-
-        setTipoTablaTdr(detectedTabla);
-
-        // Actualizar todos los 14 puntos inmediatamente en pantalla con COPIA FIEL 100%
-        // Si el texto viene del parser directo, usarlo SIN cleanInstitutionalText para no alterar nada
-        setPuntosOficiales((prev) =>
-          prev.map((p) => {
-            const detected = detectedPuntos[p.num];
-            if (detected) return { ...p, contenido: detected };
-            if (p.num === 1 && updated.antecedentes_texto) return { ...p, contenido: updated.antecedentes_texto };
-            if (p.num === 2 && updated.justificacion_texto) return { ...p, contenido: updated.justificacion_texto };
-            if (p.num === 4 && updated.calidad_texto) return { ...p, contenido: updated.calidad_texto };
-            if (p.num === 5 && updated.ambito_aplicacion) return { ...p, contenido: updated.ambito_aplicacion };
-            if (p.num === 6 && updated.metodo_seleccion_texto) return { ...p, contenido: updated.metodo_seleccion_texto };
-            if (p.num === 7 && updated.vigencia_propuesta_texto) return { ...p, contenido: updated.vigencia_propuesta_texto };
-            if (p.num === 8 && updated.categoria_texto) return { ...p, contenido: updated.categoria_texto };
-            if (p.num === 9 && updated.lugar_entrega) return { ...p, contenido: updated.lugar_entrega };
-            if (p.num === 10 && updated.tiempo_entrega_texto) return { ...p, contenido: updated.tiempo_entrega_texto };
-            if (p.num === 11 && updated.forma_adjudicacion) return { ...p, contenido: updated.forma_adjudicacion };
-            if (p.num === 12 && updated.aceptacion_lote) return { ...p, contenido: updated.aceptacion_lote };
-            if (p.num === 13 && updated.forma_pago_texto) return { ...p, contenido: updated.forma_pago_texto };
-            if (p.num === 14 && updated.multas_texto) return { ...p, contenido: updated.multas_texto };
-            return p;
-          })
-        );
-
-        // Auto-cascada para Carpetas 5 y 6 al generar Carpeta 1
-        updated.solicitud_inicio_objeto = `SOLICITUD DE INICIO DEL PROCESO DE COMPRA "${(updated.titulo_proceso || "").toUpperCase()}"`;
-        updated.solicitud_inicio_parrafo1 = `Por medio de la presente, me dirijo a su autoridad para solicitar formalmente el inicio del proceso de compra correspondiente al proceso "${(updated.titulo_proceso || "").toUpperCase()}".`;
-        updated.form_s2_senores = updated.form_s2_senores || "PROVEEDOR / PROPONENTE";
-        updated.form_s2_tiempo_entrega = updated.form_s2_tiempo_entrega || `${updated.plazo_entrega_dias || 30} días calendario`;
-        updated.form_s2_validez_oferta = "30 días calendario";
-        updated.form_s2_observaciones = "SE ADJUNTA ESPECIFICACIONES TECNICAS";
-        updated.form_s2_nota_adicional = "ADJUNTAR FOTOCOPIA SIMPLE DE SU RNC - NIT";
-
-        setDocData(updated);
-        onAdquisicionUpdated?.(updated);
-        setShowAiModal(false);
-        setSavedFeedback(true);
-        setTimeout(() => setSavedFeedback(false), 3000);
-
-        // Descarga directa inmediata del archivo Word (.docx) generado
-        onDownloadDocx(updated);
+      // Si por alguna razón la IA externa no desglosó ítems, usar el motor normativo institucional para estructurarlos
+      if (!aiItems || aiItems.length === 0) {
+        const queryText = markdownTdrText.trim() || aiPrompt.trim() || docData.titulo_proceso;
+        const norm = CuadernoNormativoEngine.normalizarRequerimiento(queryText, docData);
+        aiItems = norm.items_estandarizados;
       }
+
+      const updated: Adquisicion = {
+        ...docData,
+        tipo_tabla_tdr: detectedTabla,
+        titulo_proceso: aiData.titulo_proceso || docData.titulo_proceso,
+        elaborado_por: aiData.elaborado_por || docData.elaborado_por || "Ing. Gabriela Bobarin",
+        revisado_por: aiData.revisado_por || docData.revisado_por || "Ing. Raúl Torrico",
+        aprobado_por: aiData.aprobado_por || docData.aprobado_por || "Lic. Vicente Paul Vega Ramirez",
+        antecedentes_texto: aiData.antecedentes_texto || detectedPuntos[1] || docData.antecedentes_texto || `De acuerdo a la legislación vigente y normas internas de ENDE DEORURO S.A., se da inicio al proceso de adquisición para "${docData.titulo_proceso}".`,
+        justificacion_texto: aiData.justificacion_texto || detectedPuntos[2] || docData.justificacion_texto || `La presente adquisición tiene por objeto garantizar la continuidad operativa y técnica de ENDE DEORURO S.A.`,
+        calidad_texto: aiData.calidad_texto || detectedPuntos[4] || docData.calidad_texto,
+        ambito_aplicacion: aiData.ambito_aplicacion || detectedPuntos[5] || docData.ambito_aplicacion,
+        metodo_seleccion_texto: aiData.metodo_seleccion_texto || detectedPuntos[6] || docData.metodo_seleccion_texto,
+        vigencia_propuesta_texto: aiData.vigencia_propuesta_texto || detectedPuntos[7] || docData.vigencia_propuesta_texto,
+        categoria_texto: aiData.categoria_texto || detectedPuntos[8] || docData.categoria_texto,
+        lugar_entrega: aiData.lugar_entrega || detectedPuntos[9] || docData.lugar_entrega,
+        tiempo_entrega_texto: aiData.tiempo_entrega_texto || detectedPuntos[10] || docData.tiempo_entrega_texto,
+        forma_adjudicacion: aiData.forma_adjudicacion || detectedPuntos[11] || docData.forma_adjudicacion,
+        aceptacion_lote: aiData.aceptacion_lote || detectedPuntos[12] || docData.aceptacion_lote,
+        forma_pago_texto: aiData.forma_pago_texto || detectedPuntos[13] || docData.forma_pago_texto,
+        multas_texto: aiData.multas_texto || detectedPuntos[14] || docData.multas_texto,
+        puntos_14_texto: Object.keys(detectedPuntos).length > 0 ? detectedPuntos : docData.puntos_14_texto,
+        seccion3_introduccion_texto: aiData.seccion3_introduccion_texto || docData.seccion3_introduccion_texto,
+        columnas_tabla_tdr: aiData.columnas_tabla_tdr || docData.columnas_tabla_tdr,
+        categoria: (aiData.categoria_detectada as any) || docData.categoria,
+        items: aiItems,
+      };
+
+      const totalPresupuesto = updated.items.reduce(
+        (sum, it) => sum + (Number(it.precioTotalEstimado) || (Number(it.cantidad) || 1) * (Number(it.precioUnitarioEstimado) || 0)),
+        0
+      );
+      updated.prevision_presupuesto = totalPresupuesto > 0 ? totalPresupuesto : updated.prevision_presupuesto;
+
+      setTipoTablaTdr(detectedTabla);
+
+      // Actualizar todos los 14 puntos inmediatamente en pantalla
+      setPuntosOficiales((prev) =>
+        prev.map((p) => {
+          const detected = detectedPuntos[p.num];
+          if (detected) return { ...p, contenido: detected };
+          if (p.num === 1 && updated.antecedentes_texto) return { ...p, contenido: updated.antecedentes_texto };
+          if (p.num === 2 && updated.justificacion_texto) return { ...p, contenido: updated.justificacion_texto };
+          if (p.num === 4 && updated.calidad_texto) return { ...p, contenido: updated.calidad_texto };
+          if (p.num === 5 && updated.ambito_aplicacion) return { ...p, contenido: updated.ambito_aplicacion };
+          if (p.num === 6 && updated.metodo_seleccion_texto) return { ...p, contenido: updated.metodo_seleccion_texto };
+          if (p.num === 7 && updated.vigencia_propuesta_texto) return { ...p, contenido: updated.vigencia_propuesta_texto };
+          if (p.num === 8 && updated.categoria_texto) return { ...p, contenido: updated.categoria_texto };
+          if (p.num === 9 && updated.lugar_entrega) return { ...p, contenido: updated.lugar_entrega };
+          if (p.num === 10 && updated.tiempo_entrega_texto) return { ...p, contenido: updated.tiempo_entrega_texto };
+          if (p.num === 11 && updated.forma_adjudicacion) return { ...p, contenido: updated.forma_adjudicacion };
+          if (p.num === 12 && updated.aceptacion_lote) return { ...p, contenido: updated.aceptacion_lote };
+          if (p.num === 13 && updated.forma_pago_texto) return { ...p, contenido: updated.forma_pago_texto };
+          if (p.num === 14 && updated.multas_texto) return { ...p, contenido: updated.multas_texto };
+          return p;
+        })
+      );
+
+      // Auto-cascada para Carpetas 5 y 6 al generar Carpeta 1
+      updated.solicitud_inicio_objeto = `SOLICITUD DE INICIO DEL PROCESO DE COMPRA "${(updated.titulo_proceso || "").toUpperCase()}"`;
+      updated.solicitud_inicio_parrafo1 = `Por medio de la presente, me dirijo a su autoridad para solicitar formalmente el inicio del proceso de compra correspondiente al proceso "${(updated.titulo_proceso || "").toUpperCase()}".`;
+      updated.form_s2_senores = updated.form_s2_senores || "PROVEEDOR / PROPONENTE";
+      updated.form_s2_tiempo_entrega = updated.form_s2_tiempo_entrega || `${updated.plazo_entrega_dias || 30} días calendario`;
+      updated.form_s2_validez_oferta = "30 días calendario";
+      updated.form_s2_observaciones = "SE ADJUNTA ESPECIFICACIONES TECNICAS";
+      updated.form_s2_nota_adicional = "ADJUNTAR FOTOCOPIA SIMPLE DE SU RNC - NIT";
+
+      setDocData(updated);
+      setHasGenerated(true);
+      onAdquisicionUpdated?.(updated);
+      setShowAiModal(false);
+      setSavedFeedback(true);
+      setTimeout(() => setSavedFeedback(false), 3000);
+
+      // Descarga directa inmediata del archivo Word (.docx) generado
+      onDownloadDocx(updated);
     } catch (err: any) {
       alert("Error con la IA: " + err.message);
     } finally {
@@ -539,7 +538,10 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
     </div>
   );
 
-  const isDocumentGenerated = (docData.items && docData.items.length > 0) || (!!docData.antecedentes_texto && docData.antecedentes_texto.trim().length > 20);
+  const isDocumentGenerated =
+    hasGenerated ||
+    (docData.items && docData.items.length > 0) ||
+    (!!docData.antecedentes_texto && docData.antecedentes_texto.trim().length > 20);
 
   return (
     <div className={`space-y-6 select-text text-base ${isFullScreen ? "fixed inset-0 z-50 bg-surface p-4 overflow-y-auto" : ""}`}>
@@ -550,19 +552,10 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
           <button
             onClick={() => setShowAiModal(true)}
             className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary to-primary-container text-white font-sans text-xs font-bold rounded-lg shadow-sm hover:opacity-90 transition-all active:scale-95"
-            title="Redactar y generar con IA"
+            title="Redactar y estructurar el TDR oficial con IA"
           >
             <Sparkles className="w-4 h-4 text-yellow-300 fill-yellow-300" />
-            <span>Generar con IA (1 Clic)</span>
-          </button>
-
-          <button
-            onClick={() => setShowSmartDocxModal(true)}
-            className="flex items-center gap-1.5 px-3 py-2 bg-secondary/10 hover:bg-secondary/20 text-secondary border border-secondary/30 font-sans text-xs font-bold rounded-lg shadow-sm transition-all"
-            title="Subir plantilla Word (.docx) y autollenar con AnythingLLM"
-          >
-            <Upload className="w-4 h-4 text-secondary" />
-            <span>Subir Plantilla (.docx)</span>
+            <span>✨ Redactar con IA</span>
           </button>
 
           <button
@@ -657,19 +650,10 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
               <button
                 type="button"
                 onClick={() => setShowAiModal(true)}
-                className="flex items-center gap-2 px-6 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-lg shadow-sm hover:opacity-90 transition-all"
+                className="flex items-center gap-2 px-6 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-lg shadow-sm hover:opacity-90 transition-all active:scale-95"
               >
                 <Sparkles className="w-4 h-4 text-yellow-300 fill-yellow-300" />
                 <span>✨ Redactar y Generar Documento con IA</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setShowSmartDocxModal(true)}
-                className="flex items-center gap-2 px-5 py-2.5 bg-surface-container-high border-2 border-primary/40 hover:border-primary text-primary font-bold text-xs rounded-lg shadow-sm hover:bg-primary/5 transition-all"
-              >
-                <Upload className="w-4 h-4 text-primary" />
-                <span>Subir Plantilla Word (.docx) + AnythingLLM</span>
               </button>
             </div>
           </div>
@@ -1100,19 +1084,6 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
           </div>
         </div>
       </Modal>
-
-      {/* Modal para Maquetar en Código y Plantillas Libres */}
-      <TemplateTranspilerModal
-        isOpen={showSmartDocxModal}
-        onClose={() => setShowSmartDocxModal(false)}
-        fkCarpetaDefault={1}
-        adquisicionActual={adquisicion}
-        onTemplateSaved={(tplId) => {
-          const list = DataStore.getPlantillas();
-          const tpl = list.find((p) => p.id === tplId);
-          if (tpl) setActiveTemplate(tpl);
-        }}
-      />
     </div>
   );
 };

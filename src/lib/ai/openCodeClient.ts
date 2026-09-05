@@ -336,27 +336,128 @@ DEBES RESPONDER EXCLUSIVAMENTE UN OBJETO JSON VÁLIDO CON ESTA ESTRUCTURA:
       }
     } catch (e) {
       console.warn("Could not parse JSON from AI:", e);
+  }
+  }
+
+  // Fallback institucional de alta resiliencia con el Cuaderno Normativo de ENDE DEORURO S.A.
+  const fallbackText = rawText || (input.insumoTexto || input.documentText || "").trim();
+  const wordToNum: Record<string, number> = {
+    un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10,
+    once: 11, doce: 12, quince: 15, veinte: 20, veinticinco: 25, treinta: 30, cincuenta: 50, cien: 100
+  };
+
+  const detectedItems: ItemAdquisicion[] = [];
+  let itemCounter = 1;
+
+  if (fallbackText) {
+    // Intentar segmentar por saltos de línea o comas
+    const segments = fallbackText.split(/(?:[\r\n;,]|\s+y\s+)/i).map(s => s.trim()).filter(s => s.length > 2);
+    for (const seg of segments) {
+      const m = seg.match(/(?:.*:\s*)?(\d+|un|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|quince|veinte|treinta|cincuenta|cien)?\s+(.+)/i);
+      if (m && m[2]) {
+        const cantStr = (m[1] || "1").toLowerCase();
+        const cant = wordToNum[cantStr] || parseInt(cantStr) || 1;
+        const desc = m[2].replace(/^de\s+/i, "").replace(/\.$/, "").trim().toUpperCase();
+        if (!desc.startsWith("ADQUISIC") && !desc.startsWith("HERRAMIENTAS PARA") && desc.length > 2) {
+          const unidad = desc.includes("CINTA") ? "ROLLO" : desc.includes("JUEGO") ? "JGO" : "PZA";
+          detectedItems.push({
+            id: `item-norm-${Date.now()}-${itemCounter}`,
+            item: itemCounter,
+            descripcion: desc,
+            cantidad: cant,
+            unidad: unidad,
+            precioUnitarioEstimado: 120,
+            precioTotalEstimado: cant * 120,
+            caracteristicasTecnicas: "Cumplimiento obligatorio de normas técnicas ASTM / IEC / ISO aplicables.",
+            especificacionMinima: "Cumplimiento obligatorio de normas técnicas ASTM / IEC / ISO aplicables.",
+            valores_columnas: [String(itemCounter), desc, "Cumplimiento de normas técnicas ASTM / IEC / ISO.", String(cant)],
+            fichaTecnica: {
+              uso: "Personal Operativo y Cuadrillas de Mantenimiento ENDE DEORURO",
+              normaCertificacion: "Normas ASTM / IEC / ISO",
+              material: "Acero forjado con aislamiento dieléctrico",
+              color: "Estándar",
+              dimensiones: "Según requerimiento",
+              categoriaItem: "Herramientas",
+              caracteristicasDetalle: ["Cumplimiento de normas técnicas aplicables ASTM/IEC/ISO."],
+            },
+          });
+          itemCounter++;
+        }
+      }
     }
   }
 
-  // Fallback institucional en caso de fallo de red
+  // Si no se detectaron ítems desglosados, generar al menos un ítem basado en el título o insumo
+  if (detectedItems.length === 0) {
+    const itemDesc = fallbackText.length > 0 && fallbackText.length < 90
+      ? fallbackText.toUpperCase()
+      : `SUMINISTROS PARA ${adquisicion.titulo_proceso.toUpperCase()}`;
+    detectedItems.push({
+      id: `item-norm-${Date.now()}-1`,
+      item: 1,
+      descripcion: itemDesc,
+      cantidad: 1,
+      unidad: "PZA",
+      precioUnitarioEstimado: 1000,
+      precioTotalEstimado: 1000,
+      caracteristicasTecnicas: "Fabricación de primer uso conforme a normas técnicas ASTM/IEC/ISO aplicables.",
+      especificacionMinima: "Fabricación de primer uso conforme a normas técnicas ASTM/IEC/ISO aplicables.",
+      valores_columnas: ["1", itemDesc, "Conforme a normas técnicas.", "1"],
+      fichaTecnica: {
+        uso: "Personal Operativo ENDE DEORURO S.A.",
+        normaCertificacion: "Normas ASTM / IEC / ISO",
+        material: "Estándar institucional",
+        color: "Estándar",
+        dimensiones: "Según requerimiento",
+        categoriaItem: "Bienes",
+        caracteristicasDetalle: ["Conforme a especificaciones técnicas oficiales."],
+      },
+    });
+  }
+
+  const finalItems = (adquisicion.items && adquisicion.items.length > 0) ? adquisicion.items : detectedItems;
+
+  const antText = adquisicion.antecedentes_texto ||
+    `De acuerdo a la legislación vigente del Estado Plurinacional de Bolivia, normas y políticas internas institucionales, se da inicio al proceso de adquisición para "${adquisicion.titulo_proceso}". El presente proceso se encuentra enmarcado en el Manual de Procedimientos y el Reglamento de Adquisición de Bienes, Construcción de Obras y Contratación de Servicios (SBC) de la Distribuidora de Electricidad ENDE DEORURO S.A.`;
+
+  const justText = adquisicion.justificacion_texto ||
+    `La adquisición tiene por finalidad técnica garantizar la continuidad, calidad y confiabilidad del suministro eléctrico en el departamento de Oruro. La incorporación de estos insumos permite prevenir fallas intempestivas en las redes de media y baja tensión, optimizar los tiempos de respuesta y precautelar la seguridad industrial del personal operativo de ENDE DEORURO S.A.`;
+
+  const puntos14: { [num: number]: string } = {
+    1: antText,
+    2: justText,
+    4: "Los bienes deberán ser nuevos, de primer uso y fabricados bajo normas de calidad aplicables (ASTM/IEC/ISO) con garantía técnica mínima de 12 meses.",
+    5: "Subestaciones, cuadrillas operativas y redes de distribución de ENDE DEORURO S.A.",
+    6: "Por ítem requerido al Menor Precio evaluado, conforme al Artículo 31 del Reglamento SBC.",
+    7: "Tendrá una validez mínima de 30 (treinta) días calendario computables a partir de la fecha de presentación de ofertas.",
+    8: "Bienes, Herramientas y Suministros Oficiales.",
+    9: adquisicion.lugar_entrega || "Almacenes Centrales de ENDE DEORURO S.A., Oruro - Bolivia.",
+    10: "Máximo 30 días calendario computables a partir del día siguiente de la recepción de la Orden de Compra formal.",
+    11: "Por ítem requerido, formalizada por Orden de Compra (Art. 31 SBC).",
+    12: "El personal técnico de ENDE DEORURO S.A. realizará una evaluación técnica de conformidad el día de la entrega física del lote.",
+    13: "El pago se realizará en moneda nacional contra entrega satisfactoria del lote, conformidad de ENDE DEORURO S.A. y factura comercial oficial.",
+    14: "Se aplicará la multa del 0.25% por cada día de retraso en la entrega respecto al plazo contractual.",
+  };
+
   return {
     titulo_proceso: adquisicion.titulo_proceso,
-    antecedentes_texto: adquisicion.antecedentes_texto || "La DISTRIBUIDORA DE ELECTRICIDAD ENDE DEORURO S.A. requiere la adquisición de bienes y servicios para sus operaciones.",
-    justificacion_texto: adquisicion.justificacion_texto || "La adquisición es necesaria para garantizar la continuidad del suministro de energía eléctrica.",
-    calidad_texto: "Conforme a normas técnicas aplicables ASTM/IEC/ISO.",
-    ambito_aplicacion: "Personal técnico y operativo de ENDE DEORURO S.A.",
-    metodo_seleccion_texto: "Menor Precio (Art. 31 SBC).",
-    vigencia_propuesta_texto: "30 días calendario.",
-    categoria_texto: "Bienes y Herramientas",
-    lugar_entrega: "Almacenes ENDE DEORURO S.A., Oruro",
-    tiempo_entrega_texto: "Máximo 30 días calendario",
-    forma_adjudicacion: "Por ítem requerido (Art. 31 SBC)",
-    aceptacion_lote: "Inspección técnica de conformidad el día de la entrega",
-    forma_pago_texto: "Contra entrega a satisfacción y factura oficial",
-    multas_texto: "Multa del 0.25% por cada día de retraso",
+    antecedentes_texto: antText,
+    justificacion_texto: justText,
+    calidad_texto: puntos14[4],
+    ambito_aplicacion: puntos14[5],
+    metodo_seleccion_texto: puntos14[6],
+    vigencia_propuesta_texto: puntos14[7],
+    categoria_texto: puntos14[8],
+    lugar_entrega: puntos14[9],
+    tiempo_entrega_texto: puntos14[10],
+    forma_adjudicacion: puntos14[11],
+    aceptacion_lote: puntos14[12],
+    forma_pago_texto: puntos14[13],
+    multas_texto: puntos14[14],
     tipo_tabla_sugerido: "BIENES_SIMPLE",
-    items: adquisicion.items || [],
+    puntos_detectados: puntos14,
+    puntos_14_texto: puntos14,
+    items: finalItems,
   };
 }
 

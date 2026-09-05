@@ -52,9 +52,9 @@ export default function ExpedienteDetailPage() {
 
   const [dbError, setDbError] = useState<string | null>(null);
 
-  const loadData = async () => {
+  const loadData = async (silent = false) => {
     if (!id) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     setDbError(null);
 
     let adq = DataStore.getAdquisicionById(id);
@@ -79,7 +79,7 @@ export default function ExpedienteDetailPage() {
     setCamposExtraidos(Array.isArray(fields) ? fields : []);
     const sigs = DataStore.getFirmas(adq.id);
     setFirmas(Array.isArray(sigs) ? sigs : []);
-    setLoading(false);
+    if (!silent) setLoading(false);
   };
 
   useEffect(() => {
@@ -125,7 +125,7 @@ export default function ExpedienteDetailPage() {
     if (activeFolderNum >= 5 && adquisicion.estado === "Iniciado") {
       DataStore.updateAdquisicion(adquisicion.id, { estado: "Generación IA" });
     }
-    loadData();
+    loadData(true);
   };
 
 
@@ -246,7 +246,10 @@ export default function ExpedienteDetailPage() {
                   onDocumentGenerated={(doc) => handleDocumentAdded(doc)}
                   onAdquisicionUpdated={(updated) => {
                     setAdquisicion(updated);
-                    loadData();
+                    const folders = DataStore.getCarpetasByAdquisicion(updated.id);
+                    if (folders && folders.length > 0) {
+                      setCarpetas(folders);
+                    }
                   }}
                 />
               ) : (
