@@ -25,7 +25,7 @@ import {
 import { Adquisicion, ItemAdquisicion, Plantilla, CampoMoldeLibre, TipoTablaTDR } from "@/types";
 import { Modal } from "@/components/ui/Modal";
 import { InstitutionalLogo } from "../layout/InstitutionalLogo";
-import { SmartDocxUploader } from "@/components/plantillas/SmartDocxUploader";
+import { TemplateTranspilerModal } from "@/components/plantillas/TemplateTranspilerModal";
 import { DataStore } from "@/lib/store/dataStore";
 import { parseMarkdownTdrLiteral, cleanInstitutionalText } from "@/lib/ai/markdownTdrParser";
 import { getMesAnioActual } from "@/lib/utils/dateUtils";
@@ -1101,21 +1101,18 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
         </div>
       </Modal>
 
-      {/* Modal para Subir Plantilla DOCX + AnythingLLM */}
-      <Modal
+      {/* Modal para Maquetar en Código y Plantillas Libres */}
+      <TemplateTranspilerModal
         isOpen={showSmartDocxModal}
         onClose={() => setShowSmartDocxModal(false)}
-        title="Autollenado Inteligente de Plantillas Word (.docx)"
-        maxWidth="4xl"
-      >
-        <div className="p-2">
-          <SmartDocxUploader
-            onSuccess={() => {
-              setShowSmartDocxModal(false);
-            }}
-          />
-        </div>
-      </Modal>
+        fkCarpetaDefault={1}
+        adquisicionActual={adquisicion}
+        onTemplateSaved={(tplId) => {
+          const list = DataStore.getPlantillas();
+          const tpl = list.find((p) => p.id === tplId);
+          if (tpl) setActiveTemplate(tpl);
+        }}
+      />
     </div>
   );
 };

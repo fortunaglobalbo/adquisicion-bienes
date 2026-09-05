@@ -17,6 +17,7 @@ import { FormS2Viewer } from "./FormS2Viewer";
 import { InformeConformidadViewer } from "./InformeConformidadViewer";
 import { MemoPagoViewer } from "./MemoPagoViewer";
 import { FolderAiGuideBanner } from "./FolderAiGuideBanner";
+import { TemplateTranspilerModal } from "@/components/plantillas/TemplateTranspilerModal";
 import { DataStore } from "@/lib/store/dataStore";
 
 interface FolderViewAiProps {
@@ -42,54 +43,8 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
   const [manualUploadSuccess, setManualUploadSuccess] = useState(false);
   const manualFileRef = useRef<HTMLInputElement | null>(null);
 
-  // Estado para subida y conversión de plantillas personalizadas (PDF / Word)
-  const [templateUploading, setTemplateUploading] = useState(false);
-  const [templateSuccessMsg, setTemplateSuccessMsg] = useState<string | null>(null);
-  const templateInputRef = useRef<HTMLInputElement | null>(null);
-
-  // Helper para subir y convertir plantilla con pdf2docx / MarkItDown en el VPS
-  const handleTemplateUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      setTemplateUploading(true);
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("fk_carpeta", String(carpeta.numero));
-      formData.append("nombre_plantilla", file.name);
-
-      const res = await fetch("http://85.31.230.163:8080/api/convertir-plantilla", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!res.ok) {
-        throw new Error("Error al convertir la plantilla en el VPS");
-      }
-
-      const result = await res.json();
-
-      // Actualizar en DataStore
-      const plantillas = DataStore.getPlantillas();
-      const existing = plantillas.find((p) => p.fk_carpeta === carpeta.numero);
-      if (existing) {
-        await DataStore.updatePlantilla(existing.id, {
-          nombre_archivo: result.nombre_archivo,
-          descripcion: `Plantilla personalizada convertida con pdf2docx / MarkItDown (${file.name})`,
-          tipo_doc: file.name.toLowerCase().endsWith(".pdf") ? "PDF_CONVERTIDO" : "DOCX",
-        });
-      }
-
-      setTemplateSuccessMsg(`✅ Plantilla "${file.name}" convertida con éxito y asignada como molde oficial de esta carpeta.`);
-      setTimeout(() => setTemplateSuccessMsg(null), 6000);
-    } catch (err: any) {
-      alert("Error al subir plantilla: " + err.message);
-    } finally {
-      setTemplateUploading(false);
-      if (templateInputRef.current) templateInputRef.current.value = "";
-    }
-  };
+  // Modal para Maquetar en Código cualquier plantilla DOCX (Libre para las 8 carpetas)
+  const [showTranspileModal, setShowTranspileModal] = useState(false);
 
   // Determinar tipo de documento a generar
   const getDocType = (): "TDR" | "SOLICITUD_INICIO" | "FORM_S2" | "INFORME_CONFORMIDAD" | "MEMO_PAGO" => {
@@ -353,6 +308,28 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
 
   return (
     <div className="flex flex-col h-full space-y-4 w-full">
+      {/* Barra Superior de Plantilla para esta Carpeta */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-surface-container-low p-2.5 px-4 rounded-xl border border-outline-variant text-xs">
+        <div className="flex items-center gap-2">
+          <span className="font-bold text-on-surface font-sans">
+            📁 Carpeta {carpeta.numero}: {carpeta.nombre}
+          </span>
+          <span className="text-[11px] text-on-surface-variant font-mono hidden sm:inline">
+            • Plantilla Oficial ENDE
+          </span>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setShowTranspileModal(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 rounded-lg font-bold font-sans transition-all active:scale-95"
+          title="Subir un Word para maquetarlo en código como plantilla de esta carpeta"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+          <span>🪄 Maquetar Plantilla en Código (DOCX)</span>
+        </button>
+      </div>
+
       {/* For Carpeta 1: Full-Screen Direct Document Editor & Viewer (TDR) */}
       {carpeta.numero === 1 ? (
         <TdrDocumentViewer
@@ -562,6 +539,13 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
           );
         })()
       )}
+      {/* Modal para Maquetar en Código y Plantillas Libres */}
+      <TemplateTranspilerModal
+        isOpen={showTranspileModal}
+        onClose={() => setShowTranspileModal(false)}
+        fkCarpetaDefault={carpeta.numero}
+        adquisicionActual={adquisicion}
+      />
     </div>
   );
 };
