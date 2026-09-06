@@ -1,5 +1,21 @@
 # ⚡ ENDE DEORURO S.A. — Sistema Inteligente de Gestión de Adquisición de Bienes y Contrataciones
 
+## Asistente simplificado de documentos — septiembre de 2026
+
+La entrada **Preparar documento** (`/plantillas`) ofrece cinco pasos: elegir documento, elegir Word, aportar información, completar pendientes y revisar/descargar. El TDR incluye un modelo institucional; los demás documentos admiten el Word del usuario. La configuración anterior se conserva en `/configuracion/plantillas`, junto al acceso a auditoría.
+
+El nuevo flujo consulta las normas del espacio configurado en AnythingLLM automáticamente. Los datos de la compra proceden de la descripción, hasta tres antecedentes y el expediente seleccionado; para documentos posteriores también puede reutilizar el TDR preparado por este asistente dentro del mismo expediente. No extrae hechos de compra de todo el espacio normativo.
+
+El llenado nuevo se ejecuta en Next.js, sobre una copia del DOCX original, conservando sus recursos. Identifica párrafos y tablas por sus identificadores estructurales; rechaza destinos inexistentes, superposiciones y reemplazos de filas en tablas combinadas o ambiguas. No requiere actualizar el motor Python del VPS. Máximo: plantilla de 3 MB y archivos juntos de 4 MB; hasta 600 párrafos. Los PDF deben contener texto seleccionable en este flujo.
+
+Las fuentes recuperadas, fragmentos, página y versión cuando están disponibles acompañan la revisión. Una cláusula normativa propuesta sin fuente reconocida queda pendiente. Esto **no certifica cumplimiento ni vigencia normativa**: las referencias son propuestas para revisión y la maquetación final debe comprobarse en Word. La pantalla muestra contenido, no una previsualización paginada del archivo final. No se promete compatibilidad perfecta con cualquier diseño.
+
+Cuando se selecciona un expediente compatible, la descarga registra una copia como **Borrador**, su fundamento y, si la carga tiene éxito, el modelo original reutilizable. La carpeta no se marca automáticamente como completada. Los errores de guardado se muestran sin impedir conservar el Word descargado. Los documentos independientes se descargan sin guardarse en un expediente. La reutilización de modelos requiere una copia previamente guardada en un expediente accesible.
+
+Validación local: `npm run typecheck`, `npm test`, `npm run test:documents`, `npm run build`. Las pruebas de documentos verifican conservación de recursos del modelo institucional, tablas, destinos y ausencia de fuentes inventadas; no sustituyen una prueba con usuarios ni una revisión visual en Word. Se mantiene el despliegue existente GitHub/Vercel y la configuración actual de los servicios.
+
+Las secciones siguientes describen la arquitectura previa. Las afirmaciones históricas de «cualquier plantilla», formato «exacto» o cumplimiento automático no son garantías del nuevo asistente.
+
 > Plataforma web integral e inteligente para la formulación, redacción, maquetación y generación automatizada de los expedientes oficiales de adquisición de bienes, suministros y servicios de la **Distribuidora de Electricidad ENDE DEORURO S.A.**, cumpliendo estrictamente con el **Reglamento SBC (Subasta Doble / Menor Precio)** y las normativas técnicas institucionales.
 
 ---

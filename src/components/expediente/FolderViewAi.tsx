@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from "react";
+import Link from "next/link";
 import {
   Sparkles,
   Download,
@@ -268,17 +269,19 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
           </span>
         </div>
 
-        <button
+        <Link href={`/plantillas?expediente=${encodeURIComponent(adquisicion.id)}&documento=${encodeURIComponent(({ 1: "TDR", 5: "Solicitud de inicio", 6: "Solicitud de cotización", 7: "Informe de conformidad", 8: "Solicitud de pago" } as Record<number, string>)[carpeta.numero] || "Otro documento")}`} className="rounded-lg bg-primary px-4 py-2 text-base font-semibold text-white">Preparar con el asistente</Link>
+        <details className="text-sm"><summary className="cursor-pointer text-slate-600">Opciones del modelo</summary><button
           type="button"
           onClick={() => setShowTranspileModal(true)}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 rounded-lg font-bold font-sans transition-all active:scale-95"
           title={`Configurar o maquetar plantilla Word (.docx) para la Carpeta ${carpeta.numero}`}
         >
           <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-          <span>Configurar / Maquetar Plantilla (.docx)</span>
-        </button>
+          <span>Editar modelo</span>
+        </button></details>
       </div>
 
+      {carpeta.documentos.some(d => d.metadata?.assistant && d.ruta_storage) && <section className="rounded-xl border border-outline-variant p-4 space-y-3"><h3 className="font-semibold text-primary">Documentos preparados con el asistente</h3>{carpeta.documentos.filter(d => d.metadata?.assistant && d.ruta_storage).map(d => <div key={d.id} className="space-y-2 border-t pt-3"><a className="text-primary underline" href={`/api/files?path=${encodeURIComponent(d.ruta_storage!)}`}>{d.nombre_original} · versión {d.version}</a><p className="text-sm text-slate-600">Borrador para revisión · {new Date(d.fecha_creacion).toLocaleDateString("es-BO")}</p><details className="text-sm"><summary className="cursor-pointer">Ver fundamento guardado</summary>{(d.metadata?.warnings || []).map((w: string, i: number) => <p key={i} className="mt-2">{w}</p>)}{(d.metadata?.sources || []).map((s: { id: string; title: string; excerpt: string; version: string }) => <p key={s.id} className="mt-3 whitespace-pre-wrap"><strong>{s.title} · {s.version}</strong><br />{s.excerpt}</p>)}</details></div>)}</section>}
       {/* For Carpeta 1: Full-Screen Direct Document Editor & Viewer (TDR) */}
       {carpeta.numero === 1 ? (
         <TdrDocumentViewer

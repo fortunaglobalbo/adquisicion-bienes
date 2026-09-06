@@ -48,6 +48,21 @@ export interface ExtractedAcquisitionData {
 }
 
 export class AnythingLlmClient {
+  static async queryWorkspaceWithSources(prompt: string): Promise<{ answer: string; sources: import("./documentAssistant").NormSource[] }> {
+    const res = await fetch(`${BASE_URL}/workspace/${DEFAULT_WORKSPACE}/chat`, {
+      method: "POST", headers: this.getHeaders(), signal: AbortSignal.timeout(45000),
+      body: JSON.stringify({ message: prompt, mode: "query" }),
+    });
+    if (!res.ok) throw new Error("No se pudieron consultar las normas.");
+    const data = await res.json();
+    return { answer: typeof data.textResponse === "string" ? data.textResponse : "",
+      sources: (Array.isArray(data.sources) ? data.sources : []).slice(0, 12).map((s: any, i: number) => ({
+        id: `fuente-${i + 1}`, title: String(s.title || s.name || s.metadata?.title || "Documento normativo"),
+        excerpt: String(s.text || s.pageContent || s.chunk || "").slice(0, 7000),
+        page: String(s.page || s.metadata?.page || "No indicada"),
+        version: String(s.version || s.metadata?.version || "No indicada en la fuente"),
+      })).filter((s: { excerpt: string }) => s.excerpt.trim()) };
+  }
   private static getHeaders() {
     return {
       "Authorization": `Bearer ${API_KEY}`,

@@ -1,563 +1,186 @@
 "use client";
+import React, { useEffect, useRef, useState } from "react";
+import { FileText, ArrowLeft, ArrowRight, Loader2, Download } from "lucide-react";
+import type { AssistantDraft } from "@/lib/ai/documentAssistant";
+import type { TemplateStructure } from "@/lib/docx/templateEditor";
+import { DataStore } from "@/lib/store/dataStore";
+import type { Adquisicion } from "@/types";
 
-import React, { useState, useEffect } from "react";
-import {
-  Upload,
-  FileText,
-  Sparkles,
-  CheckCircle2,
-  AlertCircle,
-  Download,
-  Layers,
-  ArrowRight,
-  RefreshCw,
-  Cpu,
-  Eye,
-  Server,
-  Edit3,
-} from "lucide-react";
+type Draft = AssistantDraft & { structure: TemplateStructure; fingerprint: string };
+const steps = ["Documento", "Formato", "Información", "Completar", "Revisar"];
+const kinds = ["TDR", "Solicitud de inicio", "Solicitud de cotización", "Informe de conformidad", "Solicitud de pago", "Otro documento"];
+const input = "w-full rounded-lg border border-outline-variant bg-white p-3 text-base text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary";
+const button = "inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3 text-base font-semibold text-white disabled:opacity-50";
+const pending = (value: string) => /\[PENDIENTE[^\]]*\]/i.test(value) || !value.trim();
 
-interface SmartDocxUploaderProps {
-  onSuccess?: (downloadUrl: string) => void;
-}
-
-export const SmartDocxUploader: React.FC<SmartDocxUploaderProps> = ({ onSuccess }) => {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [useOfficialTemplate, setUseOfficialTemplate] = useState<string>("TDR_7Paginas_Oficial_ENDE_Deoruro.docx");
-  const [isCustomUpload, setIsCustomUpload] = useState<boolean>(false);
-
-  // Estados de AnythingLLM
-  const [llmStatus, setLlmStatus] = useState<"checking" | "connected" | "error">("checking");
-  const [workspaces, setWorkspaces] = useState<any[]>([]);
-  const [selectedWorkspace, setSelectedWorkspace] = useState<string>("adquisiciones-ende");
-  const [isExtracting, setIsExtracting] = useState<boolean>(false);
-
-  // Estados de Inspección y Datos de Reemplazo
-  const [inspectData, setInspectData] = useState<any | null>(null);
-  const [isInspecting, setIsInspecting] = useState<boolean>(false);
-
-  // Datos de adquisición editables extraídos o manuales
-  const [acquisitionData, setAcquisitionData] = useState<{
-    objeto: string;
-    antecedentes: string;
-    justificacion: string;
-    lugar_entrega: string;
-    plazo_entrega: string;
-    forma_pago: string;
-    multas: string;
-    items: Array<{
-      item_nro: number;
-      descripcion: string;
-      unidad: string;
-      cantidad: number;
-      precio_unitario?: number;
-      precio_total?: number;
-    }>;
-    elaborado_por: string;
-    revisado_por: string;
-    aprobado_por: string;
-  }>({
-    objeto: "ADQUISICIÓN DE HERRAMIENTAS Y EQUIPOS PARA MANTENIMIENTO REDES MT",
-    antecedentes: "De acuerdo a la legislación vigente y normas internas se inicia el proceso para el mantenimiento de redes MT de ENDE DEORURO S.A.",
-    justificacion: "La adquisición tiene el objetivo de prevenir accidentes y garantizar la continuidad del suministro de energía eléctrica.",
-    lugar_entrega: "Almacenes Centrales ENDE DEORURO S.A. (Calle Junín Nº 450)",
-    plazo_entrega: "Máximo 45 días calendario computables a partir de la orden de proceder.",
-    forma_pago: "Contra entrega satisfactoria, conformidad técnica y presentación de factura.",
-    multas: "0.25% por día de retraso conforme al reglamento institucional SBC.",
-    items: [
-      { item_nro: 1, descripcion: "Tijera Corta Cable de Acero 36 pulgadas", unidad: "PZA", cantidad: 4, precio_unitario: 450, precio_total: 1800 },
-      { item_nro: 2, descripcion: "Tijera Corta Cable ACSR multi-hebra", unidad: "PZA", cantidad: 1, precio_unitario: 890, precio_total: 890 }
-    ],
-    elaborado_por: "Ing. Responsable de Adquisición",
-    revisado_por: "Ing. Jefatura de Mantenimiento",
-    aprobado_por: "[PENDIENTE DE COMPLETAR Y VERIFICAR]"
-  });
-
-  // Estados de Generación
-  const [isGenerating, setIsGenerating] = useState<boolean>(false);
-  const [generatedDocUrl, setGeneratedDocUrl] = useState<string | null>(null);
-  const [stats, setStats] = useState<any | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  // Verificar conexión con AnythingLLM
+export function SmartDocxUploader({ onSuccess }: { onSuccess?: (url: string) => void }) {
+  const [step, setStep] = useState(0);
+  const [kind, setKind] = useState("TDR");
+  const [custom, setCustom] = useState(false);
+  const [template, setTemplate] = useState<File | null>(null);
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [context, setContext] = useState("");
+  const [records, setRecords] = useState<Adquisicion[]>([]);
+  const [recordId, setRecordId] = useState("");
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [reviewed, setReviewed] = useState(false);
+  const [downloaded, setDownloaded] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
+  const [initialPending, setInitialPending] = useState<string[]>([]);
+  const [savedMessage, setSavedMessage] = useState("");
+  const [savedModels, setSavedModels] = useState<{ name: string; path: string; kind: string }[]>([]);
+  function loadRecords() {
+    setRecords(DataStore.getAdquisiciones());
+    const models = new Map<string, { name: string; path: string; kind: string }>();
+    DataStore.getAllCarpetas().forEach(c => c.documentos.forEach(d => {
+      if (d.metadata?.assistant && d.metadata.templatePath) models.set(d.metadata.fingerprint, { name: d.metadata.templateName || "Modelo guardado", path: d.metadata.templatePath, kind: d.metadata.documentKind });
+    }));
+    setSavedModels(Array.from(models.values()));
+  }
+  const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
-    checkAnythingLlm();
+    const params = new URLSearchParams(window.location.search);
+    setRecordId(params.get("expediente") || "");
+    const k = params.get("documento");
+    if (k && kinds.includes(k)) { setKind(k); setCustom(k !== "TDR"); }
+    loadRecords();
+    void DataStore.syncWithSupabase().then(loadRecords);
   }, []);
-
-  const checkAnythingLlm = async () => {
-    setLlmStatus("checking");
+  useEffect(() => { heading.current?.focus(); }, [step]);
+  useEffect(() => {
+    const warn = (e: BeforeUnloadEvent) => { if ((draft && !downloaded) || busy) { e.preventDefault(); e.returnValue = ""; } };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [draft, downloaded, busy]);
+  const invalidate = () => { setDraft(null); setReviewed(false); setDownloaded(false); setError(""); setSavedMessage(""); };
+  const unresolved = draft ? draft.changes.filter(c => pending(c.value)).length + draft.tables.reduce((n, t) => n + t.rows.flat().filter(pending).length, 0) : 0;
+  const record = records.find(r => r.id === recordId || r.codigo === recordId);
+  async function prepare() {
+    setBusy(true); setError(""); setReviewed(false); setDownloaded(false);
     try {
-      const res = await fetch("/api/anythingllm");
+      let file = template;
+      if (!custom) {
+        const res = await fetch("/TDR_7Paginas_Oficial_ENDE_Deoruro.docx");
+        if (!res.ok) throw Error("No se pudo abrir el modelo institucional.");
+        file = new File([await res.blob()], "TDR_institucional.docx", { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+      }
+      if (!file) throw Error("Selecciona tu plantilla Word.");
+      if (file.size + attachments.reduce((n, f) => n + f.size, 0) > 4 * 1024 * 1024) throw Error("Los archivos juntos deben pesar como máximo 4 MB.");
+      setTemplate(file);
+      const form = new FormData();
+      form.append("template", file); form.append("documentType", kind);
+      const previousTdr = record && kind !== "TDR" ? DataStore.getCarpetasByAdquisicion(record.id).find(c => c.numero === 1)?.documentos.find(d => d.metadata?.assistant)?.contenido_texto : "";
+      form.append("context", [context, record ? `DATOS REGISTRADOS DEL EXPEDIENTE (los valores pendientes no están confirmados):\n${JSON.stringify(record)}` : "", previousTdr ? `TDR PREPARADO EN ESTE MISMO EXPEDIENTE (si contradice la petición actual, pregunta):\n${previousTdr}` : ""].filter(Boolean).join("\n\n"));
+      attachments.forEach(f => form.append("attachments", f));
+      const res = await fetch("/api/document-assistant", { method: "POST", body: form });
       const data = await res.json();
-      if (data.success && data.authenticated) {
-        setLlmStatus("connected");
-        setWorkspaces(data.workspaces || []);
-        if (data.workspaces?.length > 0) {
-          const found = data.workspaces.find((w: any) => w.slug === "adquisiciones-ende");
-          if (found) setSelectedWorkspace(found.slug);
+      if (!res.ok) throw Error(data.error || "No se pudo preparar el documento.");
+      setDraft(data); setInitialPending(data.changes.filter((c: { value: string }) => pending(c.value)).map((c: { target: string }) => c.target)); setShowCompleted(false); setStep(3);
+    } catch (e) { setError(e instanceof Error ? e.message : "No se pudo preparar el documento. Intenta de nuevo."); }
+    finally { setBusy(false); }
+  }
+  async function download() {
+    if (!draft || !template) return;
+    setBusy(true); setError("");
+    try {
+      const form = new FormData();
+      form.append("action", "download"); form.append("template", template);
+      form.append("fingerprint", draft.fingerprint); form.append("plan", JSON.stringify({ changes: draft.changes, tables: draft.tables }));
+      const res = await fetch("/api/document-assistant", { method: "POST", body: form });
+      if (!res.ok) { const data = await res.json(); throw Error(data.error || "No se pudo descargar."); }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url;
+      a.download = `${kind}_para_revision.docx`; a.click();
+      onSuccess?.(url); setTimeout(() => URL.revokeObjectURL(url), 60000); setDownloaded(true);
+      if (record && !downloaded) {
+        const number = ({ TDR: 1, "Solicitud de inicio": 5, "Solicitud de cotización": 6, "Informe de conformidad": 7, "Solicitud de pago": 8 } as Record<string, number>)[kind];
+        const folder = DataStore.getCarpetasByAdquisicion(record.id).find(c => c.numero === number);
+        if (folder) {
+          const upload = new FormData(); upload.append("file", blob, `${kind}_para_revision.docx`); upload.append("adquisicion_id", record.id);
+          const storedResponse = await fetch("/api/files", { method: "POST", body: upload });
+          const stored = await storedResponse.json();
+          if (!storedResponse.ok) { setSavedMessage("El Word se descargó, pero no se pudo guardar la copia en el expediente. Puedes adjuntarla desde la carpeta."); }
+          else {
+            let templatePath = "";
+            try {
+              const originalUpload = new FormData(); originalUpload.append("file", template); originalUpload.append("adquisicion_id", record.id);
+              const originalResponse = await fetch("/api/files", { method: "POST", body: originalUpload });
+              if (originalResponse.ok) templatePath = (await originalResponse.json()).path;
+            } catch { /* Save the generated document even if model upload fails. */ }
+            await DataStore.addDocumentToCarpeta(folder.id, {
+              id: crypto.randomUUID(), carpeta_id: folder.id, adquisicion_id: record.id, tipo: "GENERADO_DOCX", nombre_original: `${kind}_para_revision.docx`,
+              ruta_storage: stored.path, mime: blob.type, tamano: blob.size, estado: "Borrador", version: folder.documentos.length + 1, creado_por: "Asistente de documentos",
+              fecha_creacion: new Date().toISOString(), contenido_texto: [...draft.changes.map(c => `${c.label}: ${c.value}`), ...draft.tables.map(t => `${t.label}:\n${t.rows.map(r => r.join(" | ")).join("\n")}`)].join("\n\n"),
+              metadata: { assistant: true, documentKind: kind, templatePath, templateName: template.name, sources: draft.sources, warnings: draft.warnings, consultedAt: draft.consultedAt, fingerprint: draft.fingerprint, changes: draft.changes, tables: draft.tables, normativeStatus: draft.normativeStatus },
+            }, false);
+            await DataStore.flushPending();
+            setSavedMessage(DataStore.pendingCount() ? "Copia registrada en este equipo; el expediente tiene cambios pendientes de sincronización." : "Copia guardada como borrador en el expediente, junto con su fundamento.");
+            loadRecords();
+          }
         }
-      } else {
-        setLlmStatus("error");
       }
-    } catch {
-      setLlmStatus("error");
-    }
-  };
-
-  // Extraer datos desde AnythingLLM
-  const handleExtractFromAnything = async () => {
-    setIsExtracting(true);
-    setErrorMessage(null);
-    try {
-      const res = await fetch("/api/anythingllm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "extract_acquisition",
-          workspaceSlug: selectedWorkspace,
-        }),
-      });
-
-      const result = await res.json();
-      if (!result.success) {
-        throw new Error(result.error || "No se pudieron extraer datos de AnythingLLM");
-      }
-
-      const d = result.data;
-      setAcquisitionData((prev) => ({
-        ...prev,
-        objeto: d.objeto_contratacion || prev.objeto,
-        antecedentes: d.antecedentes || prev.antecedentes,
-        justificacion: d.justificacion || prev.justificacion,
-        lugar_entrega: d.lugar_entrega || prev.lugar_entrega,
-        plazo_entrega: d.plazo_entrega || prev.plazo_entrega,
-        forma_pago: d.forma_pago || prev.forma_pago,
-        multas: d.multas || prev.multas,
-        items: d.items?.length > 0 ? d.items : prev.items,
-        elaborado_por: d.firmas?.elaborado_por || prev.elaborado_por,
-        revisado_por: d.firmas?.revisado_por || prev.revisado_por,
-        aprobado_por: d.firmas?.aprobado_por || prev.aprobado_por,
-      }));
-    } catch (err: any) {
-      setErrorMessage(`Aviso: ${err.message}. Puedes continuar usando los datos del formulario.`);
-    } finally {
-      setIsExtracting(false);
-    }
-  };
-
-  // Manejador de subida de archivo
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      if (!file.name.endsWith(".docx")) {
-        alert("Por favor sube un archivo con extensión .docx");
-        return;
-      }
-      setSelectedFile(file);
-      setIsCustomUpload(true);
-      inspectFile(file);
-    }
-  };
-
-  // Inspeccionar plantilla
-  const inspectFile = async (file: File) => {
-    setIsInspecting(true);
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/docx/inspect", { method: "POST", body: fd });
-      const data = await res.json();
-      if (data.success) {
-        setInspectData(data.data);
-      }
-    } catch (e) {
-      console.error("Error al inspeccionar:", e);
-    } finally {
-      setIsInspecting(false);
-    }
-  };
-
-  // Ejecutar el llenado inteligente
-  const handleSmartFill = async () => {
-    setIsGenerating(true);
-    setErrorMessage(null);
-    setGeneratedDocUrl(null);
-
-    try {
-      const fd = new FormData();
-
-      if (isCustomUpload && selectedFile) {
-        fd.append("file", selectedFile);
-      } else {
-        // Cargar la plantilla oficial desde /
-        const response = await fetch(`/${useOfficialTemplate}`);
-        if (!response.ok) {
-          throw new Error(`No se pudo cargar la plantilla oficial: ${useOfficialTemplate}`);
-        }
-        const blob = await response.blob();
-        fd.append("file", blob, useOfficialTemplate);
-      }
-
-      // Preparar el paquete JSON de autollenado inteligente
-      const payload = {
-        replacements: {
-          "Almacenes ENDE DEORURO S.A.": acquisitionData.lugar_entrega,
-          "Máximo 120 días calendario pudiendo ofertar plazos menores.": acquisitionData.plazo_entrega,
-        },
-        sections: {
-          "ANTECEDENTES": acquisitionData.antecedentes,
-          "JUSTIFICACIÓN / NECESIDAD": acquisitionData.justificacion,
-          "LUGAR DE ENTREGA": acquisitionData.lugar_entrega,
-          "TIEMPO DE ENTREGA": acquisitionData.plazo_entrega,
-          "FORMA DE PAGO": acquisitionData.forma_pago,
-          "APLICACIÓN DE MULTAS": acquisitionData.multas,
-        },
-        tables: [
-          {
-            table_index: 0,
-            mode: "direct_cells",
-            cells: [
-              [1, 0, acquisitionData.elaborado_por],
-              [1, 1, acquisitionData.revisado_por],
-              [1, 2, acquisitionData.aprobado_por],
-            ],
-          },
-        ],
-      };
-
-      fd.append("data_json", JSON.stringify(payload));
-
-      const res = await fetch("/api/docx/smart-fill", {
-        method: "POST",
-        body: fd,
-      });
-
-      const resData = await res.json();
-      if (!resData.success) {
-        throw new Error(resData.error || "Error al generar el documento");
-      }
-
-      setGeneratedDocUrl(resData.download_url);
-      setStats(resData.data?.stats);
-      if (onSuccess) onSuccess(resData.download_url);
-    } catch (err: any) {
-      setErrorMessage(err.message || "Error al procesar el autollenado");
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  return (
-    <div className="bg-surface border border-outline-variant rounded-xl p-6 shadow-sm space-y-6">
-      {/* Encabezado del Módulo */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 border-b border-outline-variant pb-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="p-2 bg-primary/10 text-primary rounded-lg">
-              <Sparkles className="w-5 h-5 text-primary" />
-            </span>
-            <h3 className="font-headline-md text-xl font-bold text-on-surface">
-              Autollenado Inteligente de Plantillas Word (.docx)
-            </h3>
-          </div>
-          <p className="text-xs text-on-surface-variant mt-1">
-            Sube cualquier plantilla Word sin etiquetas (o usa la oficial de ENDE) y rellénala automáticamente con datos de AnythingLLM.
-          </p>
-        </div>
-
-        {/* Estado de Conexión AnythingLLM */}
-        <div className="flex items-center gap-2 text-xs bg-surface-container-low px-3.5 py-2 rounded-lg border border-outline-variant">
-          <Server className="w-4 h-4 text-primary" />
-          <span className="font-semibold text-on-surface">AnythingLLM (VPS):</span>
-          {llmStatus === "checking" && (
-            <span className="text-amber-500 font-mono flex items-center gap-1">
-              <RefreshCw className="w-3 h-3 animate-spin" /> Verificando...
-            </span>
-          )}
-          {llmStatus === "connected" && (
-            <span className="text-emerald-700 font-mono font-bold flex items-center gap-1">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> En Línea (:3005)
-            </span>
-          )}
-          {llmStatus === "error" && (
-            <span className="text-rose-600 font-mono flex items-center gap-1">
-              <AlertCircle className="w-3.5 h-3.5" /> Sin conexión
-            </span>
-          )}
-        </div>
+    } catch (e) { setError(e instanceof Error ? e.message : "No se pudo completar la descarga o el guardado."); }
+    finally { setBusy(false); }
+  }
+  function downloadReview() {
+    if (!draft) return;
+    const content = { documento: kind, expediente: record?.codigo || null, plantilla: template?.name, huellaPlantilla: draft.fingerprint, fechaConsulta: draft.consultedAt,
+      estado: "Borrador para revisión; no constituye aprobación normativa", cambios: draft.changes, tablas: draft.tables, fuentes: draft.sources, observaciones: draft.warnings };
+    const url = URL.createObjectURL(new Blob([JSON.stringify(content, null, 2)], { type: "application/json" }));
+    const a = document.createElement("a"); a.href = url; a.download = "Fundamento_y_revision.json"; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  return <section className="mx-auto max-w-4xl space-y-6 text-base">
+    <ol aria-label="Pasos para preparar el documento" className="flex flex-wrap gap-3">
+      {steps.map((label, i) => <li key={label} aria-current={i === step ? "step" : undefined} className={`flex items-center gap-2 text-sm ${i === step ? "font-bold text-primary" : "text-slate-500"}`}><span className={`flex h-8 w-8 items-center justify-center rounded-full ${i === step ? "bg-primary text-white" : "bg-slate-100"}`}>{i + 1}</span>{label}</li>)}
+    </ol>
+    <fieldset disabled={busy} className="min-w-0 rounded-2xl border border-outline-variant bg-white p-5 md:p-8 space-y-6">
+      <h2 ref={heading} tabIndex={-1} className="text-2xl font-bold text-primary outline-none">{["¿Qué documento necesitas?", "Elige el formato", "Cuéntanos qué necesitas", "Completa y corrige los datos", "Revisa antes de descargar"][step]}</h2>
+      {step === 0 && <div className="grid gap-3 sm:grid-cols-2">{kinds.map(k => <button key={k} type="button" aria-pressed={kind === k} onClick={() => { setKind(k); setCustom(k !== "TDR"); setTemplate(null); invalidate(); }} className={`flex gap-3 items-center rounded-xl border-2 p-5 text-left ${kind === k ? "border-primary bg-blue-50" : "border-slate-200"}`}><FileText className="h-5 w-5 shrink-0" />{k}</button>)}</div>}
+      {step === 1 && <div className="space-y-5">
+        {savedModels.some(m => m.kind === kind) && <label className="block space-y-2"><span className="font-semibold">Volver a usar un modelo guardado</span><select disabled={busy} className={input} value="" onChange={async e => {
+          const model = savedModels.find(m => m.path === e.target.value); if (!model) return;
+          setBusy(true); invalidate();
+          try { const res = await fetch(`/api/files?path=${encodeURIComponent(model.path)}`); if (!res.ok) throw Error("No se pudo recuperar el modelo. Puedes subirlo de nuevo."); setTemplate(new File([await res.blob()], model.name)); setCustom(true); }
+          catch (e) { setError(e instanceof Error ? e.message : "No se pudo recuperar el modelo."); } finally { setBusy(false); }
+        }}><option value="">Elegir un modelo anterior…</option>{savedModels.filter(m => m.kind === kind).map(m => <option key={m.path} value={m.path}>{m.name}</option>)}</select></label>}
+        {kind === "TDR" && <label className="flex items-start gap-3 rounded-xl border p-4 cursor-pointer"><input className="mt-1" type="radio" name="format" checked={!custom} onChange={() => { setCustom(false); setTemplate(null); invalidate(); }} /><span><strong>Modelo institucional</strong><span className="block text-slate-600 mt-1">El formato habitual de TDR de ENDE Deoruro.</span></span></label>}
+        <label className="flex items-start gap-3 rounded-xl border p-4 cursor-pointer"><input className="mt-1" type="radio" name="format" checked={custom} onChange={() => { setCustom(true); setTemplate(null); invalidate(); }} /><span><strong>Usar mi propio Word</strong><span className="block text-slate-600 mt-1">Puedes subir un modelo vacío o un documento anterior. Revisaremos qué datos hay que cambiar.</span></span></label>
+        {custom && <label className="block space-y-2"><span className="font-semibold">Selecciona tu plantilla (.docx, hasta 3 MB)</span><input type="file" accept=".docx" className={input} onChange={e => { const f = e.target.files?.[0]; invalidate(); setTemplate(null); if (f && (!/\.docx$/i.test(f.name) || f.size > 3 * 1024 * 1024)) { setError("Selecciona un Word (.docx) de hasta 3 MB."); return; } setTemplate(f || null); }} /></label>}
+        {custom && template && <p className="text-primary">Modelo seleccionado: {template.name}</p>}
+        <p className="text-sm text-slate-600">El asistente trabaja sobre una copia. Las tablas con celdas combinadas o diseños especiales pueden necesitar un ajuste manual.</p>
+      </div>}
+      {step === 2 && <div className="space-y-5">
+        {!!records.length && <label className="block space-y-2"><span className="font-semibold">Usar datos de una compra existente (opcional)</span><select className={input} value={recordId} onChange={e => { setRecordId(e.target.value); invalidate(); }}><option value="">Documento independiente</option>{records.map(r => <option key={r.id} value={r.id}>{r.codigo} · {r.titulo_proceso}</option>)}</select></label>}
+        <label className="block space-y-2"><span className="font-semibold">¿Qué necesitas preparar?</span><textarea rows={6} maxLength={30000} className={input} value={context} onChange={e => { setContext(e.target.value); invalidate(); }} placeholder="Describe qué se compra, para qué se necesita y las cantidades. Agrega los plazos y responsables si ya los conoces." /></label>
+        <label className="block space-y-2"><span className="font-semibold">Adjuntar antecedentes (opcional)</span><input type="file" multiple accept=".pdf,.docx,.txt" className={input} onChange={e => { invalidate(); const files = Array.from(e.target.files || []); if (files.length > 3) { setAttachments([]); setError("Selecciona como máximo tres antecedentes."); return; } setAttachments(files); }} /><span className="block text-sm text-slate-600">Hasta tres archivos PDF, Word o texto. Máximo 4 MB entre plantilla y antecedentes. Usa PDF con texto seleccionable.</span></label>
+        {attachments.length > 0 && <p className="text-sm text-slate-600">Adjuntos: {attachments.map(f => f.name).join(", ")}</p>}
+        <p className="text-slate-600">Consultaremos las normas institucionales automáticamente. Los datos de la compra saldrán de esta información y del expediente elegido.</p>
+      </div>}
+      {step === 3 && draft && <div className="space-y-5">
+        <p className="text-slate-600">{unresolved ? `Hay ${unresolved} campos pendientes. Completa los que conozcas; los demás quedarán marcados en el borrador.` : "No se detectaron campos vacíos en la propuesta. Comprueba que los datos sean correctos."}</p>
+        <label className="flex items-center gap-3"><input type="checkbox" checked={showCompleted} onChange={e => setShowCompleted(e.target.checked)} />Revisar también los datos que ya se completaron</label>{draft.changes.map((c, i) => (showCompleted || initialPending.includes(c.target)) && <label key={c.target} className="block space-y-2"><span className="font-semibold">{c.label}</span><textarea className={`${input} ${pending(c.value) ? "border-amber-500 bg-amber-50" : ""}`} rows={c.value.length > 150 ? 4 : 2} value={c.value} onChange={e => { setDraft({ ...draft, changes: draft.changes.map((v, j) => j === i ? { ...v, value: e.target.value, sourceIds: [] } : v) }); setReviewed(false); setDownloaded(false); }} />{c.sourceIds.length > 0 && <span className="block text-sm text-slate-600">Fundamento propuesto: {c.sourceIds.join(", ")}</span>}</label>)}
+        {draft.tables.map((t, ti) => <div key={t.target} className="space-y-3"><h3 className="font-semibold">{t.label}</h3><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr>{draft.structure.tables.find(s => s.id === t.target)?.headers.map((h, hi) => <th className="p-2 text-left" key={hi}>{h}</th>)}</tr></thead><tbody>{t.rows.map((row, ri) => <tr key={ri}>{row.map((cell, ci) => <td key={ci} className="p-1 align-top"><textarea aria-label={`Fila ${ri + 1}, columna ${ci + 1}`} className={`${input} min-w-[140px]`} value={cell} rows={2} onChange={e => { setDraft({ ...draft, tables: draft.tables.map((v, j) => j === ti ? { ...v, rows: v.rows.map((r, k) => k === ri ? r.map((x, l) => l === ci ? e.target.value : x) : r) } : v) }); setReviewed(false); setDownloaded(false); }} /></td>)}</tr>)}</tbody></table></div></div>)}
+      </div>}
+      {step === 4 && draft && <div className="space-y-5">
+        <div className="rounded-xl bg-slate-50 p-4 space-y-2"><p><strong>{kind}</strong> · {template?.name}</p><p>{draft.changes.length} campos y {draft.tables.length} tablas preparados.</p><p>{unresolved ? `${unresolved} campos pendientes: se descargará como borrador.` : "Datos preparados para tu revisión."}</p><p>{draft.sources.length ? `${draft.sources.length} fuentes recuperadas. Revisa su aplicabilidad y vigencia.` : "Sin fuentes normativas recuperadas: requiere revisión normativa."}</p></div>
+        <details className="rounded-xl border p-4"><summary className="cursor-pointer font-semibold">Ver contenido que se colocará en el Word</summary><div className="mt-4 space-y-4">{draft.changes.map(c => <div key={c.target}><h3 className="font-semibold">{c.label}</h3><p className="whitespace-pre-wrap text-slate-700">{c.value}</p></div>)}{draft.tables.map(t => <div key={t.target}><h3 className="font-semibold">{t.label}</h3>{t.rows.map((r, i) => <p key={i}>{r.join(" · ")}</p>)}</div>)}</div><p className="mt-4 text-sm text-slate-600">Esta es una revisión de contenido. Comprueba la paginación y el formato final abriendo el Word descargado.</p></details>
+        <details className="rounded-xl border p-4"><summary className="cursor-pointer font-semibold">Ver fundamento y observaciones</summary><div className="mt-4 space-y-4">{draft.warnings.map((w, i) => <p key={i} className="text-amber-900">{w}</p>)}{draft.sources.map(s => <div key={s.id} className="border-t pt-3"><strong>{s.id}: {s.title}</strong><p className="text-sm">Página: {s.page} · Versión: {s.version}</p><p className="mt-2 whitespace-pre-wrap text-slate-700">{s.excerpt}</p></div>)}<p className="text-sm">Consulta: {new Date(draft.consultedAt).toLocaleString("es-BO")}</p><button type="button" onClick={downloadReview} className="text-primary underline">Guardar fundamento y revisión</button></div></details>
+        <label className="flex items-start gap-3"><input type="checkbox" className="mt-1 h-5 w-5" checked={reviewed} onChange={e => setReviewed(e.target.checked)} /><span>He revisado los datos y entiendo que el documento requiere revisión antes de su firma o uso oficial.</span></label>
+        {record && kind !== "Otro documento" && <p className="text-sm text-slate-600">Al descargar, guardaremos una copia como borrador en este expediente.</p>}{savedMessage && <p role="status" className="text-primary">{savedMessage}</p>}{downloaded && <p role="status" className="text-emerald-800">Word descargado. Puedes corregir los datos y descargar otra copia.</p>}
+      </div>}
+      {error && <p role="alert" className="rounded-lg bg-red-50 p-4 text-red-800">{error}</p>}
+      {busy && <p role="status" aria-live="polite" className="flex gap-2 text-primary"><Loader2 className="h-6 w-6 animate-spin shrink-0" />{step === 2 ? "Estamos leyendo la plantilla, consultando las normas y preparando los datos. Puede tardar hasta dos minutos." : "Preparando tu Word…"}</p>}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-5">
+        {step > 0 ? <button type="button" disabled={busy} onClick={() => { setStep(step - 1); setError(""); }} className="inline-flex items-center gap-2 rounded-lg px-4 py-3 text-primary disabled:opacity-50"><ArrowLeft className="h-5 w-5" />Atrás</button> : <span />}
+        {step < 2 && <button type="button" className={button} disabled={step === 1 && custom && !template} onClick={() => { setStep(step + 1); setError(""); }}>Continuar<ArrowRight className="h-5 w-5" /></button>}
+        {step === 2 && <button type="button" className={button} disabled={busy || (!context.trim() && !record)} onClick={prepare}>Preparar documento<ArrowRight className="h-5 w-5" /></button>}
+        {step === 3 && <button type="button" className={button} onClick={() => setStep(4)}>Revisar documento<ArrowRight className="h-5 w-5" /></button>}
+        {step === 4 && <button type="button" className={button} disabled={busy || !reviewed} onClick={download}><Download className="h-5 w-5" />Descargar Word para revisión</button>}
       </div>
-
-      {/* Grid: Selección de Plantilla + Conexión con AnythingLLM */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Columna 1: Plantilla Word a Usar */}
-        <div className="space-y-4 bg-surface-container-lowest p-4 rounded-xl border border-outline-variant">
-          <label className="text-xs font-mono font-bold text-outline uppercase tracking-wider block">
-            1. Seleccionar o Subir Plantilla Word (.docx):
-          </label>
-
-          <div className="space-y-3">
-            {/* Opción A: Usar plantilla oficial */}
-            <div
-              onClick={() => setIsCustomUpload(false)}
-              className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                !isCustomUpload
-                  ? "border-primary bg-primary/5 text-on-surface"
-                  : "border-outline-variant bg-surface text-on-surface-variant"
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-primary" />
-                  Plantilla Oficial ENDE DEORURO (7 Páginas)
-                </span>
-                {!isCustomUpload && <CheckCircle2 className="w-4 h-4 text-primary" />}
-              </div>
-              <p className="text-[11px] text-on-surface-variant mt-1">
-                TDR institucional con logos, fuentes, márgenes y tablas oficiales de ENDE.
-              </p>
-            </div>
-
-            {/* Opción B: Subir plantilla propia */}
-            <div
-              className={`p-3 rounded-lg border-2 border-dashed transition-all ${
-                isCustomUpload
-                  ? "border-primary bg-primary/5"
-                  : "border-outline-variant hover:border-primary/50"
-              }`}
-            >
-              <label className="cursor-pointer block text-center">
-                <Upload className="w-6 h-6 text-primary mx-auto mb-1" />
-                <span className="text-xs font-bold text-primary block">
-                  {selectedFile ? selectedFile.name : "Subir plantilla personalizada (.docx)"}
-                </span>
-                <span className="text-[10px] text-on-surface-variant block mt-0.5">
-                  No requiere etiquetas predefinidas. La IA detectará los campos automáticamente.
-                </span>
-                <input
-                  type="file"
-                  accept=".docx"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-              </label>
-            </div>
-
-            {isInspecting && (
-              <div className="text-xs text-primary flex items-center gap-1.5 animate-pulse">
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                <span>Analizando estructura de párrafos y tablas...</span>
-              </div>
-            )}
-
-            {inspectData && (
-              <div className="bg-surface p-2.5 rounded border border-outline-variant text-[11px] text-on-surface-variant space-y-1">
-                <div className="font-bold text-on-surface flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                  Estructura detectada:
-                </div>
-                <div>• Total párrafos: {inspectData.total_paragraphs}</div>
-                <div>• Campos rellenables: {inspectData.fillable_paragraphs_count}</div>
-                <div>• Tablas identificadas: {inspectData.tables?.length || 0}</div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Columna 2: Extracción con AnythingLLM */}
-        <div className="space-y-4 bg-surface-container-lowest p-4 rounded-xl border border-outline-variant">
-          <label className="text-xs font-mono font-bold text-outline uppercase tracking-wider block">
-            2. Fuente de Datos (AnythingLLM RAG):
-          </label>
-
-          <div className="space-y-3">
-            <div>
-              <label className="text-xs text-on-surface-variant block mb-1">
-                Espacio de Trabajo (Workspace):
-              </label>
-              <select
-                value={selectedWorkspace}
-                onChange={(e) => setSelectedWorkspace(e.target.value)}
-                className="w-full text-xs p-2 rounded-lg border border-outline-variant bg-surface text-on-surface font-mono"
-              >
-                {workspaces.map((w) => (
-                  <option key={w.slug} value={w.slug}>
-                    {w.name} ({w.slug})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <button
-              onClick={handleExtractFromAnything}
-              disabled={isExtracting || llmStatus !== "connected"}
-              className="w-full py-2.5 px-4 rounded-lg bg-secondary text-on-secondary font-bold text-xs flex items-center justify-center gap-2 hover:bg-secondary/90 transition-all disabled:opacity-50"
-            >
-              {isExtracting ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  Consultando PDFs en AnythingLLM...
-                </>
-              ) : (
-                <>
-                  <Cpu className="w-4 h-4" />
-                  Extraer Datos de los PDFs de Adquisición
-                </>
-              )}
-            </button>
-
-            <p className="text-[11px] text-on-surface-variant leading-relaxed">
-              AnythingLLM leerá los documentos PDF subidos a tu espacio en el VPS y extraerá los ítems, precios, plazos y especificaciones técnicas.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Vista Previa y Edición de Datos Extraídos */}
-      <div className="space-y-3 bg-surface-container-lowest p-4 rounded-xl border border-outline-variant">
-        <div className="flex items-center justify-between border-b border-outline-variant pb-2">
-          <h4 className="text-xs font-mono font-bold text-outline uppercase tracking-wider flex items-center gap-2">
-            <Edit3 className="w-4 h-4 text-primary" />
-            3. Datos de Adquisición a Inyectar en el Documento:
-          </h4>
-          <span className="text-[11px] text-on-surface-variant">
-            Puedes ajustar cualquier campo antes de generar el Word.
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-          <div className="space-y-1">
-            <label className="font-bold text-on-surface">Objeto de Contratación:</label>
-            <input
-              type="text"
-              value={acquisitionData.objeto}
-              onChange={(e) => setAcquisitionData({ ...acquisitionData, objeto: e.target.value })}
-              className="w-full p-2 rounded border border-outline-variant bg-surface"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="font-bold text-on-surface">Lugar de Entrega:</label>
-            <input
-              type="text"
-              value={acquisitionData.lugar_entrega}
-              onChange={(e) => setAcquisitionData({ ...acquisitionData, lugar_entrega: e.target.value })}
-              className="w-full p-2 rounded border border-outline-variant bg-surface"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="font-bold text-on-surface">Plazo de Entrega:</label>
-            <input
-              type="text"
-              value={acquisitionData.plazo_entrega}
-              onChange={(e) => setAcquisitionData({ ...acquisitionData, plazo_entrega: e.target.value })}
-              className="w-full p-2 rounded border border-outline-variant bg-surface"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="font-bold text-on-surface">Forma de Pago:</label>
-            <input
-              type="text"
-              value={acquisitionData.forma_pago}
-              onChange={(e) => setAcquisitionData({ ...acquisitionData, forma_pago: e.target.value })}
-              className="w-full p-2 rounded border border-outline-variant bg-surface"
-            />
-          </div>
-
-          <div className="col-span-1 md:col-span-2 space-y-1">
-            <label className="font-bold text-on-surface">Justificación / Necesidad Operativa:</label>
-            <textarea
-              rows={2}
-              value={acquisitionData.justificacion}
-              onChange={(e) => setAcquisitionData({ ...acquisitionData, justificacion: e.target.value })}
-              className="w-full p-2 rounded border border-outline-variant bg-surface"
-            />
-          </div>
-        </div>
-
-        {/* Firmantes */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 text-xs border-t border-outline-variant">
-          <div className="space-y-1">
-            <label className="text-[11px] font-bold text-on-surface">Elaborado por:</label>
-            <input
-              type="text"
-              value={acquisitionData.elaborado_por}
-              onChange={(e) => setAcquisitionData({ ...acquisitionData, elaborado_por: e.target.value })}
-              className="w-full p-1.5 rounded border border-outline-variant bg-surface"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-[11px] font-bold text-on-surface">Revisado por:</label>
-            <input
-              type="text"
-              value={acquisitionData.revisado_por}
-              onChange={(e) => setAcquisitionData({ ...acquisitionData, revisado_por: e.target.value })}
-              className="w-full p-1.5 rounded border border-outline-variant bg-surface"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-[11px] font-bold text-on-surface">Aprobado por:</label>
-            <input
-              type="text"
-              value={acquisitionData.aprobado_por}
-              onChange={(e) => setAcquisitionData({ ...acquisitionData, aprobado_por: e.target.value })}
-              className="w-full p-1.5 rounded border border-outline-variant bg-surface"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Botón de Acción Principal y Descarga */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
-        <button
-          onClick={handleSmartFill}
-          disabled={isGenerating}
-          className="w-full sm:w-auto px-6 py-3 rounded-lg bg-primary text-on-primary font-bold text-sm shadow-md hover:bg-primary/90 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-        >
-          {isGenerating ? (
-            <>
-              <RefreshCw className="w-5 h-5 animate-spin" />
-              Inyectando datos y maquetando Word...
-            </>
-          ) : (
-            <>
-              <Sparkles className="w-5 h-5 text-amber-300" />
-              Autollenar Plantilla y Generar Word (.docx)
-            </>
-          )}
-        </button>
-
-        {generatedDocUrl && (
-          <a
-            href={generatedDocUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            download
-            className="w-full sm:w-auto px-6 py-3 rounded-lg bg-emerald-700 text-white font-bold text-sm shadow-md hover:bg-emerald-800 transition-all flex items-center justify-center gap-2 animate-bounce"
-          >
-            <Download className="w-5 h-5" />
-            Descargar Word Oficial Generado
-          </a>
-        )}
-      </div>
-
-      {/* Mensajes y Feedback */}
-      {stats && (
-        <div className="p-3 bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-lg text-xs flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-          <span>
-            ¡Documento generado exitosamente! Se actualizaron {stats.updated_sections} secciones, {stats.replaced_placeholders} marcadores y {stats.updated_tables} tablas.
-          </span>
-        </div>
-      )}
-
-      {errorMessage && (
-        <div className="p-3 bg-rose-50 text-rose-800 border border-rose-300 rounded-lg text-xs flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 text-rose-600" />
-          <span>{errorMessage}</span>
-        </div>
-      )}
-    </div>
-  );
-};
+    </fieldset>
+  </section>;
+}

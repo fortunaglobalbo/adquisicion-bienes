@@ -191,11 +191,12 @@ export class DataStore {
   }
   static moveCarpetaUp(adqId: string, id: string) { return this.move(adqId,id,-1); }
   static moveCarpetaDown(adqId: string, id: string) { return this.move(adqId,id,1); }
-  static async addDocumentToCarpeta(id: string, doc: Documento) {
+  static async addDocumentToCarpeta(id: string, doc: Documento, markCompleted = true) {
     const all = this.getAllCarpetas(); const folder = all.find(c => c.id === id);
     if (!folder) return undefined;
     folder.documentos = [{ ...doc, carpeta_id: id, adquisicion_id: folder.adquisicion_id }, ...folder.documentos.filter(d => d.id !== doc.id)];
-    folder.estado = "Completado"; folder.fecha_proceso = new Date().toISOString();
+    folder.estado = markCompleted ? "Completado" : folder.estado === "Pendiente" ? "En Proceso" : folder.estado;
+    folder.fecha_proceso = new Date().toISOString();
     this.saveAllCarpetas(all);
     this.addLog(folder.adquisicion_id, `Documento guardado: ${doc.nombre_original}`, doc.creado_por, doc.tipo === "GENERADO_DOCX" ? "GENERAR_IA" : "SUBIR");
     return folder;

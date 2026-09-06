@@ -58,7 +58,9 @@ export function extractJsonFromText(raw: string): any {
 
 export async function callOpenCodeGo(
   messages: ChatMessage[],
-  temperature = 0.1
+  temperature = 0.1,
+  maxTokens = 4096,
+  timeoutMs = 45000
 ): Promise<string> {
   const apiKey = process.env.OPENCODE_GO_API_KEY || DEFAULT_OPENCODE_KEY;
   if (!apiKey) return "";
@@ -68,7 +70,7 @@ export async function callOpenCodeGo(
   try {
     const res = await fetch(`${baseUrl}/chat/completions`, {
       method: "POST",
-      signal: AbortSignal.timeout(45000),
+      signal: AbortSignal.timeout(timeoutMs),
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
@@ -77,7 +79,7 @@ export async function callOpenCodeGo(
         model,
         messages,
         temperature,
-        max_tokens: 4096,
+        max_tokens: maxTokens,
       }),
     });
 
@@ -757,4 +759,3 @@ Responde ÚNICAMENTE con un JSON con los siguientes campos:
     conformidad_texto: "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
   };
 }
-

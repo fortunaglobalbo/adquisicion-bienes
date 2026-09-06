@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { Plus, RefreshCw, AlertCircle, Database, CheckCircle2 } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { MetricCards } from "@/components/dashboard/MetricCards";
@@ -87,9 +88,9 @@ export default function DashboardPage() {
                 <AlertCircle className="w-5 h-5 flex-shrink-0 text-red-500" />
                 <div>
                   <div className="font-mono text-xs font-bold uppercase tracking-wider text-red-300">
-                    Error de Conexión con Supabase
+                    Guardado en este equipo
                   </div>
-                  <div className="text-xs text-red-200 mt-0.5">{dbError}</div>
+                  <div className="text-sm text-red-200 mt-0.5">No pudimos sincronizar tus compras. Puedes reintentar la conexión.</div>
                 </div>
               </div>
               <button
@@ -107,11 +108,11 @@ export default function DashboardPage() {
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="font-headline-lg text-2xl font-bold text-on-surface tracking-tight">
-                  Panel de Control de Adquisiciones
+                  Mis compras
                 </h2>
                 {!loading && !dbError && (
                   <span className="flex items-center gap-1 text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded">
-                    <Database className="w-3 h-3" /> Supabase Conectado
+                    <Database className="w-3 h-3" /> Cambios sincronizados
                   </span>
                 )}
               </div>
@@ -121,6 +122,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="flex items-center gap-2">
+              <Link href="/plantillas" className="rounded-lg bg-primary px-5 py-3 text-base font-semibold text-white">Preparar documento</Link>
               <button
                 onClick={fetchDatabaseData}
                 title="Refrescar base de datos"

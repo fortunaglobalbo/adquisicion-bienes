@@ -24,6 +24,12 @@ async function main(){
  await db.saveCamposExtraidos(id,[{id:'field',documento_id:'document',adquisicion_id:'CODIGO',clave:'NIT',valor:'123'}]);await db.flushPending();assert.equal(cloud.campos[0].adquisicion_id,id);
  const {DataStore:reloaded}=load('src/lib/store/dataStore.ts');await reloaded.syncWithSupabase();assert.equal(reloaded.getAdquisicionById(id).memo_pago_banco_cuenta,'TEST');assert.equal(reloaded.getCamposExtraidos(id).length,1);console.log('PASS recuperación tras recarga y asociación de campos');
  const {parseOcrDocument}=load('src/lib/ocr/ocrParser.ts');const empty=parseOcrDocument('cotizacion.pdf',4,'TEST','Prueba','');assert.equal(empty.campos.length,0);assert.equal(empty.esValido,false);console.log('PASS ningún dato inventado sin texto');
+ db.updateCarpeta('f1',{estado:'Pendiente'});
+ await db.addDocumentToCarpeta('f1',{id:'assistant-draft',carpeta_id:'f1',adquisicion_id:id,tipo:'GENERADO_DOCX',nombre_original:'Borrador.docx',estado:'Borrador',metadata:{assistant:true,sources:[{id:'norma-1'}]},creado_por:'Prueba'},false);
+ assert.equal(db.getAllCarpetas().find(c=>c.id==='f1').estado,'En Proceso');
+ await db.flushPending();
+ assert.equal(cloud.carpetas.find(c=>c.id==='f1').documentos[0].metadata.sources[0].id,'norma-1');
+ console.log('PASS borrador del asistente conserva fundamento y no completa la carpeta');
  assert.ok(writes>0);console.log('Pruebas locales completas.');
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});

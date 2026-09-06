@@ -1,0 +1,186 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import { Topbar } from "@/components/layout/Topbar";
+import { DataStore } from "@/lib/store/dataStore";
+import { Plantilla } from "@/types";
+import {
+  FileText,
+  Sparkles,
+  CheckCircle2,
+  Edit3,
+  Layout,
+  HelpCircle,
+  FolderOpen,
+  ArrowRight,
+  Layers,
+} from "lucide-react";
+import { VisualTemplateEditor } from "@/components/plantillas/VisualTemplateEditor";
+import { SmartDocxUploader } from "@/components/plantillas/SmartDocxUploader";
+import { Modal } from "@/components/ui/Modal";
+
+export default function PlantillasPage() {
+  const [activeTab, setActiveTab] = useState<"autollenado" | "maquetador">("maquetador");
+  const [plantillas, setPlantillas] = useState<Plantilla[]>([]);
+  const [activeEditorPlantilla, setActiveEditorPlantilla] = useState<Plantilla | null>(null);
+  const [selectedInfoPlantilla, setSelectedInfoPlantilla] = useState<Plantilla | null>(null);
+  const [globalSavedFeedback, setGlobalSavedFeedback] = useState(false);
+
+  useEffect(() => {
+    void DataStore.syncWithSupabase().then(() => { const loaded = DataStore.getPlantillas(); setPlantillas(loaded); setActiveEditorPlantilla(loaded[0] || null); });
+    const list = DataStore.getPlantillas();
+    setPlantillas(list);
+    // Seleccionar por defecto la Plantilla 1 (TDR) si no hay seleccionada
+    if (list.length > 0 && !activeEditorPlantilla) {
+      setActiveEditorPlantilla(list[0]);
+    }
+  }, []);
+
+  const handleSavePlantilla = async (updated: Plantilla) => {
+    const result = await DataStore.updatePlantilla(updated.id, updated);
+    if (!result.success) { alert("Guardado en este navegador; pendiente de sincronización: " + result.error); return; }
+    const refreshed = DataStore.getPlantillas();
+    setPlantillas(refreshed);
+    setActiveEditorPlantilla(updated);
+    setGlobalSavedFeedback(true);
+    setTimeout(() => setGlobalSavedFeedback(false), 2500);
+  };
+
+  return (
+    <>
+      <Topbar title="Configuración de modelos" />
+
+      <main className="flex-1 overflow-y-auto p-4 md:p-8">
+        <div className="max-w-container-max mx-auto space-y-6">
+          <div className="flex flex-wrap gap-4 text-base"><Link href="/plantillas" className="text-primary underline">Volver a preparar documento</Link><Link href="/auditoria" className="text-primary underline">Consultar auditoría</Link></div>
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-outline-variant pb-4 gap-2">
+            <div>
+              <h2 className="font-headline-lg text-2xl font-bold text-on-surface tracking-tight flex items-center gap-2">
+                <Layout className="w-6 h-6 text-primary" />
+                <span>Configuración de modelos institucionales</span>
+              </h2>
+              <p className="font-sans text-xs text-on-surface-variant mt-0.5">
+                Herramientas para la persona responsable de mantener los formatos.
+              </p>
+            </div>
+            {globalSavedFeedback && (
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-100 px-3.5 py-1.5 rounded-full animate-bounce border border-emerald-300 shadow-sm">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                ¡Plantilla actualizada y guardada!
+              </span>
+            )}
+          </div>
+
+          {/* Selector de Pestañas Principales */}
+          <div className="flex gap-2 p-1 bg-surface-container-low border border-outline-variant rounded-xl w-fit">
+            <button
+              onClick={() => setActiveTab("autollenado")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                activeTab === "autollenado"
+                  ? "bg-primary text-white shadow-sm"
+                  : "text-on-surface hover:bg-surface"
+              }`}
+            >
+              <Sparkles className="w-4 h-4 text-amber-300" />
+              <span>Probar un documento</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("maquetador")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                activeTab === "maquetador"
+                  ? "bg-primary text-white shadow-sm"
+                  : "text-on-surface hover:bg-surface"
+              }`}
+            >
+              <Layers className="w-4 h-4" />
+              <span>Editar modelos existentes</span>
+            </button>
+          </div>
+
+          {/* Contenido según la pestaña activa */}
+          {activeTab === "autollenado" ? (
+            <SmartDocxUploader />
+          ) : (
+            <div className="space-y-6">
+              {/* Selector Visual de las 8 Carpetas / Plantillas */}
+              <div className="space-y-2">
+                <label className="text-xs font-mono font-bold text-outline uppercase tracking-wider block">
+                  Selecciona el Documento Institucional a Maquetar:
+                </label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+              {plantillas.map((p) => {
+                const isSelected = activeEditorPlantilla?.id === p.id;
+                const isAI = p.fk_carpeta === 1 || p.fk_carpeta === 5 || p.fk_carpeta === 6;
+
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => setActiveEditorPlantilla(p)}
+                    className={`p-3 rounded-lg border-2 text-left transition-all flex flex-col justify-between relative overflow-hidden ${
+                      isSelected
+                        ? "bg-primary text-white border-primary shadow-lg scale-105 z-10"
+                        : "bg-surface border-outline-variant hover:border-primary/50 text-on-surface"
+                    }`}
+                  >
+                    <div className="flex justify-between items-center mb-1">
+                      <span
+                        className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                          isSelected ? "bg-white/20 text-white" : "bg-gray-100 text-gray-700"
+                        }`}
+                      >
+                        Carpeta {p.fk_carpeta}
+                      </span>
+                      {isAI && (
+                        <span className={`text-[10px] ${isSelected ? "text-amber-300" : "text-amber-500"}`}>
+                          ✨
+                        </span>
+                      )}
+                    </div>
+                    <div className="font-bold text-xs line-clamp-2 leading-tight mt-1">
+                      {p.fk_carpeta === 1
+                        ? "TDR (7 Págs.)"
+                        : p.fk_carpeta === 2
+                        ? "Form S1"
+                        : p.fk_carpeta === 3
+                        ? "Justificación"
+                        : p.fk_carpeta === 4
+                        ? "Cotizaciones"
+                        : p.fk_carpeta === 5
+                        ? "Solicitud Inicio"
+                        : p.fk_carpeta === 6
+                        ? "Form S2-N014"
+                        : p.fk_carpeta === 7
+                        ? "Conformidad"
+                        : "Contrato / Orden"}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Editor Visual de la Plantilla Seleccionada */}
+          {activeEditorPlantilla && (
+            <VisualTemplateEditor
+              key={activeEditorPlantilla.id}
+              plantilla={activeEditorPlantilla}
+              onSave={handleSavePlantilla}
+            />
+          )}
+
+          {/* Guía Explicativa Inferior */}
+          <div className="p-4 bg-surface-container-low border border-outline-variant rounded-lg space-y-2 text-xs">
+            <div className="flex items-center gap-2 font-bold text-primary text-sm">
+              <HelpCircle className="w-4 h-4 text-secondary-fixed-variant" />
+              <span>¿Cómo se aplican estos cambios en los expedientes?</span>
+            </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+    </>
+  );
+}

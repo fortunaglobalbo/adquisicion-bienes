@@ -9,10 +9,13 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "node scripts/store-test.cjs",
+    "test:documents": "node scripts/document-assistant-test.cjs",
     "test:smoke": "node scripts/smoke-test.cjs",
     "diagnose": "node scripts/diagnose.cjs"
   },
   "dependencies": {
+    "@xmldom/xmldom": "0.8.15",
+    "jszip": "3.10.1",
     "@supabase/supabase-js": "^2.48.1",
     "clsx": "^2.1.1",
     "docx": "9.6.1",
