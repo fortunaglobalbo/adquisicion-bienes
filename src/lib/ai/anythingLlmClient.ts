@@ -1,10 +1,11 @@
+import { ragUrl } from "@/lib/server/config";
 /**
  * Cliente para la API de AnythingLLM
  * Permite interactuar con la base de conocimiento vectorial y RAG en el VPS
  */
 
-const BASE_URL = process.env.ANYTHINGLLM_BASE_URL || "http://85.31.230.163:3005/api/v1";
-const API_KEY = process.env.ANYTHINGLLM_API_KEY || "JWYTE8H-YWDMXF0-JXZFSES-MR6B8DK";
+const BASE_URL = ragUrl;
+const API_KEY = process.env.ANYTHINGLLM_API_KEY || "";
 const DEFAULT_WORKSPACE = process.env.ANYTHINGLLM_WORKSPACE || "adquisiciones-ende";
 
 export interface AnythingWorkspace {
@@ -61,6 +62,7 @@ export class AnythingLlmClient {
     try {
       const res = await fetch(`${BASE_URL}/auth`, {
         headers: this.getHeaders(),
+      signal: AbortSignal.timeout(45000),
       });
       if (!res.ok) return false;
       const data = await res.json();
@@ -78,6 +80,7 @@ export class AnythingLlmClient {
     try {
       const res = await fetch(`${BASE_URL}/workspaces`, {
         headers: this.getHeaders(),
+      signal: AbortSignal.timeout(45000),
       });
       if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
       const data = await res.json();
@@ -99,6 +102,7 @@ export class AnythingLlmClient {
     const res = await fetch(`${BASE_URL}/workspace/${workspaceSlug}/chat`, {
       method: "POST",
       headers: this.getHeaders(),
+      signal: AbortSignal.timeout(45000),
       body: jsonStringifySafe({
         message: prompt,
         mode: mode,

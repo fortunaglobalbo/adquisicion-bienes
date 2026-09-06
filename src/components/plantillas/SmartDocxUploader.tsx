@@ -70,7 +70,7 @@ export const SmartDocxUploader: React.FC<SmartDocxUploaderProps> = ({ onSuccess 
     ],
     elaborado_por: "Ing. Responsable de Adquisición",
     revisado_por: "Ing. Jefatura de Mantenimiento",
-    aprobado_por: "Lic. Raul Alberto Torrico Gomez (Gerente General)"
+    aprobado_por: "[PENDIENTE DE COMPLETAR Y VERIFICAR]"
   });
 
   // Estados de Generación

@@ -38,32 +38,32 @@ export const MemoPagoViewer: React.FC<MemoPagoViewerProps> = ({
 
   const [docData, setDocData] = useState<Adquisicion>({
     ...adquisicion,
-    memo_pago_cite: adquisicion.memo_pago_cite || "GG-SPA-26/070002",
+    memo_pago_cite: adquisicion.memo_pago_cite || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
     memo_pago_fecha: adquisicion.memo_pago_fecha || getFechaTextoActual(),
     memo_pago_a_nombre:
-      adquisicion.memo_pago_a_nombre || "LIC. VICENTE PAUL VEGA RAMIREZ",
+      adquisicion.memo_pago_a_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
     memo_pago_a_cargo:
       adquisicion.memo_pago_a_cargo || "SUPERINTENDENTE DE ADMINISTRACIÓN Y FINANZAS a.i.",
     memo_pago_de_nombre:
-      adquisicion.memo_pago_de_nombre || "ING. TATIANA TORRES ANDRADE",
+      adquisicion.memo_pago_de_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
     memo_pago_de_cargo:
       adquisicion.memo_pago_de_cargo || "SUPERVISOR DE SEGURIDAD INDUSTRIAL a.i.",
     memo_pago_proveedor:
       adquisicion.memo_pago_proveedor ||
       adquisicion.informe_conf_empresa_ganadora ||
       adquisicion.proveedor_adjudicado ||
-      "MOVICLEAN S.R.L.",
+      "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
     memo_pago_objeto:
       adquisicion.memo_pago_objeto ||
-      `SOLICITUD DE PAGO ${(adquisicion.titulo_proceso || "SERVICIO DE LIMPIEZA").toUpperCase()} DE ${(adquisicion.memo_pago_proveedor || adquisicion.informe_conf_empresa_ganadora || "MOVICLEAN S.R.L.").toUpperCase()}`,
-    memo_pago_nro_factura: adquisicion.memo_pago_nro_factura || "2",
+      `SOLICITUD DE PAGO ${(adquisicion.titulo_proceso || "SERVICIO DE LIMPIEZA").toUpperCase()} DE ${(adquisicion.memo_pago_proveedor || adquisicion.informe_conf_empresa_ganadora || "[PENDIENTE DE COMPLETAR Y VERIFICAR]").toUpperCase()}`,
+    memo_pago_nro_factura: adquisicion.memo_pago_nro_factura || "[FACTURA PENDIENTE]",
     memo_pago_monto_total:
       adquisicion.memo_pago_monto_total ||
       adquisicion.informe_conf_monto_adjudicado ||
-      58333.0,
+      0,
     memo_pago_monto_literal:
       adquisicion.memo_pago_monto_literal ||
-      "Cincuenta y ocho mil trescientos treinta y tres 00/100 Bolivianos",
+      "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
     memo_pago_items:
       adquisicion.memo_pago_items && adquisicion.memo_pago_items.length > 0
         ? adquisicion.memo_pago_items
@@ -75,16 +75,16 @@ export const MemoPagoViewer: React.FC<MemoPagoViewerProps> = ({
             },
           ],
     memo_pago_banco_cite_solicitud:
-      adquisicion.memo_pago_banco_cite_solicitud || "CITE: MOVICLEAN-LIM-ADM-No113/2026",
-    memo_pago_banco_nombre: adquisicion.memo_pago_banco_nombre || "Banco Económico",
+      adquisicion.memo_pago_banco_cite_solicitud || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
+    memo_pago_banco_nombre: adquisicion.memo_pago_banco_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
     memo_pago_banco_titular:
       adquisicion.memo_pago_banco_titular ||
       adquisicion.memo_pago_proveedor ||
-      "Moviclean SRL",
-    memo_pago_banco_cuenta: adquisicion.memo_pago_banco_cuenta || "1041-505958",
+      "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
+    memo_pago_banco_cuenta: adquisicion.memo_pago_banco_cuenta || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
     memo_pago_conformidad_texto:
       adquisicion.memo_pago_conformidad_texto ||
-      `Así mismo, informamos que el proveedor ha cumplido satisfactoriamente con la prestación del servicio contratado.`,
+      "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
   });
 
   const handleFieldChange = (field: keyof Adquisicion, value: any) => {
@@ -275,7 +275,7 @@ export const MemoPagoViewer: React.FC<MemoPagoViewerProps> = ({
             </button>
           </div>
         ) : (
-          <div className="w-full max-w-[816px] min-h-[1056px] bg-white text-slate-900 shadow-2xl p-[48px] md:p-[64px] font-sans text-[13px] leading-relaxed border border-slate-300 relative rounded-sm flex flex-col justify-between">
+          <div className="print-document w-full max-w-[816px] min-h-[1056px] bg-white text-slate-900 shadow-2xl p-[48px] md:p-[64px] font-sans text-[13px] leading-relaxed border border-slate-300 relative rounded-sm flex flex-col justify-between">
             <div>
               {/* Header Document & Logo */}
               <div className="flex justify-between items-start border-b border-slate-300 pb-4 mb-6">
@@ -303,7 +303,7 @@ export const MemoPagoViewer: React.FC<MemoPagoViewerProps> = ({
                     value={docData.memo_pago_cite || ""}
                     onChange={(e) => handleFieldChange("memo_pago_cite", e.target.value)}
                     className="text-right text-xs font-bold text-[#003366] border-b border-dashed border-transparent hover:border-slate-400 focus:border-blue-500 focus:bg-blue-50/50 outline-none w-40 transition-colors"
-                    placeholder="GG-SPA-26/070002"
+                    placeholder="[PENDIENTE DE COMPLETAR Y VERIFICAR]"
                   />
                 </div>
                 <div>
@@ -312,7 +312,7 @@ export const MemoPagoViewer: React.FC<MemoPagoViewerProps> = ({
                     value={docData.memo_pago_fecha || ""}
                     onChange={(e) => handleFieldChange("memo_pago_fecha", e.target.value)}
                     className="text-right text-xs text-slate-600 border-b border-dashed border-transparent hover:border-slate-400 focus:border-blue-500 focus:bg-blue-50/50 outline-none w-44 transition-colors"
-                    placeholder="Oruro, 23 de Julio de 2026"
+                    placeholder="[PENDIENTE DE COMPLETAR Y VERIFICAR]"
                   />
                 </div>
               </div>
@@ -327,7 +327,7 @@ export const MemoPagoViewer: React.FC<MemoPagoViewerProps> = ({
                   value={docData.memo_pago_a_nombre || ""}
                   onChange={(e) => handleFieldChange("memo_pago_a_nombre", e.target.value)}
                   className="w-full font-bold text-slate-900 border-b border-dashed border-transparent hover:border-slate-400 focus:border-blue-500 focus:bg-white outline-none px-1 py-0.5 rounded transition-colors"
-                  placeholder="LIC. VICENTE PAUL VEGA RAMIREZ"
+                  placeholder="[PENDIENTE DE COMPLETAR Y VERIFICAR]"
                 />
                 <input
                   type="text"
@@ -345,7 +345,7 @@ export const MemoPagoViewer: React.FC<MemoPagoViewerProps> = ({
                   value={docData.memo_pago_de_nombre || ""}
                   onChange={(e) => handleFieldChange("memo_pago_de_nombre", e.target.value)}
                   className="w-full font-bold text-slate-900 border-b border-dashed border-transparent hover:border-slate-400 focus:border-blue-500 focus:bg-white outline-none px-1 py-0.5 rounded transition-colors"
-                  placeholder="ING. TATIANA TORRES ANDRADE"
+                  placeholder="[PENDIENTE DE COMPLETAR Y VERIFICAR]"
                 />
                 <input
                   type="text"
@@ -386,7 +386,7 @@ export const MemoPagoViewer: React.FC<MemoPagoViewerProps> = ({
                   value={docData.memo_pago_proveedor || ""}
                   onChange={(e) => handleFieldChange("memo_pago_proveedor", e.target.value)}
                   className="font-bold text-slate-950 border-b border-dashed border-slate-400 focus:border-blue-500 outline-none px-1 py-0.5 w-44"
-                  placeholder="MOVICLEAN S.R.L."
+                  placeholder="[PENDIENTE DE COMPLETAR Y VERIFICAR]"
                 />
                 <span>por un monto total de</span>
                 <span className="font-bold">Bs</span>

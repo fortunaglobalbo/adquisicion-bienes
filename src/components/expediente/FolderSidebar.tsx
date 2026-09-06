@@ -63,7 +63,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
 
       <div className="flex flex-col gap-1">
         {safeCarpetas
-          .sort((a, b) => a.numero - b.numero)
+          .slice().sort((a, b) => (a.orden || a.numero) - (b.orden || b.numero))
           .map((folder, index) => {
             const num = folder.numero || index + 1;
             const isActive = num === activeNumero;

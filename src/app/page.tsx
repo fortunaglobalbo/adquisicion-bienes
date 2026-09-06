@@ -19,11 +19,13 @@ export default function DashboardPage() {
   const fetchDatabaseData = async () => {
     setLoading(true);
     setDbError(null);
+    setAdquisiciones(DataStore.getAdquisiciones());
 
     const res = await DataStore.syncWithSupabase();
     if (res.success) {
       setAdquisiciones(DataStore.getAdquisiciones());
     } else {
+      setAdquisiciones(DataStore.getAdquisiciones());
       setDbError(res.error || "No se pudo establecer conexión con la base de datos Supabase");
     }
     setLoading(false);
@@ -41,6 +43,7 @@ export default function DashboardPage() {
     } else {
       alert(`Error al guardar en base de datos: ${res.error}`);
     }
+    return res.success;
   };
 
   const handleDeleteAdquisicion = async (id: string) => {

@@ -1,3 +1,4 @@
+import { engineUrl } from "@/lib/server/config";
 import { NextRequest, NextResponse } from "next/server";
 import { Adquisicion } from "@/types";
 
@@ -12,7 +13,7 @@ export async function POST(req: NextRequest) {
 
     let vpsData: any = null;
     try {
-      const vpsRes = await fetch("http://85.31.230.163:8080/api/procesar-form-s2", {
+      const vpsRes = await fetch(`${engineUrl}/api/procesar-form-s2`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ adquisicion }),
@@ -30,8 +31,8 @@ export async function POST(req: NextRequest) {
 
     // Consolidated data from folders 1 to 5
     const data = {
-      fecha_solicitud: vpsData?.fecha_solicitud || adquisicion.form_s2_fecha_solicitud || "19/06/2026",
-      senores: vpsData?.senores || adquisicion.form_s2_senores || "ARIOL IMPORT",
+      fecha_solicitud: vpsData?.fecha_solicitud || adquisicion.form_s2_fecha_solicitud || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
+      senores: vpsData?.senores || adquisicion.form_s2_senores || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
       tiempo_entrega: vpsData?.tiempo_entrega || adquisicion.form_s2_tiempo_entrega || `${adquisicion.plazo_entrega_dias || 30} días calendario`,
       validez_oferta: vpsData?.validez_oferta || adquisicion.form_s2_validez_oferta || "30 días calendario",
       observaciones: vpsData?.observaciones || adquisicion.form_s2_observaciones || "SE ADJUNTA ESPECIFICACIONES TECNICAS",

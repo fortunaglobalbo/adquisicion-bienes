@@ -48,7 +48,7 @@ export const GeneradorEspecificacionesPanel: React.FC = () => {
   const [justificacion, setJustificacion] = useState(
     "Garantizar la continuidad operativa de las cuadrillas de mantenimiento y cumplimiento normativo institucional"
   );
-  const [elaborado, setElaborado] = useState("Ing. Heydi Canaviri Padilla");
+  const [elaborado, setElaborado] = useState("[PENDIENTE DE COMPLETAR Y VERIFICAR]");
   const [plazoEntrega, setPlazoEntrega] = useState("Maximo 30 dias calendario");
   const [lugarEntrega, setLugarEntrega] = useState("Almacenes ENDE DEORURO S.A., Oruro");
   const [vigenciaPropuesta, setVigenciaPropuesta] = useState("30 dias calendario");

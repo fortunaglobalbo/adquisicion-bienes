@@ -13,6 +13,8 @@ export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   const pathname = usePathname();
 
   const navItems = [
+    { name: "Plantillas", href: "/plantillas", icon: FolderKanban, active: pathname === "/plantillas" },
+    { name: "Auditoría", href: "/auditoria", icon: FolderKanban, active: pathname === "/auditoria" },
     {
       name: "Dashboard",
       href: "/",

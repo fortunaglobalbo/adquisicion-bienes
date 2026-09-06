@@ -39,7 +39,7 @@ export const TdrDocumentEditor: React.FC<TdrDocumentEditorProps> = ({
 
   const [elaborado, setElaborado] = useState(adquisicion.elaborado_por || "Heydi Canaviri Padilla");
   const [revisado, setRevisado] = useState(adquisicion.revisado_por || "Heydi Canaviri Padilla");
-  const [aprobado, setAprobado] = useState(adquisicion.aprobado_por || "Lic. Raul Alberto Torrico Gomez");
+  const [aprobado, setAprobado] = useState(adquisicion.aprobado_por || "[PENDIENTE DE COMPLETAR Y VERIFICAR]");
 
   const [antecedentes, setAntecedentes] = useState(adquisicion.antecedentes_texto || "");
   const [justificacion, setJustificacion] = useState(adquisicion.justificacion_texto || "");
@@ -169,11 +169,10 @@ export const TdrDocumentEditor: React.FC<TdrDocumentEditorProps> = ({
         <button
           type="button"
           onClick={() => setActiveTab("general")}
-          className={`px-3 py-2 font-bold border-b-2 transition-all flex items-center gap-1.5 ${
-            activeTab === "general"
+          className={`px-3 py-2 font-bold border-b-2 transition-all flex items-center gap-1.5 ${activeTab === "general"
               ? "border-primary text-primary"
               : "border-transparent text-on-surface-variant hover:text-on-surface"
-          }`}
+            }`}
         >
           <FileText className="w-3.5 h-3.5" />
           <span>Datos & Presupuesto</span>
@@ -181,11 +180,10 @@ export const TdrDocumentEditor: React.FC<TdrDocumentEditorProps> = ({
         <button
           type="button"
           onClick={() => setActiveTab("items")}
-          className={`px-3 py-2 font-bold border-b-2 transition-all flex items-center gap-1.5 ${
-            activeTab === "items"
+          className={`px-3 py-2 font-bold border-b-2 transition-all flex items-center gap-1.5 ${activeTab === "items"
               ? "border-primary text-primary"
               : "border-transparent text-on-surface-variant hover:text-on-surface"
-          }`}
+            }`}
         >
           <Wrench className="w-3.5 h-3.5" />
           <span>Fichas Técnicas de Herramientas ({items.length})</span>
@@ -193,11 +191,10 @@ export const TdrDocumentEditor: React.FC<TdrDocumentEditorProps> = ({
         <button
           type="button"
           onClick={() => setActiveTab("firmas")}
-          className={`px-3 py-2 font-bold border-b-2 transition-all flex items-center gap-1.5 ${
-            activeTab === "firmas"
+          className={`px-3 py-2 font-bold border-b-2 transition-all flex items-center gap-1.5 ${activeTab === "firmas"
               ? "border-primary text-primary"
               : "border-transparent text-on-surface-variant hover:text-on-surface"
-          }`}
+            }`}
         >
           <UserCheck className="w-3.5 h-3.5" />
           <span>Firmas & Portada</span>
@@ -205,11 +202,10 @@ export const TdrDocumentEditor: React.FC<TdrDocumentEditorProps> = ({
         <button
           type="button"
           onClick={() => setActiveTab("clausulas")}
-          className={`px-3 py-2 font-bold border-b-2 transition-all flex items-center gap-1.5 ${
-            activeTab === "clausulas"
+          className={`px-3 py-2 font-bold border-b-2 transition-all flex items-center gap-1.5 ${activeTab === "clausulas"
               ? "border-primary text-primary"
               : "border-transparent text-on-surface-variant hover:text-on-surface"
-          }`}
+            }`}
         >
           <FileText className="w-3.5 h-3.5" />
           <span>Cláusulas & Textos</span>

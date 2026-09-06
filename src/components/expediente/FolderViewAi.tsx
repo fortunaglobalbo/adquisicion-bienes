@@ -111,66 +111,11 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
   };
 
   // Helper para descargar directamente el PDF oficial como archivo sin mostrar vista previa
-  const handleDownloadPdf = async (docOrAdq?: Documento | Adquisicion, liveAdquisicion?: Adquisicion) => {
-    const isAdq = !!(docOrAdq && ("titulo_proceso" in docOrAdq || "items" in docOrAdq || "codigo" in docOrAdq));
-    const targetAdq: Adquisicion = isAdq ? (docOrAdq as Adquisicion) : (liveAdquisicion || adquisicion);
-    const tipo = getDocType();
-    try {
-      setDownloadingDocId("pdf-direct");
-      
-      // 1. Intentar descargar directamente el PDF oficial generado en el VPS
-      const vpsRes = await fetch("/api/proxy/generar-especificaciones", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          titulo_adquisicion: targetAdq.titulo_proceso,
-          justificacion: targetAdq.justificacion_texto,
-          items: (targetAdq.items || []).map((it, idx) => ({
-            numero: it.item || idx + 1,
-            descripcion: it.descripcion,
-            unidad: it.unidad || "Pza",
-            cantidad: it.cantidad || 1,
-            caracteristicas: it.caracteristicasTecnicas || it.especificacionMinima || "Conforme a especificaciones",
-          })),
-          elaborado: targetAdq.elaborado_por || targetAdq.responsable_proceso,
-          plazo_entrega: targetAdq.tiempo_entrega_texto || `${targetAdq.plazo_entrega_dias || 30} días`,
-          lugar_entrega: targetAdq.lugar_entrega,
-          vigencia_propuesta: targetAdq.vigencia_propuesta_texto || "30 días",
-        }),
-      });
-
-      if (vpsRes.ok) {
-        const vpsData = await vpsRes.json();
-        const pdfFileName = vpsData.pdf_file;
-        if (pdfFileName) {
-          const downloadRes = await fetch(`/api/proxy/generar-especificaciones?file=${encodeURIComponent(pdfFileName)}`);
-          if (downloadRes.ok) {
-            const blob = await downloadRes.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `${tipo}_${targetAdq.codigo}_Oficial.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            a.remove();
-            return;
-          }
-        }
-      }
-
-      // Fallback si el VPS no responde: imprimir directo
-      if (typeof window !== "undefined") {
-        window.print();
-      }
-    } catch (err: any) {
-      console.warn("Error al descargar PDF:", err);
-      if (typeof window !== "undefined") {
-        window.print();
-      }
-    } finally {
-      setDownloadingDocId(null);
-    }
+  // Print the actual edited document for every folder; never generate a TDR
+  // and mislabel it as a payment memo or conformity report.
+  const handleDownloadPdf = async (_adquisicion?: Adquisicion) => {
+    window.dispatchEvent(new Event("ende-before-print"));
+    window.print();
   };
 
   const handleGenerateAi = async () => {
@@ -309,6 +254,10 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
   return (
     <div className="flex flex-col h-full space-y-4 w-full">
       {/* Barra Superior Unificada de Carpeta */}
+      <div className="no-print flex justify-between items-center gap-3 text-sm">
+        <span className="text-slate-600">Borrador editable. Revisa datos, montos y responsables antes de su emisión.</span>
+        <button className="shrink-0 underline text-blue-800" onClick={() => void handleDownloadPdf()}>Imprimir / guardar PDF</button>
+      </div>
       <div className="flex flex-wrap items-center justify-between gap-3 bg-surface-container-low p-2.5 px-4 rounded-xl border border-outline-variant text-xs">
         <div className="flex items-center gap-2">
           <span className="font-bold text-on-surface font-sans">
@@ -562,4 +511,3 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
     </div>
   );
 };
-

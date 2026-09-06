@@ -27,6 +27,7 @@ export default function PlantillasPage() {
   const [globalSavedFeedback, setGlobalSavedFeedback] = useState(false);
 
   useEffect(() => {
+    void DataStore.syncWithSupabase().then(() => { const loaded = DataStore.getPlantillas(); setPlantillas(loaded); setActiveEditorPlantilla(loaded[0] || null); });
     const list = DataStore.getPlantillas();
     setPlantillas(list);
     // Seleccionar por defecto la Plantilla 1 (TDR) si no hay seleccionada
@@ -35,8 +36,9 @@ export default function PlantillasPage() {
     }
   }, []);
 
-  const handleSavePlantilla = (updated: Plantilla) => {
-    DataStore.updatePlantilla(updated.id, updated);
+  const handleSavePlantilla = async (updated: Plantilla) => {
+    const result = await DataStore.updatePlantilla(updated.id, updated);
+    if (!result.success) { alert("Guardado en este navegador; pendiente de sincronización: " + result.error); return; }
     const refreshed = DataStore.getPlantillas();
     setPlantillas(refreshed);
     setActiveEditorPlantilla(updated);

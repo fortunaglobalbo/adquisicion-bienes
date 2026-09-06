@@ -1,4 +1,5 @@
 "use client";
+import { flushSync } from "react-dom";
 
 import React, { useState, useRef, useEffect } from "react";
 import {
@@ -46,6 +47,11 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
 }) => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [viewMode, setViewMode] = useState<"paginado" | "continuo">("continuo");
+  React.useEffect(() => {
+    const prepare = () => flushSync(() => setViewMode("continuo"));
+    window.addEventListener("ende-before-print", prepare);
+    return () => window.removeEventListener("ende-before-print", prepare);
+  }, []);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [showAiModal, setShowAiModal] = useState(false);
   const [savedFeedback, setSavedFeedback] = useState(false);
@@ -238,9 +244,9 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
         ...docData,
         tipo_tabla_tdr: detectedTabla,
         titulo_proceso: aiData.titulo_proceso || docData.titulo_proceso,
-        elaborado_por: aiData.elaborado_por || docData.elaborado_por || "Ing. Gabriela Bobarin",
-        revisado_por: aiData.revisado_por || docData.revisado_por || "Ing. Raúl Torrico",
-        aprobado_por: aiData.aprobado_por || docData.aprobado_por || "Lic. Vicente Paul Vega Ramirez",
+        elaborado_por: aiData.elaborado_por || docData.elaborado_por || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
+        revisado_por: aiData.revisado_por || docData.revisado_por || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
+        aprobado_por: aiData.aprobado_por || docData.aprobado_por || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
         antecedentes_texto: aiData.antecedentes_texto || detectedPuntos[1] || docData.antecedentes_texto || `De acuerdo a la legislación vigente y normas internas de ENDE DEORURO S.A., se da inicio al proceso de adquisición para "${docData.titulo_proceso}".`,
         justificacion_texto: aiData.justificacion_texto || detectedPuntos[2] || docData.justificacion_texto || `La presente adquisición tiene por objeto garantizar la continuidad operativa y técnica de ENDE DEORURO S.A.`,
         calidad_texto: aiData.calidad_texto || detectedPuntos[4] || docData.calidad_texto,
@@ -327,8 +333,8 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
       descripcion: isSalud ? `NUEVO EXAMEN MÉDICO O ESTUDIO #${nextNum}` : `NUEVA HERRAMIENTA O EQUIPO #${nextNum}`,
       unidad: isSalud ? "ESTUDIO" : "PZA",
       cantidad: 1,
-      precioUnitarioEstimado: 200,
-      precioTotalEstimado: 200,
+      precioUnitarioEstimado: 0,
+      precioTotalEstimado: 0,
       fichaTecnica: {
         uso: isSalud ? "Medicina del Trabajo y Salud Ocupacional" : "Personal Operativo",
         normaCertificacion: isSalud ? "Acreditación y Control de Calidad Sanitario" : "Norma ASTM A36 / ISO 9001 / IEEE",
@@ -508,7 +514,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
   };
 
   const items = docData.items || [];
-  const totalPages = 7;
+  const totalPages = 5;
 
   // Running Header Subcomponent
   const RunningHeader = ({ pageNum }: { pageNum: number }) => (
@@ -661,7 +667,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
           <>
             {/* PÁGINA 1: PORTADA OFICIAL */}
             {(viewMode === "continuo" || currentPage === 1) && (
-              <div className="w-full max-w-full lg:max-w-[1050px] bg-white border border-outline-variant shadow-xl rounded-sm p-5 sm:p-10 md:p-14 text-on-surface font-sans min-h-[1050px] flex flex-col justify-between relative">
+              <div className="print-document w-full max-w-full lg:max-w-[1050px] bg-white border border-outline-variant shadow-xl rounded-sm p-5 sm:p-10 md:p-14 text-on-surface font-sans min-h-[1050px] flex flex-col justify-between relative">
                 <div className="flex justify-between items-center text-xs text-gray-500 font-mono border-b border-gray-200 pb-1 font-bold">
                   <span>{adquisicion.codigo}</span>
                   <span>PÁGINA 1 DE {totalPages}</span>
@@ -688,7 +694,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
                   onBlur={(e) => handleTextChange("elaborado_por", e.currentTarget.textContent || "")}
                   className="p-1 hover:bg-blue-50 focus:outline-none font-medium"
                 >
-                  {docData.elaborado_por || "Ing. Gabriela Bobarin"}
+                  {docData.elaborado_por || "[PENDIENTE DE COMPLETAR Y VERIFICAR]"}
                 </div>
                 <div
                   contentEditable
@@ -696,7 +702,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
                   onBlur={(e) => handleTextChange("revisado_por", e.currentTarget.textContent || "")}
                   className="p-1 hover:bg-blue-50 focus:outline-none font-medium"
                 >
-                  {docData.revisado_por || "Ing. Raúl Torrico"}
+                  {docData.revisado_por || "[PENDIENTE DE COMPLETAR Y VERIFICAR]"}
                 </div>
                 <div
                   contentEditable
@@ -704,7 +710,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
                   onBlur={(e) => handleTextChange("aprobado_por", e.currentTarget.textContent || "")}
                   className="p-1 hover:bg-blue-50 focus:outline-none font-medium"
                 >
-                  {docData.aprobado_por || "Ing. Raúl Torrico"}
+                  {docData.aprobado_por || "[PENDIENTE DE COMPLETAR Y VERIFICAR]"}
                 </div>
               </div>
             </div>
@@ -725,7 +731,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
 
         {/* PÁGINA 2: ÍNDICE GENERAL */}
         {(viewMode === "continuo" || currentPage === 2) && (
-          <div className="w-full max-w-full lg:max-w-[1050px] bg-white border border-outline-variant shadow-xl rounded-sm p-5 sm:p-10 md:p-14 text-on-surface font-sans min-h-[1050px] flex flex-col justify-between relative">
+          <div className="print-document w-full max-w-full lg:max-w-[1050px] bg-white border border-outline-variant shadow-xl rounded-sm p-5 sm:p-10 md:p-14 text-on-surface font-sans min-h-[1050px] flex flex-col justify-between relative">
             <div className="flex justify-between items-center text-xs text-gray-500 font-mono border-b border-gray-200 pb-1 font-bold">
               <span>{docData.titulo_proceso}</span>
               <span>PÁGINA 2 DE {totalPages}</span>
@@ -761,7 +767,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
 
         {/* PÁGINA 3: ANTECEDENTES Y JUSTIFICACIÓN */}
         {(viewMode === "continuo" || currentPage === 3) && (
-          <div className="w-full max-w-full lg:max-w-[1050px] bg-white border border-outline-variant shadow-xl rounded-sm p-5 sm:p-10 md:p-14 text-on-surface font-sans min-h-[1050px] flex flex-col justify-between relative space-y-6">
+          <div className="print-document w-full max-w-full lg:max-w-[1050px] bg-white border border-outline-variant shadow-xl rounded-sm p-5 sm:p-10 md:p-14 text-on-surface font-sans min-h-[1050px] flex flex-col justify-between relative space-y-6">
             <div className="flex justify-between items-center text-xs text-gray-500 font-mono border-b border-gray-200 pb-1 font-bold">
               <span>{docData.titulo_proceso}</span>
               <span>PÁGINA 3 DE {totalPages}</span>
@@ -808,7 +814,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
 
         {/* PÁGINA 4: ESPECIFICACIONES TÉCNICAS (TABLA DE ÍTEMS) */}
         {(viewMode === "continuo" || currentPage === 4) && (
-          <div className="w-full max-w-full lg:max-w-[1050px] bg-white border border-outline-variant shadow-xl rounded-sm p-5 sm:p-10 md:p-14 text-on-surface font-sans min-h-[1050px] flex flex-col justify-between relative space-y-4">
+          <div className="print-document w-full max-w-full lg:max-w-[1050px] bg-white border border-outline-variant shadow-xl rounded-sm p-5 sm:p-10 md:p-14 text-on-surface font-sans min-h-[1050px] flex flex-col justify-between relative space-y-4">
             <div className="flex justify-between items-center text-xs text-gray-500 font-mono border-b border-gray-200 pb-1 font-bold">
               <span>{docData.titulo_proceso}</span>
               <span>PÁGINA 4 DE {totalPages}</span>
@@ -931,7 +937,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
 
         {/* PÁGINA 5: PUNTOS 5 AL 14 */}
         {(viewMode === "continuo" || currentPage === 5) && (
-          <div className="w-full max-w-full lg:max-w-[1050px] bg-white border border-outline-variant shadow-xl rounded-sm p-5 sm:p-10 md:p-14 text-on-surface font-sans min-h-[1050px] flex flex-col justify-between relative space-y-4">
+          <div className="print-document w-full max-w-full lg:max-w-[1050px] bg-white border border-outline-variant shadow-xl rounded-sm p-5 sm:p-10 md:p-14 text-on-surface font-sans min-h-[1050px] flex flex-col justify-between relative space-y-4">
             <div className="flex justify-between items-center text-xs text-gray-500 font-mono border-b border-gray-200 pb-1 font-bold">
               <span>{docData.titulo_proceso}</span>
               <span>PÁGINA 5 DE {totalPages}</span>

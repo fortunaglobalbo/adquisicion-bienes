@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { SyncStatus } from "./SyncStatus";
 import { ChevronLeft, ChevronRight, Menu } from "lucide-react";
 
 export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -36,6 +37,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
           {sidebarOpen ? <ChevronLeft className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
         </button>
 
+        <SyncStatus />
         {children}
       </div>
     </div>

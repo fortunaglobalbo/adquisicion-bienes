@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "node scripts/store-test.cjs",
+    "test:smoke": "node scripts/smoke-test.cjs",
+    "diagnose": "node scripts/diagnose.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.48.1",

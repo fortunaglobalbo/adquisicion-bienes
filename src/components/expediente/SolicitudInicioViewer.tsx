@@ -73,11 +73,11 @@ export const SolicitudInicioViewer: React.FC<SolicitudInicioViewerProps> = ({
           ...docData,
           solicitud_inicio_numero: result.data.numero || docData.solicitud_inicio_numero || "047/2026",
           solicitud_inicio_fecha: result.data.fecha || docData.solicitud_inicio_fecha || "Oruro, 26 de mayo de 2026",
-          solicitud_inicio_a_nombre: result.data.a_nombre || docData.solicitud_inicio_a_nombre || "Lic. Vicente Paul Vega Ramirez",
+          solicitud_inicio_a_nombre: result.data.a_nombre || docData.solicitud_inicio_a_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
           solicitud_inicio_a_cargo: result.data.a_cargo || docData.solicitud_inicio_a_cargo || "RESPONSABLE DE CONTRATACIONES",
-          solicitud_inicio_via_nombre: result.data.via_nombre || docData.solicitud_inicio_via_nombre || "Lic. Raúl Alberto Torrico Gomez",
+          solicitud_inicio_via_nombre: result.data.via_nombre || docData.solicitud_inicio_via_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
           solicitud_inicio_via_cargo: result.data.via_cargo || docData.solicitud_inicio_via_cargo || "GERENTE GENERAL",
-          solicitud_inicio_de_nombre: result.data.de_nombre || docData.solicitud_inicio_de_nombre || "Ing. Heydi Dunya Canaviri Padilla",
+          solicitud_inicio_de_nombre: result.data.de_nombre || docData.solicitud_inicio_de_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
           solicitud_inicio_de_cargo: result.data.de_cargo || docData.solicitud_inicio_de_cargo || "SUPERVISOR DE SEGURIDAD INDUSTRIAL",
           solicitud_inicio_objeto: result.data.objeto || docData.solicitud_inicio_objeto || `SOLICITUD DE INICIO DEL PROCESO DE COMPRA "${docData.titulo_proceso.toUpperCase()}"`,
           solicitud_inicio_parrafo1: result.data.parrafo1 || docData.solicitud_inicio_parrafo1,
@@ -106,11 +106,11 @@ export const SolicitudInicioViewer: React.FC<SolicitudInicioViewerProps> = ({
   // Document Fields with exact defaults from the photo
   const numeroNota = docData.solicitud_inicio_numero || "047/2026";
   const fechaNota = docData.solicitud_inicio_fecha || "Oruro, 26 de mayo de 2026";
-  const aNombre = docData.solicitud_inicio_a_nombre || "Lic. Vicente Paul Vega Ramirez";
+  const aNombre = docData.solicitud_inicio_a_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]";
   const aCargo = docData.solicitud_inicio_a_cargo || "RESPONSABLE DE CONTRATACIONES";
-  const viaNombre = docData.solicitud_inicio_via_nombre || "Lic. Raúl Alberto Torrico Gomez";
+  const viaNombre = docData.solicitud_inicio_via_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]";
   const viaCargo = docData.solicitud_inicio_via_cargo || "GERENTE GENERAL";
-  const deNombre = docData.solicitud_inicio_de_nombre || "Ing. Heydi Dunya Canaviri Padilla";
+  const deNombre = docData.solicitud_inicio_de_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]";
   const deCargo = docData.solicitud_inicio_de_cargo || "SUPERVISOR DE SEGURIDAD INDUSTRIAL";
   const objetoNota =
     docData.solicitud_inicio_objeto ||
@@ -226,7 +226,7 @@ export const SolicitudInicioViewer: React.FC<SolicitudInicioViewerProps> = ({
             </button>
           </div>
         ) : (
-          <div className="w-full max-w-[850px] bg-white border border-outline-variant shadow-xl rounded-sm p-10 md:p-16 text-on-surface font-sans min-h-[1100px] flex flex-col justify-between relative">
+          <div className="print-document w-full max-w-[850px] bg-white border border-outline-variant shadow-xl rounded-sm p-10 md:p-16 text-on-surface font-sans min-h-[1100px] flex flex-col justify-between relative">
             {/* Top Page Tag */}
             <div className="absolute top-2 right-4 text-[10px] font-mono text-outline select-none">
               SOLICITUD DE INICIO DE PROCESO DE COMPRA
@@ -467,7 +467,7 @@ export const SolicitudInicioViewer: React.FC<SolicitudInicioViewerProps> = ({
                 <label className="block text-[10px] text-outline">A (Nombre):</label>
                 <input
                   type="text"
-                  value={docData.solicitud_inicio_a_nombre || "Lic. Vicente Paul Vega Ramirez"}
+                  value={docData.solicitud_inicio_a_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]"}
                   onChange={(e) => handleTextChange("solicitud_inicio_a_nombre", e.target.value)}
                   className="w-full px-2 py-1 border border-outline-variant rounded text-xs"
                 />
@@ -488,7 +488,7 @@ export const SolicitudInicioViewer: React.FC<SolicitudInicioViewerProps> = ({
                 <label className="block text-[10px] text-outline">VIA (Nombre):</label>
                 <input
                   type="text"
-                  value={docData.solicitud_inicio_via_nombre || "Lic. Raúl Alberto Torrico Gomez"}
+                  value={docData.solicitud_inicio_via_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]"}
                   onChange={(e) => handleTextChange("solicitud_inicio_via_nombre", e.target.value)}
                   className="w-full px-2 py-1 border border-outline-variant rounded text-xs"
                 />
@@ -509,7 +509,7 @@ export const SolicitudInicioViewer: React.FC<SolicitudInicioViewerProps> = ({
                 <label className="block text-[10px] text-outline">DE (Nombre):</label>
                 <input
                   type="text"
-                  value={docData.solicitud_inicio_de_nombre || "Ing. Heydi Dunya Canaviri Padilla"}
+                  value={docData.solicitud_inicio_de_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]"}
                   onChange={(e) => handleTextChange("solicitud_inicio_de_nombre", e.target.value)}
                   className="w-full px-2 py-1 border border-outline-variant rounded text-xs"
                 />

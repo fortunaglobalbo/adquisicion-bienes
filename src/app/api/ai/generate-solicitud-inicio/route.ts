@@ -1,3 +1,4 @@
+import { engineUrl } from "@/lib/server/config";
 import { NextRequest, NextResponse } from "next/server";
 import { extractSolicitudInicioWithAI } from "@/lib/ai/openCodeClient";
 import { Adquisicion } from "@/types";
@@ -19,7 +20,7 @@ export async function POST(req: NextRequest) {
 
     let vpsData: any = null;
     try {
-      const vpsRes = await fetch("http://85.31.230.163:8080/api/procesar-solicitud-inicio", {
+      const vpsRes = await fetch(`${engineUrl}/api/procesar-solicitud-inicio`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ adquisicion, insumoTexto, documentText, imageBase64, nombreArchivo }),

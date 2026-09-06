@@ -1,6 +1,7 @@
+import { engineUrl } from "@/lib/server/config";
 import { NextRequest, NextResponse } from "next/server";
 
-const BACKEND_URL = "http://85.31.230.163:8080";
+const BACKEND_URL = engineUrl;
 
 /**
  * Proxy server-side para el generador de Especificaciones Técnicas.
@@ -49,19 +50,18 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const filePath = searchParams.get("path");
-    const filename = searchParams.get("filename") || "documento";
+    const filePath = searchParams.get("path") || (searchParams.get("file") ? `/download/${searchParams.get("file")}` : null);
+    const filename = searchParams.get("filename") || filePath?.split("/").pop() || "documento";
 
-    if (!filePath) {
+    if (!filePath || !/^\/download\/[a-zA-Z0-9_.-]+$/.test(filePath) || filePath.includes("..")) {
       return NextResponse.json({ error: "Parámetro 'path' requerido" }, { status: 400 });
     }
 
     // Los archivos generados se almacenan y sirven en el worker Python FastAPI (puerto 8000)
     const PYTHON_WORKER_URL = "http://85.31.230.163:8000";
-    const GO_API_URL = "http://85.31.230.163:8080";
+    const GO_API_URL = engineUrl;
 
     const candidateUrls = [
-      `${PYTHON_WORKER_URL}${filePath.startsWith("/") ? "" : "/"}${filePath}`,
       `${GO_API_URL}${filePath.startsWith("/") ? "" : "/"}${filePath}`,
     ];
 

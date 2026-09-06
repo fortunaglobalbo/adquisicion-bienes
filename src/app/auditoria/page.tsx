@@ -12,6 +12,7 @@ export default function AuditoriaPage() {
 
   useEffect(() => {
     setLogs(DataStore.getLogs());
+    void DataStore.syncWithSupabase().then(() => setLogs(DataStore.getLogs()));
   }, []);
 
   const getActionBadge = (accion: LogProceso["accion"]) => {

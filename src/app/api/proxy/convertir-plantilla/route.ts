@@ -1,3 +1,4 @@
+import { engineUrl } from "@/lib/server/config";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest) {
     vpsFormData.append("fk_carpeta", String(fkCarpeta));
     vpsFormData.append("nombre_plantilla", String(nombrePlantilla));
 
-    const res = await fetch("http://85.31.230.163:8080/api/convertir-plantilla", {
+    const res = await fetch(`${engineUrl}/api/convertir-plantilla`, {
       method: "POST",
       body: vpsFormData,
       signal: AbortSignal.timeout(60000),

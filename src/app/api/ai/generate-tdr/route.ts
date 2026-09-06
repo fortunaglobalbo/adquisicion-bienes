@@ -1,8 +1,10 @@
+import { extractText } from "@/lib/server/extractText";
+import { engineUrl } from "@/lib/server/config";
 import { NextRequest, NextResponse } from "next/server";
 import { extractTdrFromDocumentOrImageWithAI } from "@/lib/ai/openCodeClient";
 import { Adquisicion } from "@/types";
 
-const VPS_API_URL = "http://85.31.230.163:8080/api/generar-especificaciones";
+const VPS_API_URL = `${engineUrl}/api/generar-especificaciones`;
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,51 +17,19 @@ export async function POST(req: NextRequest) {
       nombreArchivo?: string;
     };
 
+    if (!adquisicion?.codigo || !adquisicion?.titulo_proceso) return NextResponse.json({ error: "Adquisición requerida" }, { status: 400 });
     let extractedText = documentText || insumoTexto || "";
     let finalImageBase64 = imageBase64;
-
-    // Procesamiento inteligente según el tipo de archivo cargado
     if (imageBase64 && !imageBase64.startsWith("data:image")) {
-      const b64Data = imageBase64.includes(",") ? imageBase64.split(",")[1] : imageBase64;
-      const fileBuffer = Buffer.from(b64Data, "base64");
-      const lowerName = (nombreArchivo || "").toLowerCase();
-
-      if (lowerName.endsWith(".docx") || lowerName.endsWith(".doc")) {
-        try {
-          const mammoth = require("mammoth");
-          const { value } = await mammoth.extractRawText({ buffer: fileBuffer });
-          if (value && value.trim()) {
-            extractedText = `${value}\n\n${extractedText}`;
-          }
-        } catch (e: any) {
-          console.warn("Error extrayendo texto de Word (.docx):", e.message);
-        }
-      } else if (lowerName.endsWith(".pdf")) {
-        try {
-          const pdfParse = require("pdf-parse");
-          const pdfData = await pdfParse(fileBuffer);
-          if (pdfData.text && pdfData.text.trim()) {
-            extractedText = `${pdfData.text}\n\n${extractedText}`;
-          }
-        } catch (e: any) {
-          console.warn("Error extrayendo texto de PDF:", e.message);
-        }
-      } else if (lowerName.endsWith(".txt") || lowerName.endsWith(".md") || lowerName.endsWith(".csv")) {
-        try {
-          const textDecoded = fileBuffer.toString("utf-8");
-          if (textDecoded && textDecoded.trim()) {
-            extractedText = `${textDecoded}\n\n${extractedText}`;
-          }
-        } catch (e: any) {
-          console.warn("Error decodificando archivo de texto plano:", e.message);
-        }
-      }
+      const buffer = Buffer.from(imageBase64.split(",").pop() || "", "base64");
+      if (buffer.length > 20 * 1024 * 1024) return NextResponse.json({ error: "Archivo demasiado grande (máximo 20 MB)." }, { status: 400 });
+      try { extractedText = [await extractText(buffer, nombreArchivo || ""), extractedText].filter(Boolean).join("\n\n"); } catch { /* The engine can apply OCR. */ }
     }
 
     // 1. Procesar con el motor unificado del VPS Linux (MarkItDown + OCR Tesseract + DeepSeek + python-docx)
     let vpsResponse: any = null;
     try {
-      const vpsRes = await fetch("http://85.31.230.163:8080/api/procesar-documento", {
+      const vpsRes = await fetch(`${engineUrl}/api/procesar-documento`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

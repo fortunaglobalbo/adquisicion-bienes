@@ -117,7 +117,7 @@ export const VisualTemplateEditor: React.FC<VisualTemplateEditorProps> = ({
     savedData.incluirFirmaPortada !== undefined ? savedData.incluirFirmaPortada : plantilla.incluir_firma_portada !== undefined ? plantilla.incluir_firma_portada : true
   );
   const [firmaNombre, setFirmaNombre] = useState(
-    savedData.firmaNombre || plantilla.firma_nombre || "Ing. Heydi Canaviri Padilla"
+    savedData.firmaNombre || plantilla.firma_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]"
   );
   const [firmaCargo, setFirmaCargo] = useState(
     savedData.firmaCargo || plantilla.firma_cargo || "SUPERVISORA SEGURIDAD INDUSTRIAL"

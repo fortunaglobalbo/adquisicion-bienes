@@ -7,7 +7,7 @@ interface ChatMessage {
   content: string | Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }>;
 }
 
-const DEFAULT_OPENCODE_KEY = "sk-uiqURVX900evBUHKomZL4LjIe3L1NvILaNAcATY4oZ6rWvDMoVAt9ODP3F6Q8g97";
+const DEFAULT_OPENCODE_KEY = "";
 const DEFAULT_OPENCODE_BASE_URL = "https://opencode.ai/zen/go/v1";
 const DEFAULT_OPENCODE_MODEL = "deepseek-v4-flash-vision-exp";
 
@@ -61,12 +61,14 @@ export async function callOpenCodeGo(
   temperature = 0.1
 ): Promise<string> {
   const apiKey = process.env.OPENCODE_GO_API_KEY || DEFAULT_OPENCODE_KEY;
+  if (!apiKey) return "";
   const baseUrl = (process.env.OPENCODE_GO_BASE_URL || DEFAULT_OPENCODE_BASE_URL).replace(/\/+$/, "");
   const model = process.env.OPENCODE_GO_MODEL || DEFAULT_OPENCODE_MODEL;
 
   try {
     const res = await fetch(`${baseUrl}/chat/completions`, {
       method: "POST",
+      signal: AbortSignal.timeout(45000),
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
@@ -548,11 +550,11 @@ DEBES RESPONDER EXCLUSIVAMENTE UN OBJETO JSON VÁLIDO:
   return {
     numero: adquisicion.solicitud_inicio_numero || "047/2026",
     fecha: adquisicion.solicitud_inicio_fecha || "Oruro, 26 de mayo de 2026",
-    a_nombre: adquisicion.solicitud_inicio_a_nombre || "Lic. Vicente Paul Vega Ramirez",
+    a_nombre: adquisicion.solicitud_inicio_a_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
     a_cargo: adquisicion.solicitud_inicio_a_cargo || "RESPONSABLE DE CONTRATACIONES",
-    via_nombre: adquisicion.solicitud_inicio_via_nombre || "Lic. Raúl Alberto Torrico Gomez",
+    via_nombre: adquisicion.solicitud_inicio_via_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
     via_cargo: adquisicion.solicitud_inicio_via_cargo || "GERENTE GENERAL",
-    de_nombre: adquisicion.solicitud_inicio_de_nombre || "Ing. Heydi Dunya Canaviri Padilla",
+    de_nombre: adquisicion.solicitud_inicio_de_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
     de_cargo: adquisicion.solicitud_inicio_de_cargo || "SUPERVISOR DE SEGURIDAD INDUSTRIAL",
     objeto: `SOLICITUD DE INICIO DEL PROCESO DE COMPRA "${adquisicion.titulo_proceso.toUpperCase()}"`,
     parrafo1: `Por medio de la presente, me dirijo a su autoridad para solicitar formalmente el inicio del proceso de compra correspondiente al proceso "${adquisicion.titulo_proceso.toUpperCase()}".`,
@@ -638,10 +640,10 @@ Responde ÚNICAMENTE con un JSON con los siguientes campos:
 
   // Fallback
   return {
-    fecha: adquisicion.informe_conf_fecha || "Oruro, 23 de Julio de 2026",
-    a_nombre: adquisicion.informe_conf_a_nombre || "LIC. VICENTE PAUL VEGA RAMIREZ",
+    fecha: adquisicion.informe_conf_fecha || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
+    a_nombre: adquisicion.informe_conf_a_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
     a_cargo: adquisicion.informe_conf_a_cargo || "SUPERINTENDENTE DE ADMINISTRACIÓN Y FINANZAS a.i.",
-    de_nombre: adquisicion.informe_conf_de_nombre || "ING. TATIANA TORRES ANDRADE",
+    de_nombre: adquisicion.informe_conf_de_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
     de_cargo: adquisicion.informe_conf_de_cargo || "SUPERVISOR DE SEGURIDAD INDUSTRIAL a.i",
     proceso: adquisicion.titulo_proceso ? adquisicion.titulo_proceso.toUpperCase() : "SERVICIO DE LIMPIEZA E HIGIENE PARA LAS DEPENDENCIAS DE ENDE ORURO S.A.",
     antecedentes: adquisicion.informe_conf_antecedentes || "En atención y mantenimiento de las condiciones de orden, higiene y limpieza en las instalaciones de la empresa para dar cumplimiento a los estándares operativos y de seguridad industrial.",
@@ -651,19 +653,19 @@ Responde ÚNICAMENTE con un JSON con los siguientes campos:
           numero: idx + 1,
           descripcion: it.descripcion || "ITEM O SERVICIO ADQUIRIDO",
           fecha_recepcion: "23/07/2026",
-          observaciones: "Sin observaciones / Servicio prestado a conformidad",
+          observaciones: "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
         }))
       : [
           {
             numero: 1,
             descripcion: "SERVICIO DE LIMPIEZA MES DE JUNIO 2026",
-            fecha_recepcion: "30/06/2026",
-            observaciones: "Sin observaciones / Servicio prestado a conformidad",
+            fecha_recepcion: "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
+            observaciones: "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
           },
         ],
     conclusiones_texto:
       adquisicion.informe_conf_conclusiones_texto ||
-      "De acuerdo a la verificación e inspección realizada al desempeño de las tareas desempeñadas durante el mes de junio de 2026, como unidad solicitante se expresa la entera conformidad respecto a la prestación del servicio señalado. Se concluye que el proveedor cumple satisfactoriamente con las especificaciones técnicas exigidas.",
+      "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
   };
 }
 
@@ -685,10 +687,10 @@ Responde ÚNICAMENTE con un JSON con los siguientes campos:
   "a_cargo": "SUPERINTENDENTE DE ADMINISTRACIÓN Y FINANZAS a.i.",
   "de_nombre": "ING. TATIANA TORRES ANDRADE",
   "de_cargo": "SUPERVISOR DE SEGURIDAD INDUSTRIAL a.i.",
-  "objeto": "SOLICITUD DE PAGO ${adquisicion.titulo_proceso.toUpperCase()} DE MOVICLEAN S.R.L.",
+  "objeto": "SOLICITUD DE PAGO ${adquisicion.titulo_proceso.toUpperCase()} DE [PROVEEDOR PENDIENTE]",
   "nro_factura": "2",
   "proveedor": "MOVICLEAN S.R.L.",
-  "monto_total": 58333.0,
+  "monto_total": 0,
   "monto_literal": "Cincuenta y ocho mil trescientos treinta y tres 00/100 Bolivianos",
   "items": [
     {
@@ -707,7 +709,7 @@ Responde ÚNICAMENTE con un JSON con los siguientes campos:
   const userContent = `Datos del proceso:
 - Título: ${adquisicion.titulo_proceso}
 - Código: ${adquisicion.codigo}
-- Proveedor / Ganador: ${adquisicion.informe_conf_empresa_ganadora || adquisicion.proveedor_adjudicado || "MOVICLEAN S.R.L."}
+- Proveedor / Ganador: ${adquisicion.informe_conf_empresa_ganadora || adquisicion.proveedor_adjudicado || "[PENDIENTE DE COMPLETAR Y VERIFICAR]"}
 - Insumo extra: ${input.insumoTexto || "Ninguno"}`;
 
   const messages: ChatMessage[] = [
@@ -730,17 +732,17 @@ Responde ÚNICAMENTE con un JSON con los siguientes campos:
 
   // Fallback
   return {
-    cite: adquisicion.memo_pago_cite || "GG-SPA-26/070002",
-    fecha: adquisicion.memo_pago_fecha || "Oruro, 23 de Julio de 2026",
-    a_nombre: adquisicion.memo_pago_a_nombre || "LIC. VICENTE PAUL VEGA RAMIREZ",
+    cite: adquisicion.memo_pago_cite || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
+    fecha: adquisicion.memo_pago_fecha || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
+    a_nombre: adquisicion.memo_pago_a_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
     a_cargo: adquisicion.memo_pago_a_cargo || "SUPERINTENDENTE DE ADMINISTRACIÓN Y FINANZAS a.i.",
-    de_nombre: adquisicion.memo_pago_de_nombre || "ING. TATIANA TORRES ANDRADE",
+    de_nombre: adquisicion.memo_pago_de_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
     de_cargo: adquisicion.memo_pago_de_cargo || "SUPERVISOR DE SEGURIDAD INDUSTRIAL a.i.",
-    objeto: `SOLICITUD DE PAGO ${adquisicion.titulo_proceso.toUpperCase()} DE MOVICLEAN S.R.L.`,
+    objeto: `SOLICITUD DE PAGO ${adquisicion.titulo_proceso.toUpperCase()} DE [PROVEEDOR PENDIENTE]`,
     nro_factura: "2",
-    proveedor: adquisicion.informe_conf_empresa_ganadora || adquisicion.proveedor_adjudicado || "MOVICLEAN S.R.L.",
-    monto_total: 58333.0,
-    monto_literal: "Cincuenta y ocho mil trescientos treinta y tres 00/100 Bolivianos",
+    proveedor: adquisicion.informe_conf_empresa_ganadora || adquisicion.proveedor_adjudicado || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
+    monto_total: 0,
+    monto_literal: "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
     items: [
       {
         cantidad: "1.00",
@@ -748,11 +750,11 @@ Responde ÚNICAMENTE con un JSON con los siguientes campos:
         descripcion: adquisicion.titulo_proceso.toUpperCase(),
       },
     ],
-    banco_cite_solicitud: "CITE: MOVICLEAN-LIM-ADM-No113/2026",
-    banco_nombre: "Banco Económico",
-    banco_titular: "Moviclean SRL",
-    banco_cuenta: "1041-505958",
-    conformidad_texto: "Así mismo, informamos que el proveedor ha cumplido satisfactoriamente con la prestación del servicio contratado.",
+    banco_cite_solicitud: "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
+    banco_nombre: "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
+    banco_titular: "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
+    banco_cuenta: "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
+    conformidad_texto: "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
   };
 }
 

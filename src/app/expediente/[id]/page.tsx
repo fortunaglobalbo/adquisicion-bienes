@@ -139,12 +139,15 @@ export default function ExpedienteDetailPage() {
     loadData();
   };
 
-  const handleDeleteExpediente = () => {
+  const handleDeleteExpediente = async () => {
     setIsDeleting(true);
-    setTimeout(() => {
-      DataStore.deleteAdquisicion(adquisicion.id);
+    const result = await DataStore.deleteAdquisicion(adquisicion.id);
+    if (result.success) {
       router.push("/");
-    }, 400);
+    } else {
+      alert(result.error || "No se pudo eliminar el expediente.");
+      setIsDeleting(false);
+    }
   };
 
   return (

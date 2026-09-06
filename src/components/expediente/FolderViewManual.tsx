@@ -64,21 +64,26 @@ export const FolderViewManual: React.FC<FolderViewManualProps> = ({
     setAlertaDiscordancia(null);
 
     try {
-      // 1. Invocar Endpoint OCR
+      if (file.size > 20 * 1024 * 1024) throw new Error("El tamaño máximo es 20 MB.");
+      const upload = new FormData();
+      upload.append("file", file);
+      upload.append("adquisicion_id", adquisicion.id);
+      const stored = await fetch("/api/files", { method: "POST", body: upload });
+      const saved = await stored.json();
+      if (!stored.ok) throw new Error(saved.error || "No se pudo guardar el archivo original.");
+      const form = new FormData();
+      form.append("file", file);
+      form.append("carpetaNumero", String(carpeta.numero));
+      form.append("adquisicionCodigo", adquisicion.codigo);
+      form.append("adquisicionTitulo", adquisicion.titulo_proceso);
       const ocrRes = await fetch("/api/ocr/extract", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fileName: file.name,
-          carpetaNumero: carpeta.numero,
-          adquisicionCodigo: adquisicion.codigo,
-          adquisicionTitulo: adquisicion.titulo_proceso,
-        }),
+        body: form,
       });
 
       const ocrData = await ocrRes.json();
       const extractedCampos: CampoExtraido[] = ocrData.result?.campos || [];
-      const warnings: string[] = ocrData.result?.advertencias || [];
+      const warnings: string[] = ocrData.result?.advertencias || ["Archivo guardado. No se pudo extraer su texto; revisa el original."];
 
       if (warnings.length > 0) {
         setAlertaDiscordancia(warnings.join("\n"));
@@ -86,7 +91,7 @@ export const FolderViewManual: React.FC<FolderViewManualProps> = ({
 
       // 2. Crear documento
       const newDoc: Documento = {
-        id: `doc-${Date.now()}`,
+        id: crypto.randomUUID(),
         carpeta_id: carpeta.id,
         adquisicion_id: adquisicion.id,
         tipo: file.type.includes("pdf")
@@ -95,6 +100,8 @@ export const FolderViewManual: React.FC<FolderViewManualProps> = ({
           ? "SUBIDO_IMAGEN"
           : "SUBIDO_OTRO",
         nombre_original: file.name,
+        ruta_storage: saved.path,
+        contenido_texto: ocrData.text || "",
         mime: file.type || "application/octet-stream",
         tamano: file.size,
         estado: "Final",
@@ -107,7 +114,7 @@ export const FolderViewManual: React.FC<FolderViewManualProps> = ({
         },
       };
 
-      onDocumentUploaded(newDoc, extractedCampos);
+      onDocumentUploaded(newDoc, extractedCampos.map(c => ({ ...c, documento_id: newDoc.id, adquisicion_id: adquisicion.id })));
       if (extractedCampos.length > 0) {
         setActiveTab("ocr");
       }
@@ -244,8 +251,9 @@ export const FolderViewManual: React.FC<FolderViewManualProps> = ({
                     </div>
 
                     <div className="flex items-center gap-2">
+                      {doc.ruta_storage && <a className="text-sm underline text-blue-800" href={`/api/files?path=${encodeURIComponent(doc.ruta_storage)}`} download>Descargar original</a>}
                       <span className="px-2 py-0.5 font-mono text-[10px] bg-emerald-100 text-emerald-800 rounded border border-emerald-300">
-                        Procesado OK
+                        {doc.ruta_storage ? "Guardado" : "Solo registro; falta original"}
                       </span>
                     </div>
                   </div>

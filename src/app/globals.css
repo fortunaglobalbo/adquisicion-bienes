@@ -46,6 +46,33 @@ always-on-top-app {
    ESTILOS DE IMPRESIÓN Y EXPORTACIÓN PDF OFICIAL (ENDE DEORURO)
    ============================================================ */
 @media print {
+  body * { visibility: hidden; }
+  .print-document, .print-document * { visibility: visible; }
+  body div:has(.print-document), main:has(.print-document) {
+    display: block !important;
+    position: static !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    background: white !important;
+  }
+  body *:not(.print-document):not(.print-document *):not(:has(.print-document)) { display: none !important; }
+  .print-document {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    break-after: page;
+  }
+  .print-document:last-child { break-after: auto; }
+  .print-document input, .print-document textarea { border: 0 !important; background: transparent !important; }
   @page {
     size: letter portrait;
     margin: 12mm 15mm 15mm 15mm;
@@ -110,4 +137,3 @@ always-on-top-app {
     print-color-adjust: exact !important;
   }
 }
-

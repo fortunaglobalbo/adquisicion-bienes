@@ -1,3 +1,4 @@
+import { engineUrl } from "@/lib/server/config";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
@@ -7,7 +8,7 @@ export async function POST(req: NextRequest) {
 
     let vpsData: any = null;
     try {
-      const res = await fetch("http://85.31.230.163:8080/api/asistente-carpeta", {
+      const res = await fetch(`${engineUrl}/api/asistente-carpeta`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ peticion_usuario, adquisicion, carpetas_existentes }),

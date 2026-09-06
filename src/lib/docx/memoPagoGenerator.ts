@@ -20,18 +20,18 @@ export async function generateMemoPagoDocx(
   adquisicion: Adquisicion,
   templateData?: any
 ): Promise<Buffer> {
-  const cite = adquisicion.memo_pago_cite || "GG-SPA-26/070002";
-  const fecha = adquisicion.memo_pago_fecha || "Oruro, 23 de Julio de 2026";
-  const aNombre = adquisicion.memo_pago_a_nombre || "LIC. VICENTE PAUL VEGA RAMIREZ";
+  const cite = adquisicion.memo_pago_cite || "[PENDIENTE DE COMPLETAR Y VERIFICAR]";
+  const fecha = adquisicion.memo_pago_fecha || "[PENDIENTE DE COMPLETAR Y VERIFICAR]";
+  const aNombre = adquisicion.memo_pago_a_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]";
   const aCargo = adquisicion.memo_pago_a_cargo || "SUPERINTENDENTE DE ADMINISTRACIÓN Y FINANZAS a.i.";
-  const deNombre = adquisicion.memo_pago_de_nombre || "ING. TATIANA TORRES ANDRADE";
+  const deNombre = adquisicion.memo_pago_de_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]";
   const deCargo = adquisicion.memo_pago_de_cargo || "SUPERVISOR DE SEGURIDAD INDUSTRIAL a.i.";
 
   const proveedor =
     adquisicion.memo_pago_proveedor ||
     adquisicion.informe_conf_empresa_ganadora ||
     adquisicion.proveedor_adjudicado ||
-    "MOVICLEAN S.R.L.";
+    "[PENDIENTE DE COMPLETAR Y VERIFICAR]";
 
   const procesoTitulo =
     adquisicion.titulo_proceso || "SERVICIO DE LIMPIEZA MES DE JUNIO 2026";
@@ -40,15 +40,15 @@ export async function generateMemoPagoDocx(
     adquisicion.memo_pago_objeto ||
     `SOLICITUD DE PAGO ${procesoTitulo.toUpperCase()} DE ${proveedor.toUpperCase()}`;
 
-  const nroFactura = adquisicion.memo_pago_nro_factura || "2";
+  const nroFactura = adquisicion.memo_pago_nro_factura || "[FACTURA PENDIENTE]";
   const montoTotal =
     adquisicion.memo_pago_monto_total ||
     adquisicion.informe_conf_monto_adjudicado ||
-    58333.0;
+    0;
 
   const montoLiteral =
     adquisicion.memo_pago_monto_literal ||
-    "Cincuenta y ocho mil trescientos treinta y tres 00/100 Bolivianos";
+    "[PENDIENTE DE COMPLETAR Y VERIFICAR]";
 
   const items =
     adquisicion.memo_pago_items && adquisicion.memo_pago_items.length > 0
@@ -63,10 +63,10 @@ export async function generateMemoPagoDocx(
 
   const bancoCite =
     adquisicion.memo_pago_banco_cite_solicitud ||
-    "CITE: MOVICLEAN-LIM-ADM-No113/2026";
-  const bancoNombre = adquisicion.memo_pago_banco_nombre || "Banco Económico";
+    "[PENDIENTE DE COMPLETAR Y VERIFICAR]";
+  const bancoNombre = adquisicion.memo_pago_banco_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]";
   const bancoTitular = adquisicion.memo_pago_banco_titular || proveedor;
-  const bancoCuenta = adquisicion.memo_pago_banco_cuenta || "1041-505958";
+  const bancoCuenta = adquisicion.memo_pago_banco_cuenta || "[PENDIENTE DE COMPLETAR Y VERIFICAR]";
 
   const conformidadTexto =
     adquisicion.memo_pago_conformidad_texto ||

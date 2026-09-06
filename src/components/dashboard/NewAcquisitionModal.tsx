@@ -8,7 +8,7 @@ import { Adquisicion, CategoriaAdquisicion } from "@/types";
 interface NewAcquisitionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreated: (newAdq: Adquisicion) => void;
+  onCreated: (newAdq: Adquisicion) => Promise<boolean>;
   nextCodigo: string;
 }
 
@@ -19,11 +19,12 @@ export const NewAcquisitionModal: React.FC<NewAcquisitionModalProps> = ({
   nextCodigo,
 }) => {
   const [codigo, setCodigo] = useState(nextCodigo);
+  const [submitting, setSubmitting] = useState(false);
   const [titulo, setTitulo] = useState("");
   const [categoria, setCategoria] = useState<CategoriaAdquisicion>("Bienes");
   const [modalidad, setModalidad] = useState("Menor Precio (Art. 31 Reglamento SBC)");
   const [unidad, setUnidad] = useState("Departamento Técnico de Mantenimiento");
-  const [responsable, setResponsable] = useState("Ing. Heydi Canaviri Padilla");
+  const [responsable, setResponsable] = useState("[PENDIENTE DE COMPLETAR Y VERIFICAR]");
   const [plazoDias, setPlazoDias] = useState<number>(30);
   const [lugarEntrega, setLugarEntrega] = useState("Almacenes ENDE DEORURO S.A., Oruro");
   const [presupuestoEstimadoManual, setPresupuestoEstimadoManual] = useState<number>(0);
@@ -35,8 +36,9 @@ export const NewAcquisitionModal: React.FC<NewAcquisitionModalProps> = ({
     }
   }, [isOpen, nextCodigo]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
     if (!titulo.trim() || !codigo.trim()) {
       alert("Por favor complete el código y el título del proceso.");
       return;
@@ -61,9 +63,11 @@ export const NewAcquisitionModal: React.FC<NewAcquisitionModalProps> = ({
       items: [],
     };
 
-    onCreated(newAdqData as Adquisicion);
-    setTitulo("");
-    setPresupuestoEstimadoManual(0);
+    setSubmitting(true);
+    try {
+      const saved = await onCreated(newAdqData as Adquisicion);
+      if (saved) { setTitulo(""); setPresupuestoEstimadoManual(0); }
+    } finally { setSubmitting(false); }
   };
 
   return (
@@ -200,10 +204,11 @@ export const NewAcquisitionModal: React.FC<NewAcquisitionModalProps> = ({
           </button>
           <button
             type="submit"
+            disabled={submitting}
             className="flex items-center gap-2 px-5 py-2 bg-primary text-on-primary rounded text-xs font-mono font-bold hover:bg-primary-container transition-colors shadow-institutional"
           >
             <CheckCircle className="w-4 h-4" />
-            <span>Crear Expediente e Instanciar 8 Carpetas</span>
+            <span>{submitting ? "Creando expediente..." : "Crear Expediente e Instanciar 8 Carpetas"}</span>
           </button>
         </div>
       </form>

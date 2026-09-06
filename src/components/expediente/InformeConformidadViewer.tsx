@@ -42,14 +42,14 @@ export const InformeConformidadViewer: React.FC<InformeConformidadViewerProps> =
           numero: idx + 1,
           descripcion: it.descripcion || "ITEM O SERVICIO SOLICITADO",
           fecha_recepcion: getFechaCortaActual(),
-          observaciones: "Sin observaciones / Servicio prestado a conformidad",
+          observaciones: "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
         }))
       : [
           {
             numero: 1,
             descripcion: `SERVICIO DE LIMPIEZA MES DE JUNIO 2026`,
-            fecha_recepcion: "30/06/2026",
-            observaciones: "Sin observaciones / Servicio prestado a conformidad",
+            fecha_recepcion: "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
+            observaciones: "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
           },
         ];
 
@@ -62,12 +62,12 @@ export const InformeConformidadViewer: React.FC<InformeConformidadViewerProps> =
   const [docData, setDocData] = useState<Adquisicion>({
     ...adquisicion,
     informe_conf_formulario: adquisicion.informe_conf_formulario || "INFORME DE CONFORMIDAD (ADQUISICIONES)",
-    informe_conf_fecha: adquisicion.informe_conf_fecha || "Oruro, 23 de Julio de 2026",
-    informe_conf_a_nombre: adquisicion.informe_conf_a_nombre || "LIC. VICENTE PAUL VEGA RAMIREZ",
+    informe_conf_fecha: adquisicion.informe_conf_fecha || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
+    informe_conf_a_nombre: adquisicion.informe_conf_a_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
     informe_conf_a_cargo:
       adquisicion.informe_conf_a_cargo || "SUPERINTENDENTE DE ADMINISTRACIÓN Y FINANZAS a.i.",
     informe_conf_de_nombre:
-      adquisicion.informe_conf_de_nombre || "ING. TATIANA TORRES ANDRADE",
+      adquisicion.informe_conf_de_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
     informe_conf_de_cargo:
       adquisicion.informe_conf_de_cargo || "SUPERVISOR DE SEGURIDAD INDUSTRIAL a.i",
     informe_conf_proceso: defaultProceso,
@@ -76,11 +76,11 @@ export const InformeConformidadViewer: React.FC<InformeConformidadViewerProps> =
       "En atención y mantenimiento de las condiciones de orden, higiene y limpieza en las instalaciones de la empresa para dar cumplimiento a los estándares operativos y de seguridad industrial.",
     informe_conf_desarrollo:
       adquisicion.informe_conf_desarrollo ||
-      `En este sentido en cumplimiento del Reglamento de Adquisición de Bienes, Construcción de Obras Y Contratación de Servicios, se emite el contrato GG-CTO-26/040014 "${defaultProceso}" para la empresa MOVICLEAN S.R.L., la cual cumple con las especificaciones técnicas y menor precio que se solicitó en el proceso de adquisición.`,
+      `En este sentido en cumplimiento del Reglamento de Adquisición de Bienes, Construcción de Obras Y Contratación de Servicios, se emite el contrato GG-CTO-26/040014 "${defaultProceso}" para la empresa [PROVEEDOR PENDIENTE]. [REGISTRAR LA EVALUACIÓN DOCUMENTADA].`,
     informe_conf_items_recepcion: defaultItemsRecepcion,
     informe_conf_conclusiones_texto:
       adquisicion.informe_conf_conclusiones_texto ||
-      "De acuerdo a la verificación e inspección realizada al desempeño de las tareas desempeñadas durante el mes de junio de 2026, como unidad solicitante se expresa la entera conformidad respecto a la prestación del servicio señalado. Se concluye que el proveedor cumple satisfactoriamente con las especificaciones técnicas exigidas.",
+      "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
   });
 
   const handleFieldChange = (field: keyof Adquisicion, value: any) => {
@@ -99,7 +99,7 @@ export const InformeConformidadViewer: React.FC<InformeConformidadViewerProps> =
       numero: list.length + 1,
       descripcion: "NUEVO ITEM / SERVICIO ENTREGADO",
       fecha_recepcion: getFechaCortaActual(),
-      observaciones: "Sin observaciones / Cumplimiento al 100%",
+      observaciones: "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
     });
     setDocData((prev) => ({ ...prev, informe_conf_items_recepcion: list }));
   };
@@ -273,7 +273,7 @@ export const InformeConformidadViewer: React.FC<InformeConformidadViewerProps> =
             </button>
           </div>
         ) : (
-          <div className="w-full max-w-[816px] min-h-[1056px] bg-white text-slate-900 shadow-2xl p-[48px] md:p-[64px] font-sans text-[13px] leading-relaxed border border-slate-300 relative rounded-sm flex flex-col justify-between">
+          <div className="print-document w-full max-w-[816px] min-h-[1056px] bg-white text-slate-900 shadow-2xl p-[48px] md:p-[64px] font-sans text-[13px] leading-relaxed border border-slate-300 relative rounded-sm flex flex-col justify-between">
             <div className="space-y-4">
               {/* Header: Logo & Company Name */}
               <div className="flex items-center gap-3">
@@ -498,7 +498,7 @@ export const InformeConformidadViewer: React.FC<InformeConformidadViewerProps> =
                 <p className="text-xs font-medium text-slate-800 pb-12">Atentamente,</p>
                 <div className="w-64 border-b border-black mx-auto mb-1.5"></div>
                 <div className="font-bold text-slate-950 uppercase">
-                  {docData.informe_conf_de_nombre || "ING. TATIANA TORRES ANDRADE"}
+                  {docData.informe_conf_de_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]"}
                 </div>
                 <div className="text-[11px] text-slate-700 uppercase">
                   {docData.informe_conf_de_cargo || "SUPERVISOR DE SEGURIDAD INDUSTRIAL a.i"}

@@ -116,13 +116,14 @@ export const TemplateTranspilerModal: React.FC<TemplateTranspilerModalProps> = (
   };
 
   // 2. Guardar Plantilla de Código como Activa en el Sistema
-  const handleSaveAsDefaultTemplate = () => {
+  const handleSaveAsDefaultTemplate = async () => {
     if (!transpileResult?.plantilla) return;
 
     try {
       const tpl = transpileResult.plantilla;
       // Guardar en DataStore
-      DataStore.updatePlantilla(tpl.id, tpl);
+      const result = await DataStore.updatePlantilla(tpl.id, tpl);
+      if (!result.success) throw new Error("Cambios guardados localmente; sincronización pendiente: " + result.error);
       // Guardar en LocalStorage para persistencia inmediata en el navegador
       if (typeof window !== "undefined") {
         localStorage.setItem(`ende_plantilla_custom_${tpl.id}`, JSON.stringify(tpl.datos_completos));

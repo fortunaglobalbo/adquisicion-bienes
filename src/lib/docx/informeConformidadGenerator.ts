@@ -20,12 +20,12 @@ export async function generateInformeConformidadDocx(
   adquisicion: Adquisicion,
   templateData?: any
 ): Promise<Buffer> {
-  const fecha = adquisicion.informe_conf_fecha || "Oruro, 23 de Julio de 2026";
-  const aNombre = adquisicion.informe_conf_a_nombre || "LIC. VICENTE PAUL VEGA RAMIREZ";
+  const fecha = adquisicion.informe_conf_fecha || "[PENDIENTE DE COMPLETAR Y VERIFICAR]";
+  const aNombre = adquisicion.informe_conf_a_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]";
   const aCargo =
     adquisicion.informe_conf_a_cargo || "SUPERINTENDENTE DE ADMINISTRACIÓN Y FINANZAS a.i.";
   const deNombre =
-    adquisicion.informe_conf_de_nombre || "ING. TATIANA TORRES ANDRADE";
+    adquisicion.informe_conf_de_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]";
   const deCargo =
     adquisicion.informe_conf_de_cargo || "SUPERVISOR DE SEGURIDAD INDUSTRIAL a.i";
 
@@ -41,7 +41,7 @@ export async function generateInformeConformidadDocx(
 
   const desarrolloTexto =
     adquisicion.informe_conf_desarrollo ||
-    `En este sentido en cumplimiento del Reglamento de Adquisición de Bienes, Construcción de Obras Y Contratación de Servicios, se emite el contrato GG-CTO-26/040014 "${procesoTitulo}" para la empresa MOVICLEAN S.R.L., la cual cumple con las especificaciones técnicas y menor precio que se solicitó en el proceso de adquisición.`;
+    `En este sentido en cumplimiento del Reglamento de Adquisición de Bienes, Construcción de Obras Y Contratación de Servicios, se emite el contrato GG-CTO-26/040014 "${procesoTitulo}" para la empresa [PROVEEDOR PENDIENTE]. [REGISTRAR LA EVALUACIÓN DOCUMENTADA].`;
 
   const itemsRecepcion =
     adquisicion.informe_conf_items_recepcion && adquisicion.informe_conf_items_recepcion.length > 0
@@ -51,20 +51,20 @@ export async function generateInformeConformidadDocx(
           numero: idx + 1,
           descripcion: it.descripcion || "ITEM O SERVICIO SOLICITADO",
           fecha_recepcion: getFechaCortaActual(),
-          observaciones: "Sin observaciones / Servicio prestado a conformidad",
+          observaciones: "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
         }))
       : [
           {
             numero: 1,
             descripcion: "SERVICIO DE LIMPIEZA MES DE JUNIO 2026",
-            fecha_recepcion: "30/06/2026",
-            observaciones: "Sin observaciones / Servicio prestado a conformidad",
+            fecha_recepcion: "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
+            observaciones: "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
           },
         ];
 
   const conclusionesTexto =
     adquisicion.informe_conf_conclusiones_texto ||
-    "De acuerdo a la verificación e inspección realizada al desempeño de las tareas desempeñadas durante el mes de junio de 2026, como unidad solicitante se expresa la entera conformidad respecto a la prestación del servicio señalado. Se concluye que el proveedor cumple satisfactoriamente con las especificaciones técnicas exigidas.";
+    "[PENDIENTE DE COMPLETAR Y VERIFICAR]";
 
   // Load logo from disk
   let logoBuffer: Buffer | null = null;

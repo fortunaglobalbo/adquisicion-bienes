@@ -61,7 +61,7 @@ app.add_middleware(
 OUTPUT_DIR = "/tmp/ende_docs" if os.name != "nt" else os.path.join(tempfile.gettempdir(), "ende_docs")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-OPENCODE_API_KEY = os.getenv("OPENCODE_GO_API_KEY", "sk-uiqURVX900evBUHKomZL4LjIe3L1NvILaNAcATY4oZ6rWvDMoVAt9ODP3F6Q8g97")
+OPENCODE_API_KEY = os.getenv("OPENCODE_GO_API_KEY", "<CONFIGURAR_EN_ENTORNO>")
 OPENCODE_BASE_URL = os.getenv("OPENCODE_GO_BASE_URL", "https://opencode.ai/zen/go/v1").rstrip("/")
 OPENCODE_MODEL = os.getenv("OPENCODE_GO_MODEL", "deepseek-v4-flash-vision-exp")
 

@@ -22,11 +22,11 @@ export async function generateSolicitudInicioDocx(
 ): Promise<Buffer> {
   const numeroNota = adquisicion.solicitud_inicio_numero || "047/2026";
   const fechaNota = adquisicion.solicitud_inicio_fecha || "Oruro, 26 de mayo de 2026";
-  const aNombre = adquisicion.solicitud_inicio_a_nombre || "Lic. Vicente Paul Vega Ramirez";
+  const aNombre = adquisicion.solicitud_inicio_a_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]";
   const aCargo = adquisicion.solicitud_inicio_a_cargo || "RESPONSABLE DE CONTRATACIONES";
-  const viaNombre = adquisicion.solicitud_inicio_via_nombre || "Lic. Raúl Alberto Torrico Gomez";
+  const viaNombre = adquisicion.solicitud_inicio_via_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]";
   const viaCargo = adquisicion.solicitud_inicio_via_cargo || "GERENTE GENERAL";
-  const deNombre = adquisicion.solicitud_inicio_de_nombre || "Ing. Heydi Dunya Canaviri Padilla";
+  const deNombre = adquisicion.solicitud_inicio_de_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]";
   const deCargo = adquisicion.solicitud_inicio_de_cargo || "SUPERVISOR DE SEGURIDAD INDUSTRIAL";
   const objetoNota =
     adquisicion.solicitud_inicio_objeto ||

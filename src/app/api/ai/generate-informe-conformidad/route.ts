@@ -1,3 +1,4 @@
+import { engineUrl } from "@/lib/server/config";
 import { NextRequest, NextResponse } from "next/server";
 import { extractInformeConformidadWithAI } from "@/lib/ai/openCodeClient";
 import { Adquisicion } from "@/types";
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest) {
 
     let vpsData: any = null;
     try {
-      const vpsRes = await fetch("http://85.31.230.163:8080/api/procesar-informe-conformidad", {
+      const vpsRes = await fetch(`${engineUrl}/api/procesar-informe-conformidad`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ adquisicion, insumoTexto, imageBase64 }),

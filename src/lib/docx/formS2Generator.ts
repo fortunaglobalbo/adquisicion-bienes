@@ -18,8 +18,8 @@ import { Adquisicion } from "@/types";
 import { ENDE_COLORS } from "./endeTheme";
 
 export async function generateFormS2Docx(adquisicion: Adquisicion): Promise<Buffer> {
-  const fechaSolicitud = adquisicion.form_s2_fecha_solicitud || "19/06/2026";
-  const senores = adquisicion.form_s2_senores || "ARIOL IMPORT";
+  const fechaSolicitud = adquisicion.form_s2_fecha_solicitud || "[PENDIENTE DE COMPLETAR Y VERIFICAR]";
+  const senores = adquisicion.form_s2_senores || "[PENDIENTE DE COMPLETAR Y VERIFICAR]";
   const tiempoEntrega = adquisicion.form_s2_tiempo_entrega || "____________________";
   const validezOferta = adquisicion.form_s2_validez_oferta || "____________________";
   const observaciones = adquisicion.form_s2_observaciones || "SE ADJUNTA ESPECIFICACIONES TECNICAS";

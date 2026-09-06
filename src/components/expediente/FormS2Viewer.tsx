@@ -155,7 +155,7 @@ export const FormS2Viewer: React.FC<FormS2ViewerProps> = ({
     setTimeout(() => setSavedFeedback(false), 2500);
   };
 
-  const fechaSolicitud = docData.form_s2_fecha_solicitud || "19/06/2026";
+  const fechaSolicitud = docData.form_s2_fecha_solicitud || "[PENDIENTE DE COMPLETAR Y VERIFICAR]";
   const senores = docData.form_s2_senores || "PROVEEDOR / PROPONENTE";
   const tiempoEntrega = docData.form_s2_tiempo_entrega || `${docData.plazo_entrega_dias || 30} días calendario`;
   const validezOferta = docData.form_s2_validez_oferta || "30 días calendario";
@@ -269,7 +269,7 @@ export const FormS2Viewer: React.FC<FormS2ViewerProps> = ({
             </button>
           </div>
         ) : (
-          <div className="w-full max-w-[850px] bg-white border-2 border-black shadow-xl rounded-sm p-6 md:p-10 text-on-surface font-sans min-h-[1100px] flex flex-col justify-between relative space-y-4">
+          <div className="print-document w-full max-w-[850px] bg-white border-2 border-black shadow-xl rounded-sm p-6 md:p-10 text-on-surface font-sans min-h-[1100px] flex flex-col justify-between relative space-y-4">
             {/* Header Box Table: Exact replica of official ENDE Form S-2 */}
             <div className="border border-black flex justify-between items-stretch text-center font-sans">
               <div className="w-[30%] border-r border-black p-2 flex flex-col items-center justify-center bg-white">
@@ -529,7 +529,7 @@ export const FormS2Viewer: React.FC<FormS2ViewerProps> = ({
               <label className="block text-outline font-mono mb-1">Señor (es) / Empresa:</label>
               <input
                 type="text"
-                value={docData.form_s2_senores || "ARIOL IMPORT"}
+                value={docData.form_s2_senores || "[PENDIENTE DE COMPLETAR Y VERIFICAR]"}
                 onChange={(e) => handleTextChange("form_s2_senores", e.target.value)}
                 className="w-full px-3 py-1.5 border border-outline-variant rounded font-bold uppercase"
               />
@@ -538,7 +538,7 @@ export const FormS2Viewer: React.FC<FormS2ViewerProps> = ({
               <label className="block text-outline font-mono mb-1">Fecha de Solicitud:</label>
               <input
                 type="text"
-                value={docData.form_s2_fecha_solicitud || "19/06/2026"}
+                value={docData.form_s2_fecha_solicitud || "[PENDIENTE DE COMPLETAR Y VERIFICAR]"}
                 onChange={(e) => handleTextChange("form_s2_fecha_solicitud", e.target.value)}
                 className="w-full px-3 py-1.5 border border-outline-variant rounded"
               />

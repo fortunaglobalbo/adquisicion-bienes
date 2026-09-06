@@ -25,7 +25,7 @@ export const FolderProgressBar: React.FC<FolderProgressBarProps> = ({
 
         {/* Dynamic Stages */}
         {safeCarpetas
-          .sort((a, b) => a.numero - b.numero)
+          .slice().sort((a, b) => (a.orden || a.numero) - (b.orden || b.numero))
           .map((folder, index) => {
             const num = folder.numero || index + 1;
             const isActive = num === activeNumero;

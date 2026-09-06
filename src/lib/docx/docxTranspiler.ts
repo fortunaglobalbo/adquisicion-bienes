@@ -106,7 +106,7 @@ export class DocxTranspiler {
             id: "firm-3",
             rol: "APROBADO",
             etiqueta: "APROBADO POR:",
-            nombreDefault: "Lic. Raul Alberto Torrico Gomez",
+            nombreDefault: "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
             cargoDefault: "GERENTE GENERAL",
           }
         );

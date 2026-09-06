@@ -1,6 +1,7 @@
+import { engineUrl } from "@/lib/server/config";
 import { NextRequest, NextResponse } from "next/server";
 
-const VPS_ENGINE_URL = process.env.VPS_DOCX_ENGINE_URL || "http://85.31.230.163:8080";
+const VPS_ENGINE_URL = engineUrl;
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,6 +24,7 @@ export async function POST(req: NextRequest) {
     const vpsRes = await fetch(`${VPS_ENGINE_URL}/api/docx/smart-fill`, {
       method: "POST",
       body: vpsFormData,
+      signal: AbortSignal.timeout(60000),
     });
 
     if (!vpsRes.ok) {
@@ -37,7 +39,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       data: result,
-      download_url: `${VPS_ENGINE_URL}${result.download_url}`,
+      download_url: `/api/proxy/generar-especificaciones?path=${encodeURIComponent(result.download_url)}&filename=${encodeURIComponent((result.download_url || "").split("/").pop() || "documento.docx")}`,
     });
   } catch (error: any) {
     console.error("Error en smart-fill route:", error);

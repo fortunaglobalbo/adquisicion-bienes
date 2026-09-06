@@ -1,6 +1,7 @@
+import { engineUrl } from "@/lib/server/config";
 import { NextRequest, NextResponse } from "next/server";
 
-const VPS_ENGINE_URL = process.env.VPS_DOCX_ENGINE_URL || "http://85.31.230.163:8080";
+const VPS_ENGINE_URL = engineUrl;
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,6 +21,7 @@ export async function POST(req: NextRequest) {
     const vpsRes = await fetch(`${VPS_ENGINE_URL}/api/docx/inspect`, {
       method: "POST",
       body: vpsFormData,
+      signal: AbortSignal.timeout(60000),
     });
 
     if (!vpsRes.ok) {

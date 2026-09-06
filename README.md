@@ -147,7 +147,7 @@ Para garantizar alta potencia de procesamiento en tareas intensivas (OCR con Tes
 📁 ESTRUCTURA DEL SERVIDOR VPS (Hostinger KVM 2: 85.31.230.163)
  ├── 📦 Docker: AnythingLLM Server (Puerto 3005)
  │    ├── 🗄️ Volumen Persistente: /var/lib/anythingllm
- │    ├── 🔑 API Key: JWYTE8H-YWDMXF0-JXZFSES-MR6B8DK
+ │    ├── 🔑 API Key: <CONFIGURAR_EN_ENTORNO>
  │    ├── 📂 Espacio RAG: adquisiciones-ende
  │    └── 🧠 Base de Datos Vectorial: Embeddings de PDFs y proformas de proveedores
  │
@@ -278,7 +278,7 @@ SUPABASE_SERVICE_ROLE_KEY=<tu-service-role-key>
 # Servidor VPS y Motor de Documentos
 VPS_ENGINE_URL=http://85.31.230.163:8080
 ANYTHINGLLM_URL=http://85.31.230.163:3005
-ANYTHINGLLM_API_KEY=JWYTE8H-YWDMXF0-JXZFSES-MR6B8DK
+ANYTHINGLLM_API_KEY=<CONFIGURAR_EN_ENTORNO>
 ANYTHINGLLM_WORKSPACE=adquisiciones-ende
 
 # Proveedor de Inteligencia Artificial

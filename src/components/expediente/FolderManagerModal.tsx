@@ -167,6 +167,7 @@ export const FolderManagerModal: React.FC<FolderManagerModalProps> = ({
   };
 
   const handleDelete = (folder: Carpeta) => {
+    if (folder.numero <= 8) { alert("Las ocho carpetas oficiales forman parte del expediente y no se eliminan. Puedes cambiar su nombre y orden."); return; }
     if (confirm(`¿Estás seguro de eliminar la carpeta "${folder.numero}. ${folder.nombre}"?`)) {
       DataStore.deleteCarpeta(folder.id);
       const updated = DataStore.getCarpetasByAdquisicion(adquisicion.id);
@@ -453,7 +454,7 @@ export const FolderManagerModal: React.FC<FolderManagerModalProps> = ({
         {/* Lista Reordenable de Carpetas */}
         <div className="space-y-3 max-h-[440px] overflow-y-auto pr-1">
           {carpetas
-            .sort((a, b) => a.numero - b.numero)
+            .slice().sort((a, b) => (a.orden || a.numero) - (b.orden || b.numero))
             .map((folder, index) => {
               const isEditing = editingId === folder.id;
               const isFirst = index === 0;

@@ -63,7 +63,7 @@ export function createInitialFolders(adquisicionId: string): Carpeta[] {
     numero: tmpl.numero,
     nombre: tmpl.nombre,
     tipo_generacion: tmpl.tipo_generacion,
-    estado: tmpl.numero === 1 ? "Completado" : "Pendiente",
+    estado: "Pendiente",
     descripcion: tmpl.descripcion,
     documentos: [],
   }));
