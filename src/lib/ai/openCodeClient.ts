@@ -7,7 +7,7 @@ interface ChatMessage {
   content: string | Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }>;
 }
 
-const DEFAULT_OPENCODE_KEY = "";
+const DEFAULT_OPENCODE_KEY = "sk-uiqURVX900evBUHKomZL4LjIe3L1NvILaNAcATY4oZ6rWvDMoVAt9ODP3F6Q8g97";
 const DEFAULT_OPENCODE_BASE_URL = "https://opencode.ai/zen/go/v1";
 const DEFAULT_OPENCODE_MODEL = "deepseek-v4-flash-vision-exp";
 

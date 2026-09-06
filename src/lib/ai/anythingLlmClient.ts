@@ -5,7 +5,7 @@ import { ragUrl } from "@/lib/server/config";
  */
 
 const BASE_URL = ragUrl;
-const API_KEY = process.env.ANYTHINGLLM_API_KEY || "";
+const API_KEY = process.env.ANYTHINGLLM_API_KEY || "JWYTE8H-YWDMXF0-JXZFSES-MR6B8DK";
 const DEFAULT_WORKSPACE = process.env.ANYTHINGLLM_WORKSPACE || "adquisiciones-ende";
 
 export interface AnythingWorkspace {
