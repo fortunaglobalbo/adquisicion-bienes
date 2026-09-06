@@ -10,11 +10,12 @@
 3. [Motor "Maquetar en Código" (DOCX Transpiler)](#-motor-maquetar-en-código-docx-transpiler)
 4. [Cuaderno Normativo de Adquisiciones (14 Puntos SBC)](#-cuaderno-normativo-de-adquisiciones-14-puntos-sbc)
 5. [Infraestructura de Inteligencia Artificial Híbrida](#-infraestructura-de-inteligencia-artificial-híbrida)
-6. [Arquitectura de Datos y Persistencia Local-First](#-arquitectura-de-datos-y-persistencia-local-first)
-7. [Interfaz Unificada y Experiencia de Usuario](#-interfaz-unificada-y-experiencia-de-usuario)
-8. [Mapa de Endpoints y Servicios API](#-mapa-de-endpoints-y-servicios-api)
-9. [Configuración de Variables de Entorno](#-configuración-de-variables-de-entorno)
-10. [Instalación y Despliegue](#-instalación-y-despliegue)
+6. [Alojamiento de Documentos: Servidor VPS KVM 2 (Hostinger) y Comunicación](#-alojamiento-de-documentos-servidor-vps-kvm-2-hostinger-y-comunicación)
+7. [Arquitectura de Datos y Persistencia Local-First](#-arquitectura-de-datos-y-persistencia-local-first)
+8. [Interfaz Unificada y Experiencia de Usuario](#-interfaz-unificada-y-experiencia-de-usuario)
+9. [Mapa de Endpoints y Servicios API](#-mapa-de-endpoints-y-servicios-api)
+10. [Configuración de Variables de Entorno](#-configuración-de-variables-de-entorno)
+11. [Instalación y Despliegue](#-instalación-y-despliegue)
 
 ---
 
@@ -125,6 +126,94 @@ flowchart TD
 3. **Motor Local Resiliente (`src/lib/ai/openCodeClient.ts`):**
    - Si la red o la API externa experimentan fallas o demoras, el parser heurístico local y el Cuaderno Normativo asumen el control inmediato.
    - **Garantía Cero Pantallas en Blanco:** Los ítems y especificaciones siempre se estructuran sin dejar la vista previa vacía.
+
+---
+
+## 🌐 Alojamiento de Documentos: Servidor VPS KVM 2 (Hostinger) y Comunicación
+
+Para garantizar alta potencia de procesamiento en tareas intensivas (OCR con Tesseract, procesamiento RAG de cotizaciones con AnythingLLM, análisis de documentos con MarkItDown y compilación tipográfica exacta de archivos Word y PDF), el sistema opera en conjunto con un **Servidor VPS KVM 2 de Hostinger**.
+
+### 1. Especificaciones de la Infraestructura VPS
+* **Proveedor y Nivel:** Hostinger VPS KVM 2
+* **Sistema Operativo:** Ubuntu 22.04 LTS (x86_64 Linux)
+* **Dirección IP Pública:** `85.31.230.163`
+* **Recursos Asignados:** 2 vCPU Cores, 8 GB de Memoria RAM, almacenamiento NVMe de ultra alta velocidad.
+
+---
+
+### 2. Componentes y Almacenamiento Alojados en el VPS
+
+```
+📁 ESTRUCTURA DEL SERVIDOR VPS (Hostinger KVM 2: 85.31.230.163)
+ ├── 📦 Docker: AnythingLLM Server (Puerto 3005)
+ │    ├── 🗄️ Volumen Persistente: /var/lib/anythingllm
+ │    ├── 🔑 API Key: JWYTE8H-YWDMXF0-JXZFSES-MR6B8DK
+ │    ├── 📂 Espacio RAG: adquisiciones-ende
+ │    └── 🧠 Base de Datos Vectorial: Embeddings de PDFs y proformas de proveedores
+ │
+ ├── 🐍 Python VPS Engine (Puerto 8080 - FastAPI / Uvicorn)
+ │    ├── 📂 Directorio del Motor: /root/vps-engine
+ │    ├── 📄 Almacenamiento Físico de Salida: /root/vps-engine/output/
+ │    │    ├── 📝 *.docx (Documentos oficiales generados en Word)
+ │    │    └── 📑 *.pdf (Documentos oficiales compilados)
+ │    └── ⚙️ Módulos: python-docx, markitdown, pytesseract (OCR), libreoffice
+```
+
+1. **Almacenamiento Físico de Archivos Generados (`/root/vps-engine/output/`):**
+   - El motor en Python genera los archivos Word y compila los PDFs con márgenes, tablas, membretes y firmas exactas de ENDE DEORURO.
+   - Los documentos procesados se conservan organizados en el disco NVMe del VPS para su recuperación, previsualización y descarga inmediata.
+2. **Motor de Microservicios Python (`Puerto 8080`):**
+   - Expone endpoints REST en FastAPI:
+     - `POST /api/procesar-documento`: Extrae texto con OCR y MarkItDown, detecta tablas y formula el documento.
+     - `POST /api/generar-especificaciones`: Compila el pliego de especificaciones técnicas oficiales.
+     - `POST /api/docx/inspect`: Inspecciona la estructura AST de cualquier archivo Word subido.
+     - `POST /api/docx/smart-fill`: Rellena dinámicamente plantillas Word conservando estilos.
+3. **Servidor de Inteligencia Artificial AnythingLLM (`Puerto 3005`):**
+   - Corre en un contenedor Docker con persistencia total en `/var/lib/anythingllm`.
+   - Permite cargar carpetas de documentos PDF (pliegos anteriores, notas, cotizaciones) y consultarlos mediante búsqueda semántica RAG (Retrieval-Augmented Generation).
+
+---
+
+### 3. ¿Cómo se comunican el Frontend (Vercel) y el VPS KVM 2 (Hostinger)?
+
+La arquitectura implementa el patrón **BFF (Backend For Frontend) con Proxy Inverso Seguro** a través de las rutas de API de Next.js:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Usuario as Navegador del Usuario (Cliente)
+    participant Vercel as Next.js 14 en Vercel (BFF / API Routes)
+    participant VPS_Engine as VPS Hostinger :8080 (Python Engine)
+    participant VPS_LLM as VPS Hostinger :3005 (AnythingLLM RAG)
+    participant Storage as Disco NVMe VPS (/root/vps-engine/output)
+
+    Note over Usuario,Vercel: Comunicación HTTPS Segura
+    Usuario->>Vercel: Sube PDF / Clic en "Generar Documento con IA"
+    
+    rect rgb(240, 248, 255)
+    Note over Vercel,VPS_Engine: Comunicación Servidor a Servidor (Proxy Seguro)
+    Vercel->>VPS_LLM: Consulta RAG contextual (/api/anythingllm con Bearer Token)
+    VPS_LLM-->>Vercel: Fragmentos normativos y cotizaciones extraídas
+    
+    Vercel->>VPS_Engine: POST /api/procesar-documento (Datos + Requerimiento)
+    VPS_Engine->>Storage: Escribe DOCX/PDF oficial generado en /output/
+    VPS_Engine-->>Vercel: JSON { success: true, docx_file: "TDR_001.docx", download_docx: "..." }
+    end
+
+    Vercel->>VPS_Engine: Solicita stream binario del archivo generado
+    VPS_Engine-->>Vercel: Stream binario (application/vnd.openxmlformats...)
+    Vercel-->>Usuario: Descarga directa del archivo Word / PDF en el navegador
+```
+
+#### Ventajas Clave de este Esquema de Comunicación:
+1. **Blindaje y Seguridad:**
+   - La dirección IP del VPS, los puertos internos (`:8080`, `:3005`) y las claves privadas (`ANYTHINGLLM_API_KEY`) nunca se exponen al navegador del cliente. Todo viaje a través de rutas protegidas en `/api/...` de Next.js ejecutadas en el servidor.
+2. **Cero Problemas de CORS (Cross-Origin Resource Sharing):**
+   - Dado que el navegador solo se comunica con su propio dominio en Vercel, no existen bloqueos por políticas de mismo origen.
+3. **Manejo de Tiempos de Espera y Fallback Automático:**
+   - Si el VPS experimenta un reinicio o latencia de red superior al umbral (`AbortSignal.timeout`), la ruta de Next.js intercepta la condición y conmuta de inmediato al **Motor Local Resiliente (`CuadernoNormativoEngine`)**, garantizando que el usuario **nunca vea una pantalla en blanco ni un error 500**.
+4. **Streaming de Archivos Binarios:**
+   - Next.js actúa como un puente de transmisión de datos binarios, transfiriendo los archivos `.docx` generados en el VPS directamente a los diálogos de descarga del navegador.
 
 ---
 
