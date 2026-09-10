@@ -15,7 +15,9 @@
     "test:assistant": "node scripts/purchase-assistant-test.cjs",
     "test:assistant-ui": "node scripts/purchase-assistant-ui-test.cjs",
     "test:smoke": "node scripts/smoke-test.cjs",
-    "diagnose": "node scripts/diagnose.cjs"
+    "diagnose": "node scripts/diagnose.cjs",
+    "test:revision": "node scripts/revise-fixed-document-test.cjs",
+    "test:revision-live": "node scripts/revise-fixed-document-live.cjs"
   },
   "dependencies": {
     "@xmldom/xmldom": "0.8.15",

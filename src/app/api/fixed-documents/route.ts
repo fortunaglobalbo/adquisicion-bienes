@@ -7,7 +7,7 @@ import type { Adquisicion } from "@/types";
 import { analyzePurchaseBrief } from '@/lib/server/purchaseAssistant';
 import { wordFormPreview } from '@/lib/server/wordFormPreview';
 
-import { reviseFixedDocument } from "@/lib/server/reviseFixedDocument";
+import { reviseFixedDocument, RevisionClarification } from "@/lib/server/reviseFixedDocument";
 
 export const runtime = "nodejs";
 export const maxDuration = 180;
@@ -26,11 +26,9 @@ export async function POST(req: NextRequest) {
     if (draft.companyId !== company.id) throw Error("El borrador pertenece a otra empresa.");
     let context = String(body.context || "");
     if (context.length > 40000) throw Error("Reduce la descripción a 40.000 caracteres.");
-    if (body.action === 'revise') {
-      validateFixedDraft(model, draft);
-      if (form.getAll('attachments').length) throw Error('Para incorporar archivos utiliza Completar con IA.');
-      draft = await reviseFixedDocument(model, draft, context);
-    } else if (["complete", "analyze"].includes(body.action)) {
+    let revisionSummary: string[] = [];
+    let revised = false;
+    if (["complete", "analyze", "revise"].includes(body.action)) {
       const files = form.getAll("attachments");
       if (files.length > 3) throw Error("Adjunta hasta tres antecedentes por consulta.");
       let bytes = 0;
@@ -52,7 +50,20 @@ export async function POST(req: NextRequest) {
         if (context.length > 60000) throw Error("Los antecedentes son demasiado extensos. Adjunta solo la información de esta compra.");
       }
       if (body.action === 'analyze') return NextResponse.json({ brief: await analyzePurchaseBrief(adq, context, images) }, { headers: { 'Cache-Control': 'no-store' } });
-      draft = await completeFixedDocument(number, adq, draft, context, images);
+      // Decide on the server too: an older open tab may still send "complete" for an edit.
+      const revision = body.action === 'revise' || (body.action === 'complete' && !!body.draft && !!context.trim() && body.draftOnly !== true);
+      if (revision) {
+        validateFixedDraft(model, draft);
+        const previous = draft;
+        try { draft = await reviseFixedDocument(model, draft, context, images); }
+        catch (e) {
+          if (e instanceof RevisionClarification) return NextResponse.json({draft:previous,question:e.message,instruction:String(body.context||''),revisionSummary:[]}, {headers:{'Cache-Control':'no-store'}});
+          throw e;
+        }
+        revisionSummary = model.fields.filter(f=>draft.fields[f.key]!==previous.fields[f.key]).map(f=>f.label);
+        if (JSON.stringify(draft.items)!==JSON.stringify(previous.items)) revisionSummary.push('Ítems del documento');
+        revised = true;
+      } else draft = await completeFixedDocument(number, adq, draft, context, images);
     } else if (!["preview", "download", "export"].includes(body.action)) throw Error("Acción desconocida.");
     if (body.draftOnly === true && body.action === 'complete') return NextResponse.json({ draft }, { headers: { 'Cache-Control': 'no-store' } });
     const output = await renderFixedWord(number, draft);
@@ -79,7 +90,7 @@ export async function POST(req: NextRequest) {
     }
     const mammoth = await import("mammoth");
     const html = number===2 ? await wordFormPreview(output.buffer) : (await mammoth.convertToHtml({ buffer: output.buffer })).value;
-    return NextResponse.json({ draft: output.draft, html, pdf, previewWarning, modelVersion: model.version }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ draft: output.draft, html, pdf, previewWarning, revised, revisionSummary, modelVersion: model.version }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     console.error("[fixed-documents]", e instanceof Error ? e.stack : "Error al preparar documento");
     return NextResponse.json({ error: e instanceof Error ? e.message : "No se pudo preparar el documento." }, { status: 400 });

@@ -39,6 +39,9 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
   const [error, setError] = useState("");
   const [edit, setEdit] = useState(!!recovery);
   const [aiEdit, setAiEdit] = useState(false);
+  const [clarification, setClarification] = useState('');
+  const [pendingInstruction, setPendingInstruction] = useState('');
+  const [undoDraft, setUndoDraft] = useState<FixedDraft | null>(null);
   const [saveOfficial, setSaveOfficial] = useState(false);
   const mounted = useRef(true);
   const requestVersion = useRef(0);
@@ -47,8 +50,8 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
   const choiceOptions:Record<string,string[]>=model.number===2?{almacen:['Con saldo','Sin saldo'],publicar_precio:['Sí','No'],con_presupuesto:['Sí','No']}:{};
   async function request(kind: string) {
     const form = new FormData();
-    form.append("request", JSON.stringify({ action: kind, number: model.number, adquisicion, draft, context }));
-    if (kind === "complete") files.forEach(f => form.append("attachments", f));
+    form.append("request", JSON.stringify({ action: kind, number: model.number, adquisicion, draft, context: pendingInstruction ? `${pendingInstruction}\nRespuesta del usuario: ${context}` : context }));
+    if (kind === "complete" || kind === "revise") files.forEach(f => form.append("attachments", f));
     const res = await fetch("/api/fixed-documents", { method: "POST", body: form });
     if (!res.ok) { let message = "No se pudo preparar el documento."; try { message = (await res.json()).error || message; } catch {} throw Error(message); }
     return res;
@@ -59,11 +62,13 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
     try {
       const result = await (await request(kind)).json();
       if (!mounted.current || version !== requestVersion.current) return;
+      if (result.question) { setClarification(result.question); setPendingInstruction(result.instruction || context); setContext(''); setAiEdit(true); return; }
+      if (kind === 'complete' || kind === 'revise') {setUndoDraft(draft);setClarification('');setPendingInstruction('');}
       setDraft(result.draft); setHtml(result.html); setPreviewWarning(result.previewWarning); setStale(false);
       if (pdfUrl.current) URL.revokeObjectURL(pdfUrl.current);
       pdfUrl.current = result.pdf ? URL.createObjectURL(new Blob([Uint8Array.from(atob(result.pdf), c => c.charCodeAt(0))], { type: "application/pdf" })) : null;
       setPdf(pdfUrl.current);
-      if (kind === "complete" || kind === "revise") { setDirty(true); setAiEdit(false); setContext(""); setFiles([]); setMessage(kind === "revise" ? "Cambio aplicado. Revisa la vista previa y pulsa Guardar cambios para conservarlo en el expediente." : "Datos incorporados al borrador. Revisa los campos pendientes antes de guardarlo."); }
+      if (kind === "complete" || kind === "revise") { setDirty(true); setAiEdit(false); setContext(""); setFiles([]); setMessage(result.revised ? `Cambios aplicados: ${(result.revisionSummary || []).join(", ") || "el documento ya contiene los datos solicitados"}. Revisa la vista y pulsa Guardar cambios.` : "Datos incorporados al borrador. Revisa los campos pendientes antes de guardarlo."); }
     } catch (e) { if (mounted.current && version === requestVersion.current) setError(e instanceof Error ? e.message : "No se pudo actualizar."); }
     finally { if (mounted.current && version === requestVersion.current) setBusy(false); }
   }
@@ -165,9 +170,10 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
       {model.number>4&&adquisicion.asistente_compra?.confirmedAt&&<button className={`${action} bg-primary text-white`} onClick={()=>refresh('complete')}><Sparkles size={16}/>Redactar con los datos de esta compra</button>}
       <div className="flex flex-wrap gap-2"><button className={`${action} bg-primary text-white`} onClick={() => setEdit(v => !v)}><RefreshCw size={16} />{edit ? "Cerrar edición" : "Editar documento"}</button><button className={action} onClick={() => setAiEdit(v => !v)}><Sparkles size={16} />Completar o corregir con IA</button><button className={action} disabled={!draft} onClick={() => download(true)}><Save size={16} />Guardar cambios</button><button className={action} disabled={!draft} onClick={() => download(false)}><Download size={16} />Descargar Word</button></div>
       {aiEdit && <div className="rounded-xl border border-slate-300 p-4 space-y-4 bg-slate-50">
-        <label className="block space-y-2"><span className="font-semibold">Describe lo que necesitas o los datos que cambian</span><textarea className={control} rows={4} value={context} onChange={e => {setContext(e.target.value);setDirty(true);}} placeholder="Indica la necesidad, cantidades, plazos o la recepción realizada. La IA utilizará también los datos de este expediente." /></label>
+        {clarification && <div role="status" className="rounded-lg border border-blue-200 bg-blue-50 p-3"><p className="font-semibold">{clarification}</p><p className="text-sm mt-1">Responde abajo; conservaré tu petición anterior. El documento sigue igual.</p></div>}
+        <label className="block space-y-2"><span className="font-semibold">Describe lo que necesitas o los datos que cambian</span><textarea className={control} rows={4} value={context} onChange={e => {setContext(e.target.value);setDirty(true);}} placeholder="Ejemplo: cambia la entrega a 45 días, pon a María Pérez como responsable y cambia la cantidad del ítem 2 a 20 pares." /></label>
         <label className="block space-y-2"><span>Antecedentes de esta compra (opcional)</span><input className={control} type="file" multiple accept=".pdf,.docx,.txt,.jpg,.jpeg,.png,.webp" onChange={e => setFiles(Array.from(e.target.files || []))} /><span className="text-sm text-slate-600">Hasta tres archivos, 3 MB en total. PDF con texto, Word, TXT o fotos JPG, PNG y WebP. La IA lee las fotos con visión. No se incorporan a la biblioteca normativa.</span></label>
-        <button className={`${action} bg-primary text-white`} onClick={() => refresh(context.trim() && !files.length ? "revise" : "complete")}><Sparkles size={16} />Completar con IA</button>
+        <button className={`${action} bg-primary text-white`} onClick={() => refresh(context.trim() || pendingInstruction ? "revise" : "complete")}><Sparkles size={16} />{clarification ? "Responder al asistente" : "Aplicar cambios con IA"}</button>
       </div>}
       {edit && draft && <div className="rounded-xl border border-slate-300 p-4 space-y-4 bg-slate-50">
         <p className="text-sm">Edita aquí el contenido y los ítems. «Guardar cambios» actualiza el expediente y el Word, conservando el formato institucional.</p>
@@ -185,6 +191,7 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
       {!!draft?.warnings.length && <div className="rounded-lg bg-amber-50 p-3 text-sm"><p>{pendingNorms.length ? `Falta confirmar: ${pendingNorms.join(', ')}. Los datos disponibles se muestran en el documento.` : draft.sources.length ? 'El borrador incluye fuentes normativas propuestas. Comprueba su aplicación antes de firmar.' : draft.warnings[0]}</p></div>}
       {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-red-800">{error}</p>}
       {message && <p role="status" className="text-sm text-primary">{message}</p>}
+      {undoDraft && <button className={action} onClick={()=>{setDraft(undoDraft);setUndoDraft(null);setDirty(true);setStale(true);setMessage('Último cambio deshecho. Actualiza la vista o guarda el documento.');}}>Deshacer último cambio del asistente</button>}
       {busy && <p role="status" className="flex items-center gap-2 text-primary"><Loader2 size={18} className="animate-spin" />Preparando documento… Conservaremos la última vista hasta terminar.</p>}
       {previewWarning && <p className="text-sm text-slate-600">{previewWarning}</p>}
       <h3 className="font-semibold text-lg">Vista previa del documento</h3>

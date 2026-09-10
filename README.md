@@ -373,3 +373,11 @@ En las carpetas con Word fijo, «Editar documento» permite corregir textos e í
 La casilla «Usar estos responsables como datos oficiales en próximos expedientes» guarda nombres y cargos por empresa y formulario al guardar el documento. Los expedientes nuevos reciben una copia; los anteriores no se modifican. Los destinatarios de proveedores siguen siendo específicos de cada compra.
 
 Las claves privadas se configuran mediante variables de entorno de Vercel o del VPS. Los originales de `PROCESO DE ADQUISICION` se conservan localmente; las siete plantillas necesarias para ejecutar la aplicación se incluyen en `templates/ende`.
+
+### Correcciones conversacionales
+
+«Aplicar cambios con IA» identifica los campos y las filas afectados por una petición, permite varios cambios juntos y conserva el resto del documento. Admite añadir, cambiar y quitar ítems. Si falta un dato esencial, el asistente pregunta y aplica la petición cuando se responde. La pantalla muestra las secciones modificadas y permite deshacer el último cambio antes de guardar.
+
+El servidor reconoce también las peticiones de corrección enviadas desde una pestaña anterior de la aplicación. Las respuestas se validan antes de aplicarse; una respuesta incompleta se vuelve a solicitar una vez. Las cláusulas normativas usan las fuentes disponibles o se identifican para revisión, sin atribuir a una ley condiciones comerciales aportadas por el usuario.
+
+Pruebas: `npm run test:revision` no consulta servicios reales. `npm run test:revision-live` utiliza OpenCode GO y datos ficticios, sin guardar expedientes.

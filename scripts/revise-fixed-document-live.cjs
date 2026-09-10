@@ -1,0 +1,14 @@
+const assert=require('node:assert/strict'),fs=require('fs'),path=require('path'),Module=require('module'),ts=require('typescript');
+require('@next/env').loadEnvConfig(process.cwd());
+require.extensions['.ts']=(m,f)=>m._compile(ts.transpileModule(fs.readFileSync(f,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText,f);
+const resolve=Module._resolveFilename;Module._resolveFilename=function(n,...a){return resolve.call(this,n.startsWith('@/')?path.join(process.cwd(),'src',n.slice(2)):n,...a)};
+const {seedFixedDraft}=require('../src/lib/server/fixedDocuments.ts');const {reviseFixedDocument,RevisionClarification}=require('../src/lib/server/reviseFixedDocument.ts');const {fixedModel}=require('../src/lib/docx/fixedModels.ts');
+const base=seedFixedDraft(1,{id:'test-live-revision',empresa_id:'ende',titulo_proceso:'Compra de equipos de protección',items:[{descripcion:'Botines dieléctricos',unidad:'par',cantidad:10,especificacionMinima:'Suela antideslizante'},{descripcion:'Guantes de cuero',unidad:'par',cantidad:5,especificacionMinima:'Cuero de res'}],plazo_entrega_dias:10});
+base.fields.plazo='Diez (10) días calendario, contados desde la recepción de la orden de compra.';base.fields.elaborado='Juan Pérez';base.fields.lugar='Almacén de Oruro';base.fields.justificacion='Estos bienes son necesarios para el trabajo del personal de mantenimiento.';
+const cases=[
+ ['El plazo de entrega ahora será de cuarenta y cinco días y la entrega en Almacén Central de Cochabamba.',d=>{assert.match(d.fields.plazo,/45|cuarenta y cinco/i);assert.match(d.fields.plazo,/orden de compra/i);assert.match(d.fields.lugar,/Cochabamba/i)}],
+ ['Pon a María López como quien elabora el TDR y sube a 25 pares la cantidad de botines.',d=>{assert.match(d.fields.elaborado,/María López/i);assert.equal(d.items[0].cantidad,'25');assert.equal(d.items[1].cantidad,'5')}],
+ ['Quita los guantes y agrega 4 cascos de seguridad, unidad pieza, con ajuste de suspensión.',d=>{assert.equal(d.items.length,2);assert.match(d.items[1].descripcion,/casco/i);assert.equal(d.items[1].cantidad,'4')}],
+ ['Mejora la redacción de la justificación para que sea más clara y profesional, sin agregar hechos.',d=>{assert.ok(d.fields.justificacion.length>30);assert.deepEqual(d.items,base.items)}],
+];
+(async()=>{for(const [request,check] of cases){const result=await reviseFixedDocument(fixedModel(1),base,request);check(result);console.log('PASS GO real: '+request);}try{await reviseFixedDocument(fixedModel(1),base,'Añade cascos de seguridad');throw Error('Debió preguntar la cantidad')}catch(e){assert.ok(e instanceof RevisionClarification);console.log('PASS GO real: solicita dato esencial sin modificar el documento')}})().catch(e=>{console.error(e.message);process.exitCode=1});
