@@ -55,7 +55,7 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
   }
   async function refresh(kind = "preview") {
     const version = ++requestVersion.current;
-    setBusy(true); setError("");
+    setBusy(true); setError(""); setMessage("");
     try {
       const result = await (await request(kind)).json();
       if (!mounted.current || version !== requestVersion.current) return;
@@ -63,7 +63,7 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
       if (pdfUrl.current) URL.revokeObjectURL(pdfUrl.current);
       pdfUrl.current = result.pdf ? URL.createObjectURL(new Blob([Uint8Array.from(atob(result.pdf), c => c.charCodeAt(0))], { type: "application/pdf" })) : null;
       setPdf(pdfUrl.current);
-      if (kind === "complete") { setDirty(true); setAiEdit(false); setMessage("Datos incorporados al borrador. Revisa los campos pendientes antes de guardarlo."); }
+      if (kind === "complete" || kind === "revise") { setDirty(true); setAiEdit(false); setContext(""); setFiles([]); setMessage(kind === "revise" ? "Cambio aplicado. Revisa la vista previa y pulsa Guardar cambios para conservarlo en el expediente." : "Datos incorporados al borrador. Revisa los campos pendientes antes de guardarlo."); }
     } catch (e) { if (mounted.current && version === requestVersion.current) setError(e instanceof Error ? e.message : "No se pudo actualizar."); }
     finally { if (mounted.current && version === requestVersion.current) setBusy(false); }
   }
@@ -167,7 +167,7 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
       {aiEdit && <div className="rounded-xl border border-slate-300 p-4 space-y-4 bg-slate-50">
         <label className="block space-y-2"><span className="font-semibold">Describe lo que necesitas o los datos que cambian</span><textarea className={control} rows={4} value={context} onChange={e => {setContext(e.target.value);setDirty(true);}} placeholder="Indica la necesidad, cantidades, plazos o la recepción realizada. La IA utilizará también los datos de este expediente." /></label>
         <label className="block space-y-2"><span>Antecedentes de esta compra (opcional)</span><input className={control} type="file" multiple accept=".pdf,.docx,.txt,.jpg,.jpeg,.png,.webp" onChange={e => setFiles(Array.from(e.target.files || []))} /><span className="text-sm text-slate-600">Hasta tres archivos, 3 MB en total. PDF con texto, Word, TXT o fotos JPG, PNG y WebP. La IA lee las fotos con visión. No se incorporan a la biblioteca normativa.</span></label>
-        <button className={`${action} bg-primary text-white`} onClick={() => refresh("complete")}><Sparkles size={16} />Completar con IA</button>
+        <button className={`${action} bg-primary text-white`} onClick={() => refresh(context.trim() && !files.length ? "revise" : "complete")}><Sparkles size={16} />Completar con IA</button>
       </div>}
       {edit && draft && <div className="rounded-xl border border-slate-300 p-4 space-y-4 bg-slate-50">
         <p className="text-sm">Edita aquí el contenido y los ítems. «Guardar cambios» actualiza el expediente y el Word, conservando el formato institucional.</p>

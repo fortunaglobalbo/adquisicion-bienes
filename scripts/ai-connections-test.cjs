@@ -19,7 +19,7 @@ async function main(){
  for(const call of calls.slice(1)){assert.equal(call.options.headers['x-opencode-session'],'stable-document-session');assert.equal(call.options.headers['User-Agent'],'ende-document-assistant/1.0');}
  console.log('PASS recuperación directa sin chat, metadatos, espacio inválido y sesión estable con identidad propia');
  global.fetch=async()=>new Response(JSON.stringify({choices:[{message:{content:''},finish_reason:'length'}],usage:{completion_tokens:100}}),{status:200});
- await assert.rejects(()=>callOpenCodeGo([{role:'user',content:'test'}],0.1,100,1000,'session',{strict:true}),/agotó el espacio/);
+ await assert.rejects(()=>callOpenCodeGo([{role:'user',content:'test'}],0.1,100,1000,'session',{strict:true}),/alcanzó su límite de respuesta/);
  global.fetch=async()=>new Response('{}',{status:429});
  await assert.rejects(()=>callOpenCodeGo([{role:'user',content:'test'}],0.1,100,1000,'session',{strict:true}),/límite de uso/);
  global.fetch=async()=>{throw new DOMException('timeout','TimeoutError');};

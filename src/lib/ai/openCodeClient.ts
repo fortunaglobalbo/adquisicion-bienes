@@ -99,7 +99,7 @@ export async function callOpenCodeGo(
     const content = typeof choice?.message?.content === "string" ? choice.message.content.trim() : "";
     if (options.strict && (!content || choice?.finish_reason === "length")) {
       console.warn("[GO incomplete]", JSON.stringify({ finishReason: choice?.finish_reason, completionTokens: data.usage?.completion_tokens }));
-      throw Error(choice?.finish_reason === "length" ? "OpenCode GO agotó el espacio de respuesta antes de terminar. Reduce los antecedentes y vuelve a intentar." : "OpenCode GO devolvió una respuesta vacía. Vuelve a intentar; el borrador se conserva.");
+      throw Error(choice?.finish_reason === "length" ? "OpenCode GO alcanzó su límite de respuesta sin terminar. El documento anterior se conserva. Intenta un cambio por vez o utiliza «Editar documento»." : "OpenCode GO devolvió una respuesta vacía. Vuelve a intentar; el borrador se conserva.");
     }
     return content;
   } catch (error) {

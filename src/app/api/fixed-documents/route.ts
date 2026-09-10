@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { completeFixedDocument, seedFixedDraft, renderFixedWord } from "@/lib/server/fixedDocuments";
+import { completeFixedDocument, seedFixedDraft, renderFixedWord, validateFixedDraft } from "@/lib/server/fixedDocuments";
 import { fixedModel } from "@/lib/docx/fixedModels";
 import { extractText } from "@/lib/server/extractText";
 import { companyKnowledge } from "@/lib/server/companyKnowledge";
 import type { Adquisicion } from "@/types";
 import { analyzePurchaseBrief } from '@/lib/server/purchaseAssistant';
 import { wordFormPreview } from '@/lib/server/wordFormPreview';
+
+import { reviseFixedDocument } from "@/lib/server/reviseFixedDocument";
 
 export const runtime = "nodejs";
 export const maxDuration = 180;
@@ -24,7 +26,11 @@ export async function POST(req: NextRequest) {
     if (draft.companyId !== company.id) throw Error("El borrador pertenece a otra empresa.");
     let context = String(body.context || "");
     if (context.length > 40000) throw Error("Reduce la descripción a 40.000 caracteres.");
-    if (["complete", "analyze"].includes(body.action)) {
+    if (body.action === 'revise') {
+      validateFixedDraft(model, draft);
+      if (form.getAll('attachments').length) throw Error('Para incorporar archivos utiliza Completar con IA.');
+      draft = await reviseFixedDocument(model, draft, context);
+    } else if (["complete", "analyze"].includes(body.action)) {
       const files = form.getAll("attachments");
       if (files.length > 3) throw Error("Adjunta hasta tres antecedentes por consulta.");
       let bytes = 0;

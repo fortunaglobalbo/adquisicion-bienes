@@ -35,6 +35,12 @@ async function main(){
   await page.getByRole('button',{name:'Confirmar y preparar carpetas 1 a 4',exact:true}).click();
   await page.getByText('Borradores preparados. Abre cada carpeta',{exact:false}).waitFor({timeout:20000});
   assert.deepEqual(calls,[1,2,3,4]);assert.equal(snapshot.adquisicion.items[0].cantidad,10);assert.equal(snapshot.adquisicion.prevision_presupuesto,350);assert.equal(Object.keys(snapshot.adquisicion.borradores_ia).length,4);
+  await page.getByRole('button',{name:'Completar o corregir con IA',exact:true}).click();
+  await page.getByText('Describe lo que necesitas o los datos que cambian',{exact:true}).locator('..').getByRole('textbox').fill('cambiar plazo a 45 dias por favor');
+  await page.getByRole('button',{name:'Completar con IA',exact:true}).click();
+  await page.getByText('Cambio aplicado. Revisa la vista previa y pulsa Guardar cambios para conservarlo en el expediente.',{exact:true}).waitFor({timeout:20000});
+  await page.frameLocator('iframe[title="Vista de contenido del Word"]').getByText('45 días calendario',{exact:false}).first().waitFor();
+  assert.deepEqual(calls,[1,2,3,4]);
   await page.getByText('Confirmar condiciones sugeridas por la IA',{exact:true}).click();
   await page.getByRole('button',{name:'Usar esta condición',exact:true}).click();
   await page.waitForTimeout(500);assert.ok(snapshot.adquisicion.asistente_compra.decisions.seleccion.includes('Menor precio'));
