@@ -1,9 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 
 const DEFAULT_SUPABASE_URL = "https://yubaienethtfubcozehm.supabase.co";
-const DEFAULT_SUPABASE_SERVICE_ROLE_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YmFpZW5ldGh0ZnViY296ZWhtIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NzM5MDQ5NywiZXhwIjoyMTAyOTY2NDk3fQ.A3B6rK94uUya1KSNzMxyWfsMn4AJjvpOPNutYlgCMDc";
-
 export function database() {
   const url = (
     process.env.NEXT_PUBLIC_SUPABASE_URL ||
@@ -15,8 +12,7 @@ export function database() {
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
     process.env.SUPABASE_KEY ||
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    process.env.SUPABASE_ANON_KEY ||
-    DEFAULT_SUPABASE_SERVICE_ROLE_KEY;
+    process.env.SUPABASE_ANON_KEY;
 
   if (!url || !key) {
     throw new Error(

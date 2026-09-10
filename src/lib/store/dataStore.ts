@@ -126,8 +126,12 @@ export class DataStore {
   }
   static async createAdquisicion(data: Omit<Adquisicion, "id" | "fecha_creacion" | "fecha_actualizacion">): Promise<Result & { data?: Adquisicion }> {
     try {
+      const synced = await this.syncWithSupabase();
+      if (!synced.success) throw Error(synced.error || 'No se pudieron cargar los datos oficiales.');
+      const company = data.empresa_id || 'ende';
+      const responsables_oficiales = Object.fromEntries(this.getPlantillas().map(p => [String(p.fk_carpeta), p.datos_completos?.officialPeopleByCompany?.[company]?.fields || {}]));
       const now = new Date().toISOString();
-      const adq: Adquisicion = { ...data, id: crypto.randomUUID(), fecha_creacion: now, fecha_actualizacion: now };
+      const adq: Adquisicion = { ...data, responsables_oficiales, id: crypto.randomUUID(), fecha_creacion: now, fecha_actualizacion: now };
       const result = await this.request({ action: "CREATE_EXPEDIENTE", data: adq });
       this.write(KEYS.adq, [adq, ...this.getAdquisiciones()]);
       this.write(KEYS.folders, [...this.getAllCarpetas(), ...result.carpetas.map((c: Carpeta) => ({ ...c, documentos: [] }))]);
@@ -217,7 +221,10 @@ export class DataStore {
   static addLog(id: string, descripcion: string, usuario = "Operador", accion: LogProceso["accion"] = "MODIFICAR") {
     this.write(KEYS.logs, [{ id: crypto.randomUUID(), adquisicion_id: id, fecha: new Date().toISOString(), descripcion, usuario, accion }, ...this.getLogs()]); this.changed(id);
   }
-  static getPlantillas(): Plantilla[] { return this.read<Plantilla[]>(KEYS.templates, FOLDER_TEMPLATES.map(f => ({ id: `template-${f.numero}`, fk_carpeta: f.numero, nombre: f.nombre, descripcion: f.descripcion, version: "1.0", fecha_creacion: "", campos_configurables: [], secciones_fijas: [], datos_completos: {} }))); }
+  static getPlantillas(): Plantilla[] {
+    const saved = this.read<Plantilla[]>(KEYS.templates, []);
+    return FOLDER_TEMPLATES.map(f => saved.find(p => p.fk_carpeta === f.numero) || ({id: `template-${f.numero}`, fk_carpeta: f.numero, nombre: f.nombre, descripcion: f.descripcion, version: "1.0", fecha_creacion: "", campos_configurables: [], secciones_fijas: [], datos_completos: {}}));
+  }
   static saveAllPlantillas(list: Plantilla[]) { this.write(KEYS.templates, list); }
   static async updatePlantilla(id: string, updates: Partial<Plantilla>): Promise<Result> {
     const list = this.getPlantillas(); const index = list.findIndex(p => p.id === id || p.fk_carpeta === updates.fk_carpeta);

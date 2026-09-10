@@ -1,21 +1,36 @@
-# ⚡ ENDE DEORURO S.A. — Sistema Inteligente de Gestión de Adquisición de Bienes y Contrataciones
+# ENDE Deoruro — Gestión de adquisiciones
 
-## Asistente simplificado de documentos — septiembre de 2026
+## Flujo actual con modelos Word fijos
 
-La entrada **Preparar documento** (`/plantillas`) ofrece cinco pasos: elegir documento, elegir Word, aportar información, completar pendientes y revisar/descargar. El TDR incluye un modelo institucional; los demás documentos admiten el Word del usuario. La configuración anterior se conserva en `/configuracion/plantillas`, junto al acceso a auditoría.
+El expediente incluye **Asistente de esta compra**: lee texto, PDF, Word o fotos, presenta los datos esenciales para confirmar y prepara las carpetas 1 a 4 con una ficha común. La finalidad se explica con una frase; la IA desarrolla los párrafos. La ficha y cada borrador se conservan en el estado del expediente. Las condiciones sugeridas se aceptan o modifican y se reutilizan al actualizar documentos. Las carpetas 5 a 7 también pueden redactarse con esta información y sus antecedentes propios.
 
-El nuevo flujo consulta las normas del espacio configurado en AnythingLLM automáticamente. Los datos de la compra proceden de la descripción, hasta tres antecedentes y el expediente seleccionado; para documentos posteriores también puede reutilizar el TDR preparado por este asistente dentro del mismo expediente. No extrae hechos de compra de todo el espacio normativo.
+Cada carpeta permite corregir el contenido, revisar la vista, guardar una versión Word o descargarla. `/plantillas` es un catálogo; `/configuracion/plantillas` informa sobre la biblioteca y los servicios. Los usuarios ya no diseñan ni suben plantillas. Una carpeta fallida se puede reintentar sin perder las demás.
 
-El llenado nuevo se ejecuta en Next.js, sobre una copia del DOCX original, conservando sus recursos. Identifica párrafos y tablas por sus identificadores estructurales; rechaza destinos inexistentes, superposiciones y reemplazos de filas en tablas combinadas o ambiguas. No requiere actualizar el motor Python del VPS. Máximo: plantilla de 3 MB y archivos juntos de 4 MB; hasta 600 párrafos. Los PDF deben contener texto seleccionable en este flujo.
+Hay siete modelos DOCX basados en `PROCESO DE ADQUISICION`. TDR y conformidad conservan sus originales como referencia. S1 se reconstruyó en Word desde Excel; las fotografías se reconstruyeron una sola vez y requieren validación institucional. La carpeta 8 conserva el flujo previo. Los originales no se modificaron.
 
-Las fuentes recuperadas, fragmentos, página y versión cuando están disponibles acompañan la revisión. Una cláusula normativa propuesta sin fuente reconocida queda pendiente. Esto **no certifica cumplimiento ni vigencia normativa**: las referencias son propuestas para revisión y la maquetación final debe comprobarse en Word. La pantalla muestra contenido, no una previsualización paginada del archivo final. No se promete compatibilidad perfecta con cualquier diseño.
+AnythingLLM aporta las fuentes del espacio asignado a ENDE y OpenCode GO está conectado como redactor sin sustitución silenciosa. La aplicación rellena campos permitidos y tablas de los modelos; la IA no elige el diseño. Una cláusula normativa sin una fuente reconocida queda pendiente. Las referencias propuestas requieren revisión de aplicabilidad y vigencia.
 
-Cuando se selecciona un expediente compatible, la descarga registra una copia como **Borrador**, su fundamento y, si la carga tiene éxito, el modelo original reutilizable. La carpeta no se marca automáticamente como completada. Los errores de guardado se muestran sin impedir conservar el Word descargado. Los documentos independientes se descargan sin guardarse en un expediente. La reutilización de modelos requiere una copia previamente guardada en un expediente accesible.
+Guardar conserva el DOCX, su borrador, la versión del modelo y las fuentes. Descargar no guarda ni aprueba el expediente. El TDR guardado actualiza datos compartidos; las versiones anteriores de otros documentos se conservan y avisan si los datos cambiaron. Las ediciones locales pueden recuperarse desde «Versiones y recuperación». Los antecedentes adjuntos se leen para la consulta y no se archivan automáticamente.
 
-Validación local: `npm run typecheck`, `npm test`, `npm run test:documents`, `npm run build`. Las pruebas de documentos verifican conservación de recursos del modelo institucional, tablas, destinos y ausencia de fuentes inventadas; no sustituyen una prueba con usuarios ni una revisión visual en Word. Se mantiene el despliegue existente GitHub/Vercel y la configuración actual de los servicios.
+S1 conserva la distribución, bandas azules, casillas y firmas del Excel en celdas editables de Word. Su vista se construye desde esas celdas, conservando combinaciones, bordes y estilos. La vista PDF paginada requiere `DOCX_PREVIEW_URL` y `DOCX_PREVIEW_KEY`; utiliza el mismo DOCX exportable. Sin convertidor hay una vista de contenido claramente identificada. El servicio independiente para el VPS está documentado en `vps-engine/PREVIEW_SETUP.md`. Los modelos se incluyen en el paquete de Vercel mediante la configuración de trazado de archivos.
 
-Las secciones siguientes describen la arquitectura previa. Las afirmaciones históricas de «cualquier plantilla», formato «exacto» o cumplimiento automático no son garantías del nuevo asistente.
+Pruebas del flujo nuevo: `npm run test:assistant` y, con localhost disponible, `npm run test:assistant-ui`. Esta última usa datos ficticios y persistencia interceptada, sin escribir en la base real. `node scripts/purchase-assistant-test.cjs --live` realiza generación real con la configuración privada local y guarda resultados de prueba fuera de Git.
 
+## Estado de integración comprobado el 10 de septiembre de 2026
+
+Las pruebas locales y compilación pasan. Se abrieron los siete modelos llenados en Word y se revisaron sus diez páginas renderizadas. Se corrigieron encabezados heredados y referencias de página del TDR. No se publicó esta versión.
+
+Se corrigió el rechazo `MissingSessionID` enviando identidad propia y una sesión estable por documento. GO y la búsqueda directa de AnythingLLM respondieron HTTP 200. El TDR de prueba se generó con veinte campos, un ítem y diecisiete fragmentos del reglamento V.04. Las búsquedas se agrupan por temas, deduplican fragmentos y limitan el contexto a 28.000 caracteres; solo GO redacta. El chat interno de AnythingLLM conserva su configuración previa y su rechazo de sesión no afecta a esta búsqueda directa. La comprobación técnica no determina la adecuación contractual del plan GO al uso documental: https://opencode.ai/docs/go/#where-can-i-use-it. La vista PDF remota permanece pendiente.
+
+Solo ENDE está habilitada. Otras empresas requieren sus espacios, modelos y permisos de acceso antes de habilitarse; la separación de fuentes no sustituye un sistema de autorización entre empresas.
+
+## Verificación y trabajo pendiente
+
+`npm run test:fixed`, `npm test`, `npm run test:documents`, `npm run typecheck` y `npm run build`. La comprobación opcional `node scripts/check-fixed-services.cjs` hace consultas breves a los servicios reales. El plan y los pendientes externos están en `PLAN_TRABAJO.md`.
+
+## Documentación histórica
+
+Las secciones siguientes corresponden a versiones anteriores. Las afirmaciones de compatibilidad con cualquier plantilla, formato exacto o cumplimiento automático no son garantías del flujo actual.
 > Plataforma web integral e inteligente para la formulación, redacción, maquetación y generación automatizada de los expedientes oficiales de adquisición de bienes, suministros y servicios de la **Distribuidora de Electricidad ENDE DEORURO S.A.**, cumpliendo estrictamente con el **Reglamento SBC (Subasta Doble / Menor Precio)** y las normativas técnicas institucionales.
 
 ---
@@ -350,3 +365,11 @@ git push origin main
 - **Entidad:** Distribuidora de Electricidad ENDE DEORURO S.A.
 - **Marco Legal:** Reglamento de Adquisición de Bienes, Construcción de Obras y Contratación de Servicios (SBC).
 - **Desarrollado para:** Automatización técnica de procesos de compra, transparencia operativa y agilización del flujo de expedientes institucionales.
+
+### Edición y responsables oficiales
+
+En las carpetas con Word fijo, «Editar documento» permite corregir textos e ítems. «Guardar cambios» conserva la versión actual en el expediente y el Word descargable. Las correcciones manuales se mantienen al completar con IA.
+
+La casilla «Usar estos responsables como datos oficiales en próximos expedientes» guarda nombres y cargos por empresa y formulario al guardar el documento. Los expedientes nuevos reciben una copia; los anteriores no se modifican. Los destinatarios de proveedores siguen siendo específicos de cada compra.
+
+Las claves privadas se configuran mediante variables de entorno de Vercel o del VPS. Los originales de `PROCESO DE ADQUISICION` se conservan localmente; las siete plantillas necesarias para ejecutar la aplicación se incluyen en `templates/ende`.

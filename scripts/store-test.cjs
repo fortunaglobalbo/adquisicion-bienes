@@ -1,15 +1,17 @@
 const assert=require('node:assert/strict');const fs=require('node:fs');const vm=require('node:vm');const ts=require('typescript');const {randomUUID}=require('node:crypto');
 const memory=new Map();const store={getItem:k=>memory.get(k)||null,setItem:(k,v)=>memory.set(k,v)};
+let templates=[];
 let online=true;let cloud=null;let revision;let writes=0;
 const fetchMock=async (_url,init)=>{
  if(!online)throw Error('sin conexión');
  if(init.method==='POST'){
   const body=JSON.parse(init.body);
   if(body.action==='SAVE_EXPEDIENTE'){cloud=body.data;revision=randomUUID();writes++;return {ok:true,json:async()=>({success:true,revision})};}
-  if(body.action==='SAVE_PLANTILLA')return {ok:true,json:async()=>({success:true})};
+  if(body.action==='SAVE_PLANTILLA'){templates=[{...body.data,contenido_plantilla:body.data.datos_completos}];return {ok:true,json:async()=>({success:true})};}
+  if(body.action==='CREATE_EXPEDIENTE')return {ok:true,json:async()=>({success:true,carpetas:[{id:randomUUID(),adquisicion_id:body.data.id,numero:1,documentos:[]}]})};
   throw Error('Unexpected '+body.action);
  }
- return {ok:true,json:async()=>({success:true,adquisiciones:[cloud.adquisicion],carpetas:[],documentos:[],plantillas:[],logs:[],states:[{revision,snapshot:cloud}]})};
+ return {ok:true,json:async()=>({success:true,adquisiciones:[cloud.adquisicion],carpetas:[],documentos:[],plantillas:templates,logs:[],states:[{revision,snapshot:cloud}]})};
 };
 function load(file){const source=ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;const module={exports:{}};const context={module,exports:module.exports,require:p=>p.includes('initialData')?load('src/lib/store/initialData.ts'):require(p),window:new EventTarget(),localStorage:store,navigator:{},crypto:{randomUUID},Event,CustomEvent,fetch:fetchMock,AbortSignal,console,setTimeout,URL,Blob};vm.runInNewContext(source,context,{filename:file});return module.exports;}
 async function main(){
@@ -30,6 +32,16 @@ async function main(){
  await db.flushPending();
  assert.equal(cloud.carpetas.find(c=>c.id==='f1').documentos[0].metadata.sources[0].id,'norma-1');
  console.log('PASS borrador del asistente conserva fundamento y no completa la carpeta');
+ const template=db.getPlantillas().find(p=>p.fk_carpeta===2);
+ await db.updatePlantilla(template.id,{datos_completos:{officialPeopleByCompany:{ende:{fields:{solicitante:'Oficial A'}}}}});
+ const first=await db.createAdquisicion({codigo:'NUEVO-1',titulo_proceso:'Nueva compra',items:[],empresa_id:'ende'});
+ assert.equal(first.success,true);assert.equal(first.data.responsables_oficiales[2].solicitante,'Oficial A');await db.flushPending();
+ assert.equal(cloud.adquisicion.responsables_oficiales[2].solicitante,'Oficial A');
+ await db.updatePlantilla(template.id,{datos_completos:{officialPeopleByCompany:{ende:{fields:{solicitante:'Oficial B'}}}}});
+ assert.equal(db.getAdquisicionById(first.data.id).responsables_oficiales[2].solicitante,'Oficial A');
+ const second=await db.createAdquisicion({codigo:'NUEVO-2',titulo_proceso:'Otra compra',items:[],empresa_id:'otra'});
+ assert.equal(second.success,true);assert.equal(second.data.responsables_oficiales[2].solicitante,undefined);await db.flushPending();
+ console.log('PASS datos oficiales sincronizados, próximos expedientes, histórico intacto y separación entre empresas');
  assert.ok(writes>0);console.log('Pruebas locales completas.');
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});

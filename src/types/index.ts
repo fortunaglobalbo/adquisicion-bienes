@@ -60,6 +60,10 @@ export interface ItemAdquisicion {
 export type TipoTablaTDR = "BIENES_SIMPLE" | "BIENES_3_COLS" | "SALUD_OCUPACIONAL" | "FICHAS_DINAMICAS" | "MATRIZ_SERVICIOS" | "TABLA_DINAMICA";
 
 export interface Adquisicion {
+  asistente_compra?: import('../lib/docx/purchaseBrief').PurchaseBrief;
+  responsables_oficiales?: Record<string, Record<string, string>>;
+  borradores_ia?: Record<string, import('../lib/docx/purchaseBrief').PreparedDocument>;
+  empresa_id?: string;
   id: string;
   codigo: string; // ej. ENDE-D-2024-001
   titulo_proceso: string;
@@ -345,5 +349,3 @@ export interface Plantilla {
   firma_empresa?: string;
   tipo_tabla_tdr?: TipoTablaTDR;
 }
-
-

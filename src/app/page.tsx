@@ -122,7 +122,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="flex items-center gap-2">
-              <Link href="/plantillas" className="rounded-lg bg-primary px-5 py-3 text-base font-semibold text-white">Preparar documento</Link>
+              <Link href="/plantillas" className="rounded-lg border border-primary px-4 py-2 text-base font-semibold text-primary">Ver modelos Word</Link>
               <button
                 onClick={fetchDatabaseData}
                 title="Refrescar base de datos"

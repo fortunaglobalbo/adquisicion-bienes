@@ -48,8 +48,25 @@ export interface ExtractedAcquisitionData {
 }
 
 export class AnythingLlmClient {
-  static async queryWorkspaceWithSources(prompt: string): Promise<{ answer: string; sources: import("./documentAssistant").NormSource[] }> {
-    const res = await fetch(`${BASE_URL}/workspace/${DEFAULT_WORKSPACE}/chat`, {
+  static async searchWorkspaceSources(query: string, workspaceSlug: string = DEFAULT_WORKSPACE, topN = 8): Promise<{ answer: string; sources: import("./documentAssistant").NormSource[] }> {
+    if (!/^[a-zA-Z0-9_-]+$/.test(workspaceSlug)) throw new Error("Espacio normativo inválido.");
+    const res = await fetch(`${BASE_URL}/workspace/${workspaceSlug}/vector-search`, {
+      method: "POST", headers: this.getHeaders(), signal: AbortSignal.timeout(30000),
+      body: JSON.stringify({ query, topN: Math.max(1,Math.min(8,topN)) }),
+    });
+    if (!res.ok) throw new Error("No se pudieron recuperar las fuentes de la biblioteca.");
+    const data = await res.json();
+    if (!Array.isArray(data.results)) throw new Error("La biblioteca entregó una respuesta inválida.");
+    return { answer: "Fragmentos recuperados directamente de la biblioteca; no se generó una respuesta adicional.", sources: data.results.slice(0,8).map((s: any, i: number) => ({
+      id: `fuente-${i+1}`, title: String(s.metadata?.title || s.title || "Documento normativo"),
+      excerpt: String(s.text || "").slice(0,7000),
+      page: String(s.metadata?.page ?? s.page ?? String(s.text || '').match(/P[aá]gina\s+(\d+)\s+de\s+\d+/i)?.[1] ?? "No indicada"),
+      version: String(s.metadata?.version ?? s.version ?? String(s.text || '').match(/Versi[oó]n\s*N[°ºo.]?\s*(\d+)/i)?.[1] ?? "No indicada en la fuente"),
+    })).filter((s: { excerpt: string }) => s.excerpt.trim()) };
+  }
+  static async queryWorkspaceWithSources(prompt: string, workspaceSlug: string = DEFAULT_WORKSPACE): Promise<{ answer: string; sources: import("./documentAssistant").NormSource[] }> {
+    if (!/^[a-zA-Z0-9_-]+$/.test(workspaceSlug)) throw new Error("Espacio normativo inválido.");
+    const res = await fetch(`${BASE_URL}/workspace/${workspaceSlug}/chat`, {
       method: "POST", headers: this.getHeaders(), signal: AbortSignal.timeout(45000),
       body: JSON.stringify({ message: prompt, mode: "query" }),
     });

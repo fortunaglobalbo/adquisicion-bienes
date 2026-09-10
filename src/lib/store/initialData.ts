@@ -46,7 +46,7 @@ export const FOLDER_TEMPLATES: {
     numero: 7,
     nombre: "Informe de Conformidad (Form. A6-N014)",
     tipo_generacion: "IA",
-    descripcion: "Informe Técnico de Evaluación de Cotizaciones y Solicitud de Adjudicación (Formulario A6-N014 / INF. DE ORURO).",
+    descripcion: "Informe de recepción y conformidad basado en la entrega efectivamente verificada (Formulario A6-N014).",
   },
   {
     numero: 8,

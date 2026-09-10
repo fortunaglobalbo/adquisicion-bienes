@@ -1,0 +1,665 @@
+[
+  {
+    "number": 1,
+    "title": "Especificaciones técnicas",
+    "file": "01.docx",
+    "version": "2026-09-10.1",
+    "fields": [
+      {
+        "key": "objeto",
+        "label": "Objeto de la compra",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "resumen",
+        "label": "Resumen de ítems",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "mes_anio",
+        "label": "Mes y año",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "elaborado",
+        "label": "Elaborado por",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "revisado",
+        "label": "Revisado por",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "aprobado",
+        "label": "Aprobado por",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "antecedentes",
+        "label": "Antecedentes",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "justificacion",
+        "label": "Justificación / necesidad",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "especificacion",
+        "label": "Introducción de especificaciones",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "calidad",
+        "label": "Calidad",
+        "normative": true,
+        "hint": ""
+      },
+      {
+        "key": "ambito",
+        "label": "Ámbito de aplicación",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "seleccion",
+        "label": "Método de selección",
+        "normative": true,
+        "hint": ""
+      },
+      {
+        "key": "vigencia",
+        "label": "Vigencia de propuesta",
+        "normative": true,
+        "hint": ""
+      },
+      {
+        "key": "categoria",
+        "label": "Categoría",
+        "normative": true,
+        "hint": ""
+      },
+      {
+        "key": "lugar",
+        "label": "Lugar de entrega",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "plazo",
+        "label": "Tiempo de entrega",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "adjudicacion",
+        "label": "Forma de adjudicación",
+        "normative": true,
+        "hint": ""
+      },
+      {
+        "key": "aceptacion",
+        "label": "Aceptación del lote / servicio",
+        "normative": true,
+        "hint": ""
+      },
+      {
+        "key": "pago",
+        "label": "Forma de pago",
+        "normative": true,
+        "hint": ""
+      },
+      {
+        "key": "multas",
+        "label": "Aplicación de multas",
+        "normative": true,
+        "hint": ""
+      }
+    ],
+    "columns": [
+      {
+        "key": "numero",
+        "label": "ÍTEM"
+      },
+      {
+        "key": "descripcion",
+        "label": "DESCRIPCIÓN DEL BIEN"
+      },
+      {
+        "key": "unidad",
+        "label": "UNIDAD"
+      },
+      {
+        "key": "cantidad",
+        "label": "CANTIDAD"
+      },
+      {
+        "key": "especificaciones",
+        "label": "CARACTERÍSTICAS TÉCNICAS REQUERIDAS"
+      }
+    ],
+    "source": "1TDR/TDR_ENDE.docx",
+    "sha256": "f852d3735d39f5f8fda337cc1561714bf6f51c8bc351dc5ced5522cfa8b19e2c"
+  },
+  {
+    "number": 2,
+    "title": "Solicitud de adquisición S1-N014",
+    "file": "02.docx",
+    "version": "2026-09-10.2",
+    "fields": [
+      {
+        "key": "numero",
+        "label": "Número de solicitud",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "solicitante",
+        "label": "Nombre del solicitante",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "cargo",
+        "label": "Cargo del solicitante",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "area",
+        "label": "Área",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "almacen",
+        "label": "Verificación de existencia en almacén",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "fecha_almacen",
+        "label": "Fecha de verificación de almacén",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "categoria",
+        "label": "Categoría de adquisición / contratación",
+        "normative": true,
+        "hint": ""
+      },
+      {
+        "key": "objeto",
+        "label": "Descripción del bien, obra o servicio",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "comite",
+        "label": "Posibles integrantes comité evaluador y perito externo",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "proveedores",
+        "label": "Posibles proveedores",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "responsable_recepcion",
+        "label": "Responsable de recepción",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "presupuesto",
+        "label": "Precio referencial (Bs)",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "publicar_precio",
+        "label": "Publicar precio",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "anexo_tdr",
+        "label": "Documento adjunto",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "seleccion",
+        "label": "Método de selección propuesto",
+        "normative": true,
+        "hint": ""
+      },
+      {
+        "key": "garantias",
+        "label": "Garantías requeridas",
+        "normative": true,
+        "hint": ""
+      },
+      {
+        "key": "justificacion",
+        "label": "Justificación",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "con_presupuesto",
+        "label": "Con presupuesto",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "monto_verificado",
+        "label": "Monto verificado (Bs)",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "fecha",
+        "label": "Fecha de solicitud",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "fecha_vobo",
+        "label": "Fecha de visto bueno",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "fecha_aprobacion",
+        "label": "Fecha de aprobación",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "presupuesto_usd",
+        "label": "Precio referencial en USD",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "presupuesto_otro",
+        "label": "Precio referencial en otra moneda",
+        "normative": false,
+        "hint": ""
+      }
+    ],
+    "columns": [],
+    "source": "2FORM S1-N014 SOL DE ADQUI/SD - FERRETERIA (1).xlsx",
+    "sha256": "7117f7e73a4a62d91737426c2c9bcf66ab290bfa749057fe7dc1bc6e57630029"
+  },
+  {
+    "number": 3,
+    "title": "Cuadro de justificación",
+    "file": "03.docx",
+    "version": "2026-09-10.1",
+    "fields": [
+      {
+        "key": "numero",
+        "label": "Número",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "fecha",
+        "label": "Fecha",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "solicitante",
+        "label": "Solicitante y cargo",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "destinatario",
+        "label": "Destinatario y cargo",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "objeto",
+        "label": "Objeto",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "categoria",
+        "label": "Tipo de compra",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "anexo_tdr",
+        "label": "Especificaciones técnicas / ficha técnica / TDR",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "destino",
+        "label": "Destino final",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "centro_costo",
+        "label": "Centro de costo",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "presupuesto",
+        "label": "Previsión de precio (Bs)",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "justificacion",
+        "label": "Justificación",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "proveedores",
+        "label": "Lista de posibles proveedores",
+        "normative": false,
+        "hint": ""
+      }
+    ],
+    "columns": [
+      {
+        "key": "numero",
+        "label": "Ítem"
+      },
+      {
+        "key": "cantidad",
+        "label": "Cantidad"
+      },
+      {
+        "key": "precio",
+        "label": "Precio unitario (Bs)"
+      },
+      {
+        "key": "unidad",
+        "label": "U. M."
+      },
+      {
+        "key": "descripcion",
+        "label": "Detalle"
+      },
+      {
+        "key": "activo",
+        "label": "Activo"
+      }
+    ],
+    "source": "3CUADRO DE JUSTIFICACION/fotografía",
+    "sha256": "30b0232b9923d6da45526c0bfcad769a099cb32e733d3feb5a96cd0dbd6f8c47"
+  },
+  {
+    "number": 4,
+    "title": "Comunicación de solicitud de cotización",
+    "file": "04.docx",
+    "version": "2026-09-10.2",
+    "fields": [
+      {
+        "key": "destinatario",
+        "label": "Empresa destinataria",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "correo",
+        "label": "Correo destinatario",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "asunto",
+        "label": "Asunto",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "cuerpo",
+        "label": "Texto de la solicitud",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "fecha_limite",
+        "label": "Fecha límite para responder",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "anexos",
+        "label": "Documentos adjuntos",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "remitente",
+        "label": "Remitente y cargo",
+        "normative": false,
+        "hint": ""
+      }
+    ],
+    "columns": [],
+    "source": "4SOL. DE COTIZACION EMPRESAS/fotografía de correo",
+    "sha256": "3f99179d6ff337502ad81fce1e2399abcf182779ce144683d58ff7ff0bc39548"
+  },
+  {
+    "number": 5,
+    "title": "Solicitud de inicio de proceso",
+    "file": "05.docx",
+    "version": "2026-09-10.1",
+    "fields": [
+      {
+        "key": "numero",
+        "label": "Número",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "fecha",
+        "label": "Fecha",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "destinatario",
+        "label": "A",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "via",
+        "label": "Vía",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "solicitante",
+        "label": "De",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "objeto",
+        "label": "Objeto",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "cuerpo",
+        "label": "Solicitud",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "anexos",
+        "label": "Respaldos adjuntos",
+        "normative": false,
+        "hint": ""
+      }
+    ],
+    "columns": [],
+    "source": "5SOL DE INICIO DE PROCESO/fotografía",
+    "sha256": "ed427916e645df4800511eec4d4321361acc4ad0a5c6d643325d609cffb7d38d"
+  },
+  {
+    "number": 6,
+    "title": "Solicitud de cotización S2-N014",
+    "file": "06.docx",
+    "version": "2026-09-10.1",
+    "fields": [
+      {
+        "key": "fecha",
+        "label": "Fecha de solicitud",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "destinatario",
+        "label": "Señor(es)",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "observaciones",
+        "label": "Observaciones",
+        "normative": false,
+        "hint": ""
+      }
+    ],
+    "columns": [
+      {
+        "key": "numero",
+        "label": "N.º"
+      },
+      {
+        "key": "cantidad",
+        "label": "Cantidad"
+      },
+      {
+        "key": "unidad",
+        "label": "Unidad"
+      },
+      {
+        "key": "descripcion",
+        "label": "Descripción"
+      },
+      {
+        "key": "precio_oferta",
+        "label": "Precio unitario"
+      },
+      {
+        "key": "total_oferta",
+        "label": "Precio total"
+      }
+    ],
+    "source": "6FORM S2-N014/fotografía",
+    "sha256": "6e9307dba6b850bb577d6ebbbcd945a48240c0137ffe8fe0d590ddec633cea86"
+  },
+  {
+    "number": 7,
+    "title": "Informe de conformidad A6-N014",
+    "file": "07.docx",
+    "version": "2026-09-10.1",
+    "fields": [
+      {
+        "key": "fecha",
+        "label": "Fecha",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "numero",
+        "label": "Número del informe",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "destinatario",
+        "label": "Destinatario",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "via",
+        "label": "Vía",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "solicitante",
+        "label": "Responsable informante",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "objeto",
+        "label": "Proceso y orden de compra",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "antecedentes",
+        "label": "Antecedentes",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "conclusiones",
+        "label": "Conclusiones",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "recomendaciones",
+        "label": "Recomendaciones",
+        "normative": false,
+        "hint": ""
+      }
+    ],
+    "columns": [
+      {
+        "key": "numero",
+        "label": "N•"
+      },
+      {
+        "key": "descripcion",
+        "label": "DESCRIPCIÓN"
+      },
+      {
+        "key": "fecha_recepcion",
+        "label": "Fecha"
+      },
+      {
+        "key": "observaciones",
+        "label": "OBSERVACIONES"
+      }
+    ],
+    "source": "7INFORME DE CONFORMIDAD/105 -INFORME de conformidad trepaderas.docx",
+    "sha256": "cc31381a03d7cdc4b6c3b68c19bdd162b023a455fe4001e89c7cae269c3df414"
+  }
+]

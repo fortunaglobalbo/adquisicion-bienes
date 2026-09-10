@@ -10,6 +10,10 @@
     "typecheck": "tsc --noEmit",
     "test": "node scripts/store-test.cjs",
     "test:documents": "node scripts/document-assistant-test.cjs",
+    "test:fixed": "node scripts/fixed-documents-test.cjs",
+    "test:ai-connections": "node scripts/ai-connections-test.cjs",
+    "test:assistant": "node scripts/purchase-assistant-test.cjs",
+    "test:assistant-ui": "node scripts/purchase-assistant-ui-test.cjs",
     "test:smoke": "node scripts/smoke-test.cjs",
     "diagnose": "node scripts/diagnose.cjs"
   },

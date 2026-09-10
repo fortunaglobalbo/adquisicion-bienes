@@ -70,15 +70,26 @@ export function validateChanges(structure: TemplateStructure, changes: DocumentC
 }
 
 function setText(paragraph: any, value: string) {
+  // A newline inside w:t renders as a space in Word. Use native breaks and tabs.
+  elements(paragraph, 'br').filter(b=>b.getAttributeNS(W,'type')!=='page').forEach(b=>b.parentNode.removeChild(b));
+  elements(paragraph, 'tab').forEach(t=>t.parentNode.removeChild(t));
   const texts = elements(paragraph, "t");
+  let firstText: any;
   if (texts.length) {
-    texts[0].textContent = value;
+    firstText=texts[0];
     texts[0].setAttribute("xml:space", "preserve");
     texts.slice(1).forEach(t => { t.textContent = ""; });
   } else {
     const run = paragraph.ownerDocument.createElementNS(W, "w:r");
     const text = paragraph.ownerDocument.createElementNS(W, "w:t");
-    text.textContent = value; run.appendChild(text); paragraph.appendChild(run);
+    text.setAttribute('xml:space','preserve');run.appendChild(text); paragraph.appendChild(run);firstText=text;
+  }
+  const parts=value.replace(/\r\n?/g,'\n').split(/(\n|\t)/);
+  firstText.textContent=parts.shift() || '';let anchor=firstText;
+  for(const part of parts){
+    const node=paragraph.ownerDocument.createElementNS(W,part==='\n'?'w:br':part==='\t'?'w:tab':'w:t');
+    if(part!=='\n'&&part!=='\t'){node.textContent=part;node.setAttribute('xml:space','preserve');}
+    anchor.parentNode.insertBefore(node,anchor.nextSibling);anchor=node;
   }
 }
 

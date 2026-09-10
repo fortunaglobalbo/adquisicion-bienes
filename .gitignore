@@ -34,3 +34,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Referencias originales locales; los modelos de producción están en templates/ende
+/PROCESO DE ADQUISICION/

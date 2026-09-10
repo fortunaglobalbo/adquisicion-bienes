@@ -7,7 +7,7 @@ interface ChatMessage {
   content: string | Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }>;
 }
 
-const DEFAULT_OPENCODE_KEY = "sk-uiqURVX900evBUHKomZL4LjIe3L1NvILaNAcATY4oZ6rWvDMoVAt9ODP3F6Q8g97";
+const DEFAULT_OPENCODE_KEY = "";
 const DEFAULT_OPENCODE_BASE_URL = "https://opencode.ai/zen/go/v1";
 const DEFAULT_OPENCODE_MODEL = "deepseek-v4-flash-vision-exp";
 
@@ -60,10 +60,12 @@ export async function callOpenCodeGo(
   messages: ChatMessage[],
   temperature = 0.1,
   maxTokens = 4096,
-  timeoutMs = 45000
+  timeoutMs = 45000,
+  sessionId?: string,
+  options: { strict?: boolean; disableThinking?: boolean } = {}
 ): Promise<string> {
   const apiKey = process.env.OPENCODE_GO_API_KEY || DEFAULT_OPENCODE_KEY;
-  if (!apiKey) return "";
+  if (!apiKey) { if (options.strict) throw Error("Falta configurar la credencial de OpenCode GO."); return ""; }
   const baseUrl = (process.env.OPENCODE_GO_BASE_URL || DEFAULT_OPENCODE_BASE_URL).replace(/\/+$/, "");
   const model = process.env.OPENCODE_GO_MODEL || DEFAULT_OPENCODE_MODEL;
 
@@ -74,24 +76,37 @@ export async function callOpenCodeGo(
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
+        "User-Agent": "ende-document-assistant/1.0",
+        "x-opencode-session": sessionId || crypto.randomUUID(),
       },
       body: JSON.stringify({
         model,
         messages,
         temperature,
         max_tokens: maxTokens,
+        ...(options.disableThinking && model.startsWith("deepseek") ? { thinking: { type: "disabled" } } : {}),
       }),
     });
 
     if (!res.ok) {
-      const errText = await res.text();
-      console.warn(`OpenCode Go API Error [${res.status}]: ${errText}`);
+      console.warn(`OpenCode Go API Error [${res.status}]`);
+      if (options.strict) throw Error(res.status === 429 ? "OpenCode GO alcanzó su límite de uso. Intenta de nuevo más tarde." : `OpenCode GO rechazó la solicitud (HTTP ${res.status}). El borrador se conserva.`);
       return "";
     }
 
     const data = await res.json();
-    return data.choices?.[0]?.message?.content || "";
+    const choice = data.choices?.[0];
+    const content = typeof choice?.message?.content === "string" ? choice.message.content.trim() : "";
+    if (options.strict && (!content || choice?.finish_reason === "length")) {
+      console.warn("[GO incomplete]", JSON.stringify({ finishReason: choice?.finish_reason, completionTokens: data.usage?.completion_tokens }));
+      throw Error(choice?.finish_reason === "length" ? "OpenCode GO agotó el espacio de respuesta antes de terminar. Reduce los antecedentes y vuelve a intentar." : "OpenCode GO devolvió una respuesta vacía. Vuelve a intentar; el borrador se conserva.");
+    }
+    return content;
   } catch (error) {
+    if (options.strict) {
+      if (error instanceof Error && /TimeoutError|AbortError/.test(error.name)) throw Error("OpenCode GO tardó demasiado en responder. Vuelve a intentar; el borrador se conserva.");
+      throw error instanceof Error ? error : Error("No se pudo conectar con OpenCode GO.");
+    }
     console.error("Error llamando a OpenCode Go:", error);
     return "";
   }

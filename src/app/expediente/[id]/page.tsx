@@ -20,6 +20,8 @@ import { Topbar } from "@/components/layout/Topbar";
 import { FolderProgressBar } from "@/components/expediente/FolderProgressBar";
 import { FolderSidebar } from "@/components/expediente/FolderSidebar";
 import { FolderViewAi } from "@/components/expediente/FolderViewAi";
+import { FixedDocumentFolder } from "@/components/expediente/FixedDocumentFolder";
+import { PurchaseAssistant } from "@/components/expediente/PurchaseAssistant";
 import { FolderViewManual } from "@/components/expediente/FolderViewManual";
 import { FolderManagerModal } from "@/components/expediente/FolderManagerModal";
 import { Modal } from "@/components/ui/Modal";
@@ -46,6 +48,7 @@ export default function ExpedienteDetailPage() {
   const [camposExtraidos, setCamposExtraidos] = useState<CampoExtraido[]>([]);
   const [firmas, setFirmas] = useState<Firma[]>([]);
   const [loading, setLoading] = useState(true);
+  const [assistantBusy,setAssistantBusy] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isManagerOpen, setIsManagerOpen] = useState(false);
@@ -241,7 +244,9 @@ export default function ExpedienteDetailPage() {
 
             {/* Right 9 Columns: Active Folder Canvas */}
             <div className="col-span-12 lg:col-span-9 bg-surface-container-lowest border border-outline-variant rounded-lg p-6 md:p-8 min-h-[550px] shadow-institutional flex flex-col">
-              {activeFolder && (activeFolder.tipo_generacion === "IA" || !activeFolder.tipo_generacion) ? (
+              {activeFolder && activeFolder.numero >= 1 && activeFolder.numero <= 7 ? (
+                <><PurchaseAssistant key={adquisicion.id} adquisicion={adquisicion} carpetas={safeCarpetas} onUpdated={() => void loadData(true)} onBusyChange={setAssistantBusy} /><FixedDocumentFolder key={`${adquisicion.id}:${activeFolder.numero}:${adquisicion.borradores_ia?.[activeFolder.numero]?.updatedAt || ''}`} adquisicion={adquisicion} carpeta={activeFolder} onSaved={() => void loadData(true)} assistantBusy={assistantBusy} /></>
+              ) : activeFolder && (activeFolder.tipo_generacion === "IA" || !activeFolder.tipo_generacion) ? (
                 <FolderViewAi
                   adquisicion={adquisicion}
                   carpeta={activeFolder}
