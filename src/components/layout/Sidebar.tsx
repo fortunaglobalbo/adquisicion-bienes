@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   FolderKanban,
+  FileSpreadsheet,
 } from "lucide-react";
 import { InstitutionalLogo } from "./InstitutionalLogo";
 
@@ -19,6 +20,12 @@ export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
       href: "/",
       icon: LayoutDashboard,
       active: pathname === "/",
+    },
+    {
+      name: "Hoja de Ruta",
+      href: "/hoja-ruta",
+      icon: FileSpreadsheet,
+      active: pathname.startsWith("/hoja-ruta") || pathname.startsWith("/hoja_ruta"),
     },
     {
       name: "Biblioteca y revisión",
