@@ -14,7 +14,7 @@ export const HojaRutaPrintSlip: React.FC<Props> = ({ hoja, onClose }) => {
     window.print();
   };
 
-  // Rellenar hasta 7 pases si vienen menos
+  // Rellenar exactamente los 7 pases oficiales
   const pases = Array.from({ length: 7 }, (_, index) => {
     const existing = hoja.pases?.[index];
     return (
@@ -35,11 +35,13 @@ export const HojaRutaPrintSlip: React.FC<Props> = ({ hoja, onClose }) => {
           @media print {
             @page {
               size: letter portrait;
-              margin: 8mm;
+              margin: 6mm 8mm;
             }
             body {
               -webkit-print-color-adjust: exact !important;
               print-color-adjust: exact !important;
+              margin: 0;
+              padding: 0;
             }
           }
         `
@@ -49,7 +51,7 @@ export const HojaRutaPrintSlip: React.FC<Props> = ({ hoja, onClose }) => {
       <div className="fixed top-4 right-6 flex items-center gap-3 print:hidden z-50">
         <button
           onClick={handlePrint}
-          className="flex items-center gap-2 bg-[#d9531e] hover:bg-[#b84214] text-white px-5 py-2.5 rounded-lg font-bold shadow-xl transition-all text-sm"
+          className="flex items-center gap-2 bg-[#001e40] hover:bg-[#003366] text-white px-5 py-2.5 rounded-lg font-bold shadow-xl transition-all text-sm"
         >
           <Printer className="w-4 h-4" />
           Imprimir Hoja de Ruta (Tamaño Carta)
@@ -65,23 +67,35 @@ export const HojaRutaPrintSlip: React.FC<Props> = ({ hoja, onClose }) => {
       </div>
 
       {/* Hoja Física Formato Estándar Carta (8.5 x 11 pulgadas / 215.9 x 279.4 mm) */}
-      <div className="bg-white text-neutral-900 w-[215.9mm] max-w-full min-h-[265mm] p-6 shadow-2xl rounded-sm print:shadow-none print:w-full print:p-0 print:min-h-0 print:border-none font-sans border border-neutral-300">
+      <div className="bg-white text-neutral-900 w-[215.9mm] max-w-full min-h-[268mm] p-6 shadow-2xl rounded-sm print:shadow-none print:w-full print:p-0 print:min-h-0 print:border-none font-sans border border-neutral-300">
         
-        {/* Encabezado Superior Naranja */}
-        <div className="bg-[#d9531e] text-white px-5 py-2.5 rounded-t-sm flex items-center justify-between border-b-2 border-[#b84214]">
-          <div>
-            <h1 className="text-xl font-black tracking-wide uppercase">HOJA DE RUTA</h1>
-            <p className="text-[11px] italic text-orange-100 font-medium">Adjuntar al frente de la carpeta circulante.</p>
+        {/* Encabezado Superior con Colores Oficiales ENDE y Logo */}
+        <div className="bg-[#001e40] text-white px-5 py-3 rounded-t-sm flex items-center justify-between border-b-2 border-[#feb316]">
+          <div className="flex items-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo-ende-deoruro.png"
+              alt="ENDE DEORURO S.A."
+              className="h-10 w-auto bg-white p-1 rounded"
+            />
+            <div>
+              <h1 className="text-xl font-black tracking-wide uppercase leading-tight">
+                HOJA DE RUTA
+              </h1>
+              <p className="text-[11px] italic text-blue-100 font-medium">
+                Adjuntar al frente de la carpeta circulante.
+              </p>
+            </div>
           </div>
           <div className="text-right">
-            <span className="text-xs uppercase font-mono font-bold tracking-wider bg-white/20 px-3 py-1 rounded">
+            <span className="text-xs uppercase font-mono font-bold tracking-wider bg-white/15 px-3 py-1 rounded block">
               ENDE DEORURO S.A.
             </span>
           </div>
         </div>
 
         {/* Sección Datos del Documento Original */}
-        <div className="bg-[#fcefe8] text-[#d9531e] text-[11px] font-black uppercase tracking-wider px-4 py-1.5 border border-t-0 border-[#f3c8b4]">
+        <div className="bg-[#f0f4fa] text-[#001e40] text-[11px] font-black uppercase tracking-wider px-4 py-1.5 border border-t-0 border-[#c5d6ee]">
           DATOS DEL DOCUMENTO ORIGINAL
         </div>
 
@@ -127,7 +141,7 @@ export const HojaRutaPrintSlip: React.FC<Props> = ({ hoja, onClose }) => {
             <div className="col-span-2 font-bold text-neutral-800 text-right">
               CATEGORIA:
             </div>
-            <div className="col-span-2 font-bold uppercase text-neutral-900 bg-orange-50 px-2 py-0.5 rounded border border-orange-200 text-center">
+            <div className="col-span-2 font-bold uppercase text-neutral-900 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 text-center font-mono">
               {hoja.categoria}
             </div>
           </div>
@@ -145,7 +159,7 @@ export const HojaRutaPrintSlip: React.FC<Props> = ({ hoja, onClose }) => {
 
         {/* Sección Historial de Circulación y Control de Pases */}
         <div className="mt-4">
-          <div className="bg-[#fcefe8] text-[#d9531e] text-[11px] font-black uppercase tracking-wider px-4 py-1.5 border border-[#f3c8b4]">
+          <div className="bg-[#f0f4fa] text-[#001e40] text-[11px] font-black uppercase tracking-wider px-4 py-1.5 border border-[#c5d6ee]">
             HISTORIAL DE CIRCULACIÓN Y CONTROL DE PASES
           </div>
 
@@ -156,7 +170,7 @@ export const HojaRutaPrintSlip: React.FC<Props> = ({ hoja, onClose }) => {
                   Nº Pase
                 </th>
                 <th className="border border-neutral-300 px-3 py-2 text-left">
-                  Área / Departamento de Destino
+                  Area / Departamento de Destino
                 </th>
                 <th className="border border-neutral-300 px-2 py-2 w-28 text-center">
                   Fecha de Recibo
@@ -184,7 +198,7 @@ export const HojaRutaPrintSlip: React.FC<Props> = ({ hoja, onClose }) => {
                   <td className="border border-neutral-300 text-center font-mono">
                     {p.hora}
                   </td>
-                  <td className="border border-neutral-300 px-2 text-center text-[10px] text-neutral-500 italic">
+                  <td className="border border-neutral-300 px-2 text-center text-[10px] text-neutral-600 font-medium">
                     {p.firma}
                   </td>
                 </tr>

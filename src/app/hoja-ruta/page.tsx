@@ -70,16 +70,16 @@ export default function HojaRutaPage() {
   return (
     <div className="min-h-screen bg-neutral-100 dark:bg-neutral-950 p-4 md:p-6 flex flex-col gap-5">
       {/* Top Banner & Acciones Rápidas */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-white dark:bg-neutral-900 px-6 py-4 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-4 bg-white dark:bg-neutral-900 px-6 py-4 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-sm border-l-4 border-l-[#001e40]">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-[#d9531e] text-white flex items-center justify-center font-bold shadow-sm">
-            <FileSpreadsheet className="w-6 h-6" />
+          <div className="w-10 h-10 rounded-lg bg-[#001e40] text-white flex items-center justify-center font-bold shadow-sm">
+            <FileSpreadsheet className="w-6 h-6 text-[#feb316]" />
           </div>
           <div>
             <h1 className="text-lg font-black text-neutral-900 dark:text-neutral-100 tracking-tight flex items-center gap-2">
               Hoja de Ruta & Seguimiento Máster
-              <span className="text-[11px] font-mono font-bold bg-orange-100 text-[#d9531e] px-2 py-0.5 rounded-full">
-                MÓDULO INDEPENDIENTE
+              <span className="text-[11px] font-mono font-bold bg-[#001e40]/10 text-[#001e40] dark:bg-[#feb316]/20 dark:text-[#feb316] px-2 py-0.5 rounded-full">
+                ENDE DEORURO S.A.
               </span>
             </h1>
             <p className="text-xs text-neutral-500 dark:text-neutral-400">
@@ -100,10 +100,10 @@ export default function HojaRutaPage() {
 
           <button
             onClick={() => setPrintingGeneral(hojas)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-[#d9531e] hover:bg-[#b84214] text-white rounded-lg shadow-sm transition-colors"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold bg-[#001e40] hover:bg-[#003366] text-white rounded-lg shadow-sm transition-colors"
             title="Imprimir reporte general en tamaño Carta"
           >
-            <Printer className="w-3.5 h-3.5" />
+            <Printer className="w-3.5 h-3.5 text-[#feb316]" />
             <span>Imprimir General (Carta)</span>
           </button>
 

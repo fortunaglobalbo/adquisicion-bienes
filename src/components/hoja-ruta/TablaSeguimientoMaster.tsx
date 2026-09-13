@@ -76,15 +76,23 @@ export const TablaSeguimientoMaster: React.FC<Props> = ({
 
   return (
     <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-sm overflow-hidden flex flex-col h-full">
-      {/* Encabezado Oficial Naranja */}
-      <div className="bg-[#d9531e] text-white px-5 py-3 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-base font-black tracking-wide uppercase">
-            CONTROL DE CORRESPONDENCIA Y SEGUIMIENTO MÁSTER
-          </h2>
-          <p className="text-xs italic text-orange-100 mt-0.5">
-            Historial acumulado de hojas de ruta enviadas al sistema
-          </p>
+      {/* Encabezado Oficial ENDE Deoruro */}
+      <div className="bg-[#001e40] text-white px-5 py-3 flex flex-wrap items-center justify-between gap-3 border-b-2 border-[#feb316]">
+        <div className="flex items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo-ende-deoruro.png"
+            alt="ENDE DEORURO S.A."
+            className="h-8 w-auto bg-white p-1 rounded"
+          />
+          <div>
+            <h2 className="text-base font-black tracking-wide uppercase">
+              CONTROL DE CORRESPONDENCIA Y SEGUIMIENTO MÁSTER
+            </h2>
+            <p className="text-xs italic text-blue-100 mt-0.5">
+              Historial acumulado de hojas de ruta enviadas al sistema
+            </p>
+          </div>
         </div>
 
         {/* Acciones y Métricas en cabecera */}
@@ -92,7 +100,7 @@ export const TablaSeguimientoMaster: React.FC<Props> = ({
           {onPrintGeneral && (
             <button
               onClick={() => onPrintGeneral(filtered)}
-              className="flex items-center gap-1.5 bg-white text-[#d9531e] hover:bg-orange-50 font-bold px-3 py-1.5 rounded-lg shadow-sm transition-all text-xs"
+              className="flex items-center gap-1.5 bg-[#feb316] hover:bg-[#e09c0d] text-[#001e40] font-black px-3.5 py-1.5 rounded-lg shadow-sm transition-all text-xs uppercase tracking-wider"
               title="Imprimir el reporte de correspondencia completo en tamaño Carta"
             >
               <Printer className="w-3.5 h-3.5" />
@@ -100,7 +108,7 @@ export const TablaSeguimientoMaster: React.FC<Props> = ({
             </button>
           )}
 
-          <span className="bg-white/20 px-2.5 py-1.5 rounded font-sans">
+          <span className="bg-white/15 px-2.5 py-1.5 rounded font-sans">
             Total: <strong>{total}</strong>
           </span>
           <span className="bg-emerald-500/30 text-emerald-100 px-2.5 py-1.5 rounded font-sans">
@@ -121,7 +129,7 @@ export const TablaSeguimientoMaster: React.FC<Props> = ({
             placeholder="Buscar por CITE, Asunto o Área..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[#d9531e]"
+            className="w-full pl-9 pr-3 py-1.5 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[#001e40]"
           />
         </div>
 
@@ -244,7 +252,7 @@ export const TablaSeguimientoMaster: React.FC<Props> = ({
                       <button
                         onClick={() => onPrint(item)}
                         title="Imprimir Hoja de Ruta para carpeta"
-                        className="p-1.5 bg-orange-50 dark:bg-neutral-800 text-[#d9531e] hover:bg-[#d9531e] hover:text-white rounded-md transition-colors"
+                        className="p-1.5 bg-blue-50 dark:bg-neutral-800 text-[#001e40] dark:text-[#feb316] hover:bg-[#001e40] hover:text-white rounded-md transition-colors"
                       >
                         <Printer className="w-4 h-4" />
                       </button>

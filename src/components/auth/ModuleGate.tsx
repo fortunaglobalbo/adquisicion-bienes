@@ -86,7 +86,7 @@ export const ModuleGate: React.FC<{ children: React.ReactNode }> = ({ children }
               }}
               placeholder="Código de autorización"
               autoFocus
-              className="w-full pl-10 pr-10 py-3 bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-xl text-center text-base tracking-widest font-mono font-bold text-neutral-900 dark:text-neutral-100 focus:ring-2 focus:ring-[#d9531e] focus:border-transparent outline-none transition-all"
+              className="w-full pl-10 pr-10 py-3 bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-xl text-center text-base tracking-widest font-mono font-bold text-neutral-900 dark:text-neutral-100 focus:ring-2 focus:ring-[#001e40] focus:border-transparent outline-none transition-all"
             />
             <button
               type="button"
@@ -101,10 +101,10 @@ export const ModuleGate: React.FC<{ children: React.ReactNode }> = ({ children }
           <button
             type="submit"
             disabled={!pin.trim() || submitting}
-            className="w-full py-3 bg-[#d9531e] hover:bg-[#b84214] text-white font-bold rounded-xl shadow-md flex items-center justify-center gap-2 text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider"
+            className="w-full py-3 bg-[#001e40] hover:bg-[#003366] text-white font-bold rounded-xl shadow-md flex items-center justify-center gap-2 text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider border-b-2 border-[#feb316]"
           >
             <span>Verificar y Entrar</span>
-            <ArrowRight className="w-4 h-4" />
+            <ArrowRight className="w-4 h-4 text-[#feb316]" />
           </button>
         </form>
 
