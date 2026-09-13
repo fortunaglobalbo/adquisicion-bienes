@@ -18,6 +18,7 @@ interface Props {
   hojas: HojaRuta[];
   onUpdateEstado: (id: string, nuevoEstado: HojaRutaEstado) => void;
   onPrint: (hoja: HojaRuta) => void;
+  onPrintGeneral?: (items: HojaRuta[]) => void;
   onDelete: (id: string) => void;
 }
 
@@ -25,6 +26,7 @@ export const TablaSeguimientoMaster: React.FC<Props> = ({
   hojas,
   onUpdateEstado,
   onPrint,
+  onPrintGeneral,
   onDelete,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -85,15 +87,26 @@ export const TablaSeguimientoMaster: React.FC<Props> = ({
           </p>
         </div>
 
-        {/* Métricas en cabecera */}
-        <div className="flex items-center gap-2 text-xs font-mono">
-          <span className="bg-white/20 px-2.5 py-1 rounded">
+        {/* Acciones y Métricas en cabecera */}
+        <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
+          {onPrintGeneral && (
+            <button
+              onClick={() => onPrintGeneral(filtered)}
+              className="flex items-center gap-1.5 bg-white text-[#d9531e] hover:bg-orange-50 font-bold px-3 py-1.5 rounded-lg shadow-sm transition-all text-xs"
+              title="Imprimir el reporte de correspondencia completo en tamaño Carta"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>Imprimir Todo (Carta)</span>
+            </button>
+          )}
+
+          <span className="bg-white/20 px-2.5 py-1.5 rounded font-sans">
             Total: <strong>{total}</strong>
           </span>
-          <span className="bg-emerald-500/30 text-emerald-100 px-2 py-1 rounded">
+          <span className="bg-emerald-500/30 text-emerald-100 px-2.5 py-1.5 rounded font-sans">
             Adjudicados: <strong>{adjudicados}</strong>
           </span>
-          <span className="bg-amber-500/30 text-amber-100 px-2 py-1 rounded">
+          <span className="bg-amber-500/30 text-amber-100 px-2.5 py-1.5 rounded font-sans">
             En Circulación: <strong>{enCirculacion}</strong>
           </span>
         </div>

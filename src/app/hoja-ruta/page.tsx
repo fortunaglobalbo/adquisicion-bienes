@@ -6,6 +6,7 @@ import { HojaRutaService } from "@/lib/services/hojaRutaService";
 import { FormularioHojaRuta } from "@/components/hoja-ruta/FormularioHojaRuta";
 import { TablaSeguimientoMaster } from "@/components/hoja-ruta/TablaSeguimientoMaster";
 import { HojaRutaPrintSlip } from "@/components/hoja-ruta/HojaRutaPrintSlip";
+import { HojaRutaGeneralPrintSlip } from "@/components/hoja-ruta/HojaRutaGeneralPrintSlip";
 import {
   FileSpreadsheet,
   Columns,
@@ -21,6 +22,7 @@ export default function HojaRutaPage() {
   const [hojas, setHojas] = useState<HojaRuta[]>([]);
   const [loading, setLoading] = useState(true);
   const [printingHoja, setPrintingHoja] = useState<HojaRuta | null>(null);
+  const [printingGeneral, setPrintingGeneral] = useState<HojaRuta[] | null>(null);
   const [fullTableView, setFullTableView] = useState(false);
 
   const loadData = async () => {
@@ -97,6 +99,15 @@ export default function HojaRutaPage() {
           </button>
 
           <button
+            onClick={() => setPrintingGeneral(hojas)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-[#d9531e] hover:bg-[#b84214] text-white rounded-lg shadow-sm transition-colors"
+            title="Imprimir reporte general en tamaño Carta"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            <span>Imprimir General (Carta)</span>
+          </button>
+
+          <button
             onClick={() => setFullTableView(!fullTableView)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition-colors"
           >
@@ -136,16 +147,25 @@ export default function HojaRutaPage() {
             hojas={hojas}
             onUpdateEstado={handleUpdateEstado}
             onPrint={(hoja) => setPrintingHoja(hoja)}
+            onPrintGeneral={(items) => setPrintingGeneral(items)}
             onDelete={handleDelete}
           />
         </div>
       </div>
 
-      {/* Modal de Impresión Oficial (Página 1 del documento) */}
+      {/* Modal de Impresión Oficial Individual (Página 1 del documento - Carta Vertical) */}
       {printingHoja && (
         <HojaRutaPrintSlip
           hoja={printingHoja}
           onClose={() => setPrintingHoja(null)}
+        />
+      )}
+
+      {/* Modal de Impresión General de Todo (Página 2 del documento - Carta Horizontal) */}
+      {printingGeneral && (
+        <HojaRutaGeneralPrintSlip
+          hojas={printingGeneral}
+          onClose={() => setPrintingGeneral(null)}
         />
       )}
     </div>
