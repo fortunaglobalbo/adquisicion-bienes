@@ -14,8 +14,9 @@ export const HojaRutaPrintSlip: React.FC<Props> = ({ hoja, onClose }) => {
     window.print();
   };
 
-  // Rellenar exactamente los 7 pases oficiales
-  const pases = Array.from({ length: 7 }, (_, index) => {
+  // Renderizar todos los pases registrados y si son menos de 7, rellenar renglones en blanco para firmas físicas
+  const totalRenglones = Math.max(hoja.pases?.length || 0, 7);
+  const pases = Array.from({ length: totalRenglones }, (_, index) => {
     const existing = hoja.pases?.[index];
     return (
       existing || {

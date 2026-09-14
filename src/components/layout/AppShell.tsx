@@ -2,10 +2,10 @@
 
 import React, { useState } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
-import { SyncStatus } from "./SyncStatus";
 import { ChevronLeft, ChevronRight, Menu } from "lucide-react";
 import { ModuleAuthProvider } from "@/lib/auth/moduleAuthContext";
 import { ModuleGate } from "@/components/auth/ModuleGate";
+import { ZoomController } from "./ZoomController";
 
 export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -41,7 +41,11 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
               {sidebarOpen ? <ChevronLeft className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
             </button>
 
-            <SyncStatus />
+            {/* Lupa / Control de Zoom para Laptops en la esquina superior derecha */}
+            <div className="fixed top-3 right-5 z-50">
+              <ZoomController />
+            </div>
+
             {children}
           </div>
         </div>

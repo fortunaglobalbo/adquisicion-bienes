@@ -4,8 +4,6 @@ import React, { useState, useEffect } from "react";
 import {
   HojaRuta,
   HojaRutaFormData,
-  HojaRutaArea,
-  HojaRutaCategoria,
   HojaRutaEstado,
   HojaRutaPase,
 } from "@/lib/types/hojaRuta";
@@ -19,19 +17,24 @@ import {
   TableProperties,
   ChevronDown,
   ChevronUp,
+  Trash2,
+  FileCheck,
 } from "lucide-react";
 
 interface Props {
   onCreated: (hoja: HojaRuta) => void;
 }
 
-const AREAS: HojaRutaArea[] = [
+const AREAS_SUGERIDAS = [
   "DISTRIBUCION",
   "COMERCIAL",
   "ADMINISTRACION",
   "TICs",
   "SEGURIDAD INDUSTRIAL",
   "SISTEMA RURAL",
+  "ALMACENES",
+  "ASESORIA LEGAL",
+  "GERENCIA GENERAL",
 ];
 
 const TIPOS_DOC = [
@@ -41,29 +44,37 @@ const TIPOS_DOC = [
   "CONSULTORIAS",
 ];
 
+const CATEGORIAS_SUGERIDAS = [
+  "CAT 1",
+  "CAT 2",
+  "MENOR",
+  "MAYOR",
+  "EMERGENCIA",
+];
+
 export const FormularioHojaRuta: React.FC<Props> = ({ onCreated }) => {
   const [cite, setCite] = useState("");
   const [fechaIngreso, setFechaIngreso] = useState("");
   const [horaIngreso, setHoraIngreso] = useState("");
   const [tipoDocumento, setTipoDocumento] = useState("SOLICITUD/TDR");
-  const [areaOrigen, setAreaOrigen] = useState<HojaRutaArea>("DISTRIBUCION");
-  const [categoria, setCategoria] = useState<HojaRutaCategoria>("CAT 1");
+  const [areaOrigen, setAreaOrigen] = useState<string>("DISTRIBUCION");
+  const [categoria, setCategoria] = useState<string>("CAT 1");
   const [asunto, setAsunto] = useState("");
   const [ubicacionActual, setUbicacionActual] = useState("DISTRIBUCION");
   const [estadoActual, setEstadoActual] = useState<HojaRutaEstado>("En Circulación");
 
-  // Control de los 7 pases oficiales de circulación
-  const [pases, setPases] = useState<HojaRutaPase[]>(
-    Array.from({ length: 7 }, (_, i) => ({
-      pase: i + 1,
-      destino: i === 0 ? "DISTRIBUCION" : "",
-      fecha: i === 0 ? new Date().toISOString().split("T")[0] : "",
-      hora: i === 0 ? new Date().toTimeString().slice(0, 5) : "",
+  // Pases dinámicos libres (sin límite de 1 a 7)
+  const [pases, setPases] = useState<HojaRutaPase[]>([
+    {
+      pase: 1,
+      destino: "DISTRIBUCION",
+      fecha: new Date().toISOString().split("T")[0],
+      hora: new Date().toTimeString().slice(0, 5),
       firma: "",
-    }))
-  );
+    },
+  ]);
 
-  const [mostrarPases, setMostrarPases] = useState(true);
+  const [mostrarPases, setMostrarPases] = useState(false);
   const [loadingCite, setLoadingCite] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);
@@ -76,7 +87,6 @@ export const FormularioHojaRuta: React.FC<Props> = ({ onCreated }) => {
       if (!fechaIngreso) setFechaIngreso(res.fechaSugerida);
       if (!horaIngreso) setHoraIngreso(res.horaSugerida);
 
-      // Sincronizar fecha y hora sugeridas con el Pase 1
       setPases((prev) =>
         prev.map((p) =>
           p.pase === 1
@@ -99,12 +109,11 @@ export const FormularioHojaRuta: React.FC<Props> = ({ onCreated }) => {
     loadCorrelativo();
   }, []);
 
-  const handleAreaChange = (nuevaArea: HojaRutaArea) => {
+  const handleAreaSelect = (nuevaArea: string) => {
     setAreaOrigen(nuevaArea);
     if (ubicacionActual === areaOrigen || !ubicacionActual) {
       setUbicacionActual(nuevaArea);
     }
-    // Sincronizar Pase 1 si no tenía destino personalizado
     setPases((prev) =>
       prev.map((p) => (p.pase === 1 && (!p.destino || p.destino === areaOrigen) ? { ...p, destino: nuevaArea } : p))
     );
@@ -120,6 +129,28 @@ export const FormularioHojaRuta: React.FC<Props> = ({ onCreated }) => {
       copy[index] = { ...copy[index], [field]: value };
       return copy;
     });
+  };
+
+  const agregarPase = () => {
+    setPases((prev) => [
+      ...prev,
+      {
+        pase: prev.length + 1,
+        destino: "",
+        fecha: "",
+        hora: "",
+        firma: "",
+      },
+    ]);
+    if (!mostrarPases) setMostrarPases(true);
+  };
+
+  const eliminarPase = (index: number) => {
+    setPases((prev) =>
+      prev
+        .filter((_, i) => i !== index)
+        .map((p, idx) => ({ ...p, pase: idx + 1 }))
+    );
   };
 
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -138,10 +169,10 @@ export const FormularioHojaRuta: React.FC<Props> = ({ onCreated }) => {
       fecha_ingreso: fechaIngreso || new Date().toISOString().split("T")[0],
       hora_ingreso: horaIngreso || new Date().toTimeString().slice(0, 5),
       tipo_documento: tipoDocumento,
-      institucion_area_origen: areaOrigen,
-      categoria: categoria,
+      institucion_area_origen: areaOrigen.trim() || "DISTRIBUCION",
+      categoria: categoria.trim() || "CAT 1",
       asunto_descripcion: asunto.trim(),
-      ubicacion_actual: ubicacionActual,
+      ubicacion_actual: ubicacionActual.trim() || areaOrigen.trim() || "DISTRIBUCION",
       estado_actual: estadoActual,
       pases: pases,
     };
@@ -152,23 +183,22 @@ export const FormularioHojaRuta: React.FC<Props> = ({ onCreated }) => {
     if (res.success && res.data) {
       setFeedback({
         type: "success",
-        msg: `¡Trámite ${res.data.cite_correlativo} enviado a la lista exitosamente!`,
+        msg: `¡Trámite ${res.data.cite_correlativo} creado exitosamente! Listo para imprimir la carátula.`,
       });
       onCreated(res.data);
 
-      // Limpiar formulario y cargar el siguiente CITE
+      // Limpiar formulario y sugerir nuevo CITE
       setAsunto("");
-      // Resetear pases conservando pase 1 base
       const now = new Date();
-      setPases(
-        Array.from({ length: 7 }, (_, i) => ({
-          pase: i + 1,
-          destino: i === 0 ? areaOrigen : "",
-          fecha: i === 0 ? now.toISOString().split("T")[0] : "",
-          hora: i === 0 ? now.toTimeString().slice(0, 5) : "",
+      setPases([
+        {
+          pase: 1,
+          destino: areaOrigen,
+          fecha: now.toISOString().split("T")[0],
+          hora: now.toTimeString().slice(0, 5),
           firma: "",
-        }))
-      );
+        },
+      ]);
       loadCorrelativo();
     } else {
       setFeedback({
@@ -193,7 +223,7 @@ export const FormularioHojaRuta: React.FC<Props> = ({ onCreated }) => {
             <div className="flex items-center gap-2">
               <h2 className="text-base font-black tracking-wide uppercase">HOJA DE RUTA</h2>
               <span className="bg-[#feb316] text-[#001e40] text-[10px] font-mono font-bold px-2 py-0.5 rounded">
-                ENDE DEORURO S.A.
+                NUEVO TRÁMITE
               </span>
             </div>
             <p className="text-xs italic text-blue-100 mt-0.5">
@@ -287,9 +317,9 @@ export const FormularioHojaRuta: React.FC<Props> = ({ onCreated }) => {
           </div>
         </div>
 
-        {/* Fila 2: Tipo de Documento y Categoría */}
+        {/* Fila 2: Tipo de Documento y Categoría (Campo Libre) */}
         <div className="grid grid-cols-12 gap-3">
-          <div className="col-span-7">
+          <div className="col-span-6">
             <label className="block text-[11px] font-bold text-neutral-700 dark:text-neutral-300 mb-1">
               Tipo de Documento:
             </label>
@@ -306,44 +336,75 @@ export const FormularioHojaRuta: React.FC<Props> = ({ onCreated }) => {
             </select>
           </div>
 
-          <div className="col-span-5">
+          <div className="col-span-6">
             <label className="block text-[11px] font-bold text-neutral-700 dark:text-neutral-300 mb-1">
-              CATEGORIA:
+              CATEGORIA (Texto libre):
             </label>
-            <div className="grid grid-cols-2 gap-2">
-              {(["CAT 1", "CAT 2"] as HojaRutaCategoria[]).map((cat) => (
+            <div className="flex items-center gap-1.5">
+              <input
+                type="text"
+                list="categorias-sugeridas"
+                value={categoria}
+                onChange={(e) => setCategoria(e.target.value.toUpperCase())}
+                placeholder="Ej: CAT 1, CAT 2, MENOR..."
+                className="w-full bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-lg px-2.5 py-1.5 font-bold uppercase text-xs text-neutral-900 dark:text-neutral-100 focus:ring-2 focus:ring-[#001e40] outline-none"
+              />
+              <datalist id="categorias-sugeridas">
+                {CATEGORIAS_SUGERIDAS.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
+            </div>
+            {/* Accesos rápidos de categoría */}
+            <div className="flex items-center gap-1 mt-1">
+              {["CAT 1", "CAT 2"].map((c) => (
                 <button
-                  key={cat}
+                  key={c}
                   type="button"
-                  onClick={() => setCategoria(cat)}
-                  className={`py-1.5 px-2 rounded-lg font-bold text-xs border text-center transition-all ${
-                    categoria === cat
-                      ? "bg-[#001e40] text-white border-[#001e40] shadow-sm"
-                      : "bg-neutral-50 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100"
+                  onClick={() => setCategoria(c)}
+                  className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold border ${
+                    categoria === c
+                      ? "bg-[#001e40] text-white border-[#001e40]"
+                      : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200 border-neutral-300"
                   }`}
                 >
-                  {cat}
+                  {c}
                 </button>
               ))}
             </div>
           </div>
         </div>
 
-        {/* Fila 3: Institución / Área de Origen */}
+        {/* Fila 3: Institución / Área de Origen (Campo Libre con Sugerencias) */}
         <div>
           <label className="block text-[11px] font-bold text-neutral-700 dark:text-neutral-300 mb-1">
-            Institución / Área de Origen:
+            Institución / Área de Origen (Escriba o seleccione):
           </label>
-          <div className="grid grid-cols-3 gap-2">
-            {AREAS.map((a) => (
+          <input
+            type="text"
+            list="areas-sugeridas"
+            value={areaOrigen}
+            onChange={(e) => handleAreaSelect(e.target.value.toUpperCase())}
+            placeholder="DISTRIBUCION, COMERCIAL, ADMINISTRACION, O NUEVA ÁREA..."
+            className="w-full bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-lg px-3 py-2 font-semibold uppercase text-xs text-neutral-900 dark:text-neutral-100 focus:ring-2 focus:ring-[#001e40] outline-none"
+          />
+          <datalist id="areas-sugeridas">
+            {AREAS_SUGERIDAS.map((a) => (
+              <option key={a} value={a} />
+            ))}
+          </datalist>
+
+          {/* Chips de sugerencias rápidas */}
+          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+            {AREAS_SUGERIDAS.slice(0, 6).map((a) => (
               <button
                 key={a}
                 type="button"
-                onClick={() => handleAreaChange(a)}
-                className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-left truncate border transition-all ${
+                onClick={() => handleAreaSelect(a)}
+                className={`px-2 py-0.5 rounded text-[10px] font-semibold border transition-all ${
                   areaOrigen === a
-                    ? "bg-[#001e40] text-white border-[#001e40] font-bold shadow-xs"
-                    : "bg-white dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 hover:border-neutral-400"
+                    ? "bg-[#001e40] text-white border-[#001e40] font-bold"
+                    : "bg-neutral-50 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:border-neutral-400"
                 }`}
               >
                 {a}
@@ -370,24 +431,21 @@ export const FormularioHojaRuta: React.FC<Props> = ({ onCreated }) => {
         <div className="grid grid-cols-2 gap-3 pt-1 border-t border-neutral-100 dark:border-neutral-800">
           <div>
             <label className="block text-[11px] font-bold text-neutral-700 dark:text-neutral-300 mb-1">
-              Ubicación Actual (Área)
+              Ubicación Actual (Área):
             </label>
-            <select
+            <input
+              type="text"
+              list="areas-sugeridas"
               value={ubicacionActual}
-              onChange={(e) => setUbicacionActual(e.target.value)}
-              className="w-full bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-lg px-2.5 py-1.5 text-xs text-neutral-800 dark:text-neutral-200"
-            >
-              {AREAS.map((a) => (
-                <option key={a} value={a}>
-                  {a}
-                </option>
-              ))}
-            </select>
+              onChange={(e) => setUbicacionActual(e.target.value.toUpperCase())}
+              placeholder="DISTRIBUCION..."
+              className="w-full bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-lg px-2.5 py-1.5 text-xs uppercase font-semibold text-neutral-800 dark:text-neutral-200"
+            />
           </div>
 
           <div>
             <label className="block text-[11px] font-bold text-neutral-700 dark:text-neutral-300 mb-1">
-              Estado Actual
+              Estado Inicial:
             </label>
             <select
               value={estadoActual}
@@ -403,49 +461,55 @@ export const FormularioHojaRuta: React.FC<Props> = ({ onCreated }) => {
           </div>
         </div>
 
-        {/* SECCIÓN OFICIAL: HISTORIAL DE CIRCULACIÓN Y CONTROL DE PASES */}
+        {/* SECCIÓN OPCIONAL: HISTORIAL DE CIRCULACIÓN Y CONTROL DE PASES */}
         <div className="pt-2 border-t border-neutral-200 dark:border-neutral-800">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <TableProperties className="w-4 h-4 text-[#001e40] dark:text-[#feb316]" />
-              <span className="font-bold text-[11px] text-[#001e40] dark:text-[#feb316] uppercase">
-                Historial de Circulación y Control de Pases (1 al 7)
-              </span>
-            </div>
+          <div className="flex items-center justify-between mb-1.5">
             <button
               type="button"
               onClick={() => setMostrarPases(!mostrarPases)}
-              className="text-[11px] text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200 flex items-center gap-1"
+              className="flex items-center gap-1.5 text-left group"
             >
+              <TableProperties className="w-4 h-4 text-[#001e40] dark:text-[#feb316]" />
+              <span className="font-bold text-[11px] text-[#001e40] dark:text-[#feb316] uppercase group-hover:underline">
+                Historial de Circulación y Control de Pases ({pases.length} registrados)
+              </span>
               {mostrarPases ? (
-                <>
-                  <span>Ocultar</span>
-                  <ChevronUp className="w-3.5 h-3.5" />
-                </>
+                <ChevronUp className="w-3.5 h-3.5 text-neutral-400" />
               ) : (
-                <>
-                  <span>Editar Pases</span>
-                  <ChevronDown className="w-3.5 h-3.5" />
-                </>
+                <ChevronDown className="w-3.5 h-3.5 text-neutral-400" />
               )}
             </button>
+
+            <button
+              type="button"
+              onClick={agregarPase}
+              className="flex items-center gap-1 text-[11px] font-bold text-[#001e40] dark:text-[#feb316] hover:underline bg-[#feb316]/20 px-2 py-0.5 rounded"
+            >
+              <Plus className="w-3 h-3" />
+              <span>+ Agregar Pase</span>
+            </button>
           </div>
+
+          <p className="text-[10px] text-neutral-500 italic mb-2">
+            💡 <strong>Para firmas físicas:</strong> Puede registrar pases iniciales si lo desea, o crear directamente; al imprimir la Hoja de Ruta, los renglones se generan con espacios limpios para que firmen y sellen manualmente al recibir la carpeta.
+          </p>
 
           {mostrarPases && (
             <div className="overflow-x-auto border border-neutral-200 dark:border-neutral-700 rounded-lg">
               <table className="w-full text-[11px] border-collapse text-left">
                 <thead>
                   <tr className="bg-[#001e40]/5 dark:bg-[#001e40]/40 text-[#001e40] dark:text-neutral-200 font-bold border-b border-neutral-200 dark:border-neutral-700">
-                    <th className="p-1.5 w-10 text-center">Nº</th>
+                    <th className="p-1.5 w-8 text-center">Nº</th>
                     <th className="p-1.5 w-36">Area / Depto. Destino</th>
                     <th className="p-1.5 w-24">Fecha Recibo</th>
                     <th className="p-1.5 w-16">Hora</th>
                     <th className="p-1.5">Firma de Recibido</th>
+                    <th className="p-1.5 w-8 text-center"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-200 dark:divide-neutral-700">
                   {pases.map((p, idx) => (
-                    <tr key={p.pase} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
+                    <tr key={idx} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
                       <td className="p-1.5 text-center font-bold text-neutral-600 dark:text-neutral-400">
                         {p.pase}
                       </td>
@@ -456,7 +520,7 @@ export const FormularioHojaRuta: React.FC<Props> = ({ onCreated }) => {
                           onChange={(e) =>
                             handlePaseChange(idx, "destino", e.target.value.toUpperCase())
                           }
-                          placeholder={idx === 0 ? "DISTRIBUCION" : "Área destino"}
+                          placeholder="Área destino"
                           className="w-full px-2 py-1 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded text-[11px] uppercase font-semibold text-neutral-800 dark:text-neutral-200 outline-none focus:border-[#001e40]"
                         />
                       </td>
@@ -492,6 +556,18 @@ export const FormularioHojaRuta: React.FC<Props> = ({ onCreated }) => {
                           className="w-full px-2 py-1 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded text-[11px] text-neutral-800 dark:text-neutral-200 outline-none"
                         />
                       </td>
+                      <td className="p-1 text-center">
+                        {pases.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => eliminarPase(idx)}
+                            className="p-1 text-neutral-400 hover:text-red-600 rounded"
+                            title="Eliminar pase"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -500,12 +576,12 @@ export const FormularioHojaRuta: React.FC<Props> = ({ onCreated }) => {
           )}
         </div>
 
-        {/* Botón de Enviar a Lista */}
+        {/* Botón Principal de Enviar a Lista */}
         <div className="pt-2">
           <button
             type="submit"
             disabled={submitting || !asunto.trim()}
-            className="w-full py-2.5 bg-[#001e40] hover:bg-[#003366] text-white font-bold rounded-lg shadow-sm flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-xs uppercase tracking-wider"
+            className="w-full py-2.5 bg-[#001e40] hover:bg-[#003366] text-white font-bold rounded-lg shadow-sm flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-xs uppercase tracking-wider border-b-2 border-[#feb316]"
           >
             {submitting ? (
               <>
