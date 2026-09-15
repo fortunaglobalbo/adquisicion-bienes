@@ -17,7 +17,8 @@
     "test:smoke": "node scripts/smoke-test.cjs",
     "diagnose": "node scripts/diagnose.cjs",
     "test:revision": "node scripts/revise-fixed-document-test.cjs",
-    "test:revision-live": "node scripts/revise-fixed-document-live.cjs"
+    "test:revision-live": "node scripts/revise-fixed-document-live.cjs",
+    "test:reading": "node scripts/purchase-reading-test.cjs"
   },
   "dependencies": {
     "@xmldom/xmldom": "0.8.15",

@@ -1,9 +1,10 @@
 "use client";
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Sparkles, Loader2 } from 'lucide-react';
 import type { Adquisicion, Carpeta } from '@/types';
 import { fixedModel, FixedDraft } from '@/lib/docx/fixedModels';
 import { initialBrief, briefProblems, briefUpdates, briefDetailLabels, PurchaseBrief } from '@/lib/docx/purchaseBrief';
+import { readPurchaseResponse } from '@/lib/ai/purchaseReadingResponse';
 import { DataStore } from '@/lib/store/dataStore';
 
 const input = 'w-full rounded-lg border border-slate-300 bg-white p-2 text-sm';
@@ -31,19 +32,36 @@ export function PurchaseAssistant({ adquisicion, carpetas, onUpdated, onBusyChan
   const [busy,setBusy] = useState(false);
   const [error,setError] = useState('');
   const [progress,setProgress] = useState('');
+  const [reading,setReading] = useState(false);
+  const readingController = useRef<AbortController | null>(null);
+  const mounted = useRef(true);
+  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;readingController.current?.abort();};},[]);
   const [outcomes,setOutcomes] = useState<Record<number,string>>({});
   useEffect(()=>{onBusyChange(busy);return()=>onBusyChange(false);},[busy,onBusyChange]);
   useEffect(()=>{if(adquisicion.asistente_compra)setBrief(b=>b.confirmedAt?adquisicion.asistente_compra!:b);},[adquisicion.asistente_compra?.revision]);
   const change = (patch:Partial<PurchaseBrief>)=>setBrief(b=>({...b,...patch,confirmedAt:null}));
   async function read() {
-    setBusy(true);setError('');setProgress('Leyendo los antecedentes y organizando los datos…');
+    if(readingController.current) return;
+    const controller = new AbortController(); readingController.current=controller;
+    setBusy(true);setReading(true);setError('');setProgress('Preparando la lectura de los antecedentes…');
+    const deadline = setTimeout(()=>controller.abort('timeout'),175000);
     try {
-      const form = new FormData(); form.append('request',JSON.stringify({action:'analyze',number:1,adquisicion:{...adquisicion,asistente_compra:brief},context:notes}));
+      // Other generated folders and legal citations are not inputs to purchase reading.
+      const {borradores_ia, ...purchase} = adquisicion;
+      const tdr=borradores_ia?.['1'];
+      const form = new FormData(); form.append('request',JSON.stringify({action:'analyze',stream:true,number:1,adquisicion:{...purchase,asistente_compra:brief,
+        borradores_ia:tdr ? {'1':{...tdr,draft:{...tdr.draft,sources:[],sourceQuotes:{}}}} : undefined},context:notes}));
       files.forEach(f=>form.append('attachments',f));
-      const res=await fetch('/api/fixed-documents',{method:'POST',body:form});const result=await res.json();
-      if(!res.ok) throw Error(result.error || 'No se pudieron leer los antecedentes.');
-      setBrief(result.brief);setReview(true);setProgress('Revisa los datos que encontré. Basta completar lo esencial.');
-    } catch(e){setError(e instanceof Error?e.message:'No se pudo leer.');} finally{setBusy(false);}
+      const res=await fetch('/api/fixed-documents',{method:'POST',body:form,signal:controller.signal});
+      const found=await readPurchaseResponse(res,message=>{if(mounted.current)setProgress(message);});
+      if(!mounted.current)return;
+      setBrief(found);setReview(true);setProgress('Revisa los datos que encontré. Basta completar lo esencial.');
+    } catch(e){
+      if(!mounted.current)return;
+      setProgress('');
+      if(controller.signal.aborted && controller.signal.reason!=='timeout') setProgress('Lectura cancelada. Tu texto y los archivos seleccionados se conservan.');
+      else setError(controller.signal.aborted ? 'La lectura no terminó a tiempo. Tu texto y los archivos seleccionados se conservan; puedes volver a intentar.' : e instanceof Error?e.message:'No se pudo leer.');
+    } finally {clearTimeout(deadline);readingController.current=null;if(mounted.current){setReading(false);setBusy(false);}}
   }
   async function prepare(numbers:number[]) {
     const problems=briefProblems(brief); if(problems.length){setError(problems.join(' '));setReview(true);setOpen(true);return;}
@@ -79,7 +97,7 @@ export function PurchaseAssistant({ adquisicion, carpetas, onUpdated, onBusyChan
       if(!sync.success)setError('Los cambios están guardados en este navegador; falta sincronizarlos con la nube.');
       if(!failures)setOpen(false);
       onUpdated();
-    }catch(e){setError(e instanceof Error?e.message:'No se pudo preparar la compra.');}finally{setBusy(false);}
+    }catch(e){setProgress('');setError(e instanceof Error?e.message:'No se pudo preparar la compra.');}finally{setBusy(false);}
   }
   return <section className="mb-5 rounded-xl border border-blue-200 bg-blue-50/50 p-4 space-y-3">
     <div className="flex flex-wrap items-center justify-between gap-2"><div><h2 className="font-bold text-lg text-primary">Asistente de esta compra</h2><p className="text-sm text-slate-600">Cuéntame qué necesitas. Con los mismos datos prepararé el TDR, el S1, la justificación y la solicitud de cotización.</p></div><button disabled={busy} className={button} onClick={()=>setOpen(v=>!v)}>{open?'Ocultar asistente':'Revisar datos de la compra'}</button></div>
@@ -96,9 +114,10 @@ export function PurchaseAssistant({ adquisicion, carpetas, onUpdated, onBusyChan
         <div className="grid sm:grid-cols-2 gap-3"><label className="text-sm">Lugar de entrega<input className={input} value={brief.location} onChange={e=>change({location:e.target.value})} /></label><label className="text-sm">Plazo de entrega en días calendario<input className={input} value={brief.deliveryDays} onChange={e=>change({deliveryDays:e.target.value})} /></label></div>
         {!!brief.conflicts.length&&<div className="rounded-lg bg-amber-50 p-3 text-sm"><p className="font-semibold">Necesito aclarar esta información</p>{brief.conflicts.map((s,i)=><p key={i}>{s}</p>)}<label>Tu aclaración<textarea className={`${input} mt-1`} rows={2} value={brief.clarification} onChange={e=>change({clarification:e.target.value})} /></label></div>}
         <details className="text-sm"><summary className="cursor-pointer font-semibold">Otros datos disponibles (opcional)</summary><p className="my-2 text-slate-600">Se reutilizarán donde correspondan. Las firmas y verificaciones de almacén y presupuesto se completan cuando existan.</p><div className="grid sm:grid-cols-2 gap-3">{Object.entries(briefDetailLabels).map(([key,label])=><label key={key}>{label}<input className={input} value={brief.details[key]||''} onChange={e=>change({details:{...brief.details,[key]:e.target.value}})} /></label>)}</div></details>
-        <div className="flex flex-wrap gap-2"><button className={`${button} bg-primary text-white inline-flex items-center gap-2`} onClick={()=>prepare([1,2,3,4])}><Sparkles size={16}/>Confirmar y preparar carpetas 1 a 4</button><button className={button} onClick={()=>{setReview(false);setNotes('');}}>Añadir o cambiar antecedentes</button></div>
+        <div className="flex flex-wrap gap-2"><button className={`${button} bg-primary text-white inline-flex items-center gap-2`} onClick={()=>prepare([1,2,3,4])}><Sparkles size={16}/>Confirmar y preparar carpetas 1 a 4</button><button className={button} onClick={()=>{setReview(false);setProgress('');setError('');}}>Añadir o cambiar antecedentes</button></div>
       </>}
     </fieldset>}
+    {reading&&<button className={button} onClick={()=>readingController.current?.abort()}>Cancelar lectura</button>}
     {busy&&<p role="status" className="text-sm flex items-center gap-2"><Loader2 className="animate-spin" size={16}/>{progress}</p>}
     {!busy&&progress&&<p role="status" className="text-sm">{progress}</p>}
     {!!Object.keys(outcomes).length&&<details open={busy||Object.values(outcomes).some(s=>s.startsWith('No se'))} className="text-sm"><summary className="cursor-pointer">Ver resultados por carpeta</summary><ul className="space-y-1 mt-2">{Object.entries(outcomes).map(([n,s])=><li key={n}>{n}. {fixedModel(Number(n)).title}: {s}{!busy&&s.startsWith('No se')&&<button className="underline ml-2" onClick={()=>prepare([Number(n)])}>Volver a intentar esta carpeta</button>}</li>)}</ul></details>}

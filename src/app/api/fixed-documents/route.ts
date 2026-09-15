@@ -4,6 +4,7 @@ import { fixedModel } from "@/lib/docx/fixedModels";
 import { extractText } from "@/lib/server/extractText";
 import { companyKnowledge } from "@/lib/server/companyKnowledge";
 import type { Adquisicion } from "@/types";
+import { purchaseReadingStream } from '@/lib/server/purchaseReadingStream';
 import { analyzePurchaseBrief } from '@/lib/server/purchaseAssistant';
 import { wordFormPreview } from '@/lib/server/wordFormPreview';
 
@@ -49,7 +50,10 @@ export async function POST(req: NextRequest) {
         context += `\nANTECEDENTE DE ESTE EXPEDIENTE (${file.name}):\n${content}`;
         if (context.length > 60000) throw Error("Los antecedentes son demasiado extensos. Adjunta solo la información de esta compra.");
       }
-      if (body.action === 'analyze') return NextResponse.json({ brief: await analyzePurchaseBrief(adq, context, images) }, { headers: { 'Cache-Control': 'no-store' } });
+      if (body.action === 'analyze') {
+        if (body.stream === true) return purchaseReadingStream(adq,context,images,req.signal);
+        return NextResponse.json({ brief: await analyzePurchaseBrief(adq, context, images, {signal:req.signal}) }, { headers: { 'Cache-Control': 'no-store' } });
+      }
       // Decide on the server too: an older open tab may still send "complete" for an edit.
       const revision = body.action === 'revise' || (body.action === 'complete' && !!body.draft && !!context.trim() && body.draftOnly !== true);
       if (revision) {

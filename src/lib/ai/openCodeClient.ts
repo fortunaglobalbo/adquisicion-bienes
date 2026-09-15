@@ -2,6 +2,8 @@
 import { Adquisicion, ItemAdquisicion, TipoTablaTDR } from "@/types";
 import { formatCurrencyBs } from "../docx/formatters";
 
+import { OpenCodeError } from './openCodeErrors';
+
 interface ChatMessage {
   role: "system" | "user" | "assistant";
   content: string | Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }>;
@@ -62,17 +64,17 @@ export async function callOpenCodeGo(
   maxTokens = 4096,
   timeoutMs = 45000,
   sessionId?: string,
-  options: { strict?: boolean; disableThinking?: boolean } = {}
+  options: { strict?: boolean; disableThinking?: boolean; signal?: AbortSignal } = {}
 ): Promise<string> {
   const apiKey = process.env.OPENCODE_GO_API_KEY || DEFAULT_OPENCODE_KEY;
-  if (!apiKey) { if (options.strict) throw Error("Falta configurar la credencial de OpenCode GO."); return ""; }
+  if (!apiKey) { if (options.strict) throw new OpenCodeError("rejected", "Falta configurar la credencial de OpenCode GO."); return ""; }
   const baseUrl = (process.env.OPENCODE_GO_BASE_URL || DEFAULT_OPENCODE_BASE_URL).replace(/\/+$/, "");
   const model = process.env.OPENCODE_GO_MODEL || DEFAULT_OPENCODE_MODEL;
 
   try {
     const res = await fetch(`${baseUrl}/chat/completions`, {
       method: "POST",
-      signal: AbortSignal.timeout(timeoutMs),
+      signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs),
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
@@ -90,7 +92,7 @@ export async function callOpenCodeGo(
 
     if (!res.ok) {
       console.warn(`OpenCode Go API Error [${res.status}]`);
-      if (options.strict) throw Error(res.status === 429 ? "OpenCode GO alcanzó su límite de uso. Intenta de nuevo más tarde." : `OpenCode GO rechazó la solicitud (HTTP ${res.status}). El borrador se conserva.`);
+      if (options.strict) throw new OpenCodeError(res.status === 429 ? 'rate_limit' : res.status >= 500 || res.status === 408 ? 'unavailable' : 'rejected', res.status === 429 ? "OpenCode GO alcanzó su límite de uso. Intenta de nuevo más tarde." : `OpenCode GO rechazó la solicitud (HTTP ${res.status}). El borrador se conserva.`);
       return "";
     }
 
@@ -99,12 +101,14 @@ export async function callOpenCodeGo(
     const content = typeof choice?.message?.content === "string" ? choice.message.content.trim() : "";
     if (options.strict && (!content || choice?.finish_reason === "length")) {
       console.warn("[GO incomplete]", JSON.stringify({ finishReason: choice?.finish_reason, completionTokens: data.usage?.completion_tokens }));
-      throw Error(choice?.finish_reason === "length" ? "OpenCode GO alcanzó su límite de respuesta sin terminar. El documento anterior se conserva. Intenta un cambio por vez o utiliza «Editar documento»." : "OpenCode GO devolvió una respuesta vacía. Vuelve a intentar; el borrador se conserva.");
+      throw new OpenCodeError("incomplete", choice?.finish_reason === "length" ? "OpenCode GO alcanzó su límite de respuesta sin terminar. El documento anterior se conserva. Intenta un cambio por vez o utiliza «Editar documento»." : "OpenCode GO devolvió una respuesta vacía. Vuelve a intentar; el borrador se conserva.");
     }
     return content;
   } catch (error) {
     if (options.strict) {
-      if (error instanceof Error && /TimeoutError|AbortError/.test(error.name)) throw Error("OpenCode GO tardó demasiado en responder. Vuelve a intentar; el borrador se conserva.");
+      if (options.signal?.aborted) throw new OpenCodeError('cancelled', 'Lectura cancelada. Los datos se conservan.');
+      if (error instanceof Error && /TimeoutError|AbortError/.test(error.name)) throw new OpenCodeError('timeout', "OpenCode GO tardó demasiado en responder. Vuelve a intentar; el borrador se conserva.");
+      if (error instanceof TypeError && /fetch|network/i.test(error.message)) throw new OpenCodeError('unavailable', 'No se pudo conectar con OpenCode GO. Los datos se conservan.');
       throw error instanceof Error ? error : Error("No se pudo conectar con OpenCode GO.");
     }
     console.error("Error llamando a OpenCode Go:", error);

@@ -1,0 +1,24 @@
+const assert=require('node:assert/strict'),fs=require('fs'),path=require('path'),Module=require('module'),ts=require('typescript');
+require.extensions['.ts']=(m,f)=>m._compile(ts.transpileModule(fs.readFileSync(f,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText,f);
+const resolve=Module._resolveFilename;Module._resolveFilename=function(n,...a){return resolve.call(this,n.startsWith('@/')?path.join(process.cwd(),'src',n.slice(2)):n,...a)};
+const {OpenCodeError}=require('../src/lib/ai/openCodeErrors.ts');
+const payload={purpose:'Mantenimiento',location:'Oruro',deliveryDays:'45',items:[{descripcion:'Botines',cantidad:'20',unidad:'par',especificaciones:'Suela dieléctrica',precio:''}],facts:[],conflicts:[],details:{}};
+let calls=[],responses=[];
+const load=Module._load;Module._load=function(n,...a){if(n.endsWith('/ai/openCodeClient'))return{extractJsonFromText:JSON.parse,callOpenCodeGo:async(...args)=>{calls.push(args);const r=responses.shift();if(r instanceof Error)throw r;return JSON.stringify(r||payload);}};return load.call(this,n,...a)};
+const {analyzePurchaseBrief,readingContext}=require('../src/lib/server/purchaseAssistant.ts');
+const {purchaseReadingStream}=require('../src/lib/server/purchaseReadingStream.ts');
+const {readPurchaseResponse}=require('../src/lib/ai/purchaseReadingResponse.ts');
+const adq={id:'reading-test',titulo_proceso:'Compra ficticia',items:[],borradores_ia:{1:{draft:{fields:{justificacion:'Mantenimiento',plazo:'45 días calendario',multas:'NORMA_NO_NECESARIA'},items:[],sources:[{excerpt:'REFERENCIA_LEGAL'.repeat(15000)}]}},3:{draft:{fields:{prueba:'OTRA_CARPETA'}}}}};
+(async()=>{
+ const compact=JSON.stringify(readingContext(adq,'20 pares de botines'));assert.ok(!compact.includes('REFERENCIA_LEGAL'));assert.ok(!compact.includes('OTRA_CARPETA'));assert.ok(!compact.includes('NORMA_NO_NECESARIA'));assert.ok(compact.includes('45 días'));assert.ok(compact.length<3000);
+ responses=[new OpenCodeError('timeout','Demora'),payload];const progress=[];const signal=new AbortController().signal;
+ const res=purchaseReadingStream(adq,'20 pares de botines',['data:image/png;base64,FAKE'],signal);const brief=await readPurchaseResponse(res,m=>progress.push(m));assert.equal(brief.items[0].cantidad,'20');assert.equal(calls.length,2);assert.ok(progress[1].includes('reintentando'));assert.equal(calls[0][3],55000);assert.equal(calls[1][3],85000);assert.equal(calls[0][4],calls[1][4]);assert.equal(calls[1][0][1].content[1].image_url.url,calls[0][0][1].content[1].image_url.url);
+ calls=[];responses=[new OpenCodeError('timeout','Demora'),new OpenCodeError('timeout','Demora')];await assert.rejects(()=>readPurchaseResponse(purchaseReadingStream(adq,'mismo texto',[],signal),()=>{}),/dos intentos/);assert.equal(calls.length,2);
+ calls=[];responses=[new OpenCodeError('rate_limit','Límite de uso')];await assert.rejects(()=>analyzePurchaseBrief(adq,'texto',[]),/Límite de uso/);assert.equal(calls.length,1);
+ calls=[];const cancelled=new AbortController();cancelled.abort();await assert.rejects(()=>analyzePurchaseBrief(adq,'texto',[],{signal:cancelled.signal}),/cancelada/);assert.equal(calls.length,0);
+ responses=[{purpose:'x'},payload];assert.equal((await analyzePurchaseBrief(adq,'texto',[])).items.length,1);
+ const data=Buffer.from(JSON.stringify({type:'progress',message:'Leyendo imágenes'})+'\n'+JSON.stringify({type:'result',brief})+'\n');const fragmented=new Response(new ReadableStream({start(c){for(let i=0;i<data.length;i+=3)c.enqueue(data.subarray(i,i+3));c.close();}}),{headers:{'Content-Type':'application/x-ndjson'}});assert.equal((await readPurchaseResponse(fragmented,()=>{})).items[0].descripcion,'Botines');
+ const cut=new Response('{"type":"progress","message":"Leyendo"}\n',{headers:{'Content-Type':'application/x-ndjson'}});await assert.rejects(()=>readPurchaseResponse(cut,()=>{}),/antes de completar/);
+ assert.equal((await readPurchaseResponse(new Response(JSON.stringify({brief}),{headers:{'Content-Type':'application/json'}}),()=>{})).items.length,1);
+ console.log('PASS lectura: contexto reducido, reintento con imágenes intactas, límite de intentos, cuotas, cancelación, reparación y respuesta fragmentada/interrumpida');
+})().catch(e=>{console.error(e);process.exitCode=1});

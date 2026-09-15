@@ -381,3 +381,9 @@ Las claves privadas se configuran mediante variables de entorno de Vercel o del 
 El servidor reconoce también las peticiones de corrección enviadas desde una pestaña anterior de la aplicación. Las respuestas se validan antes de aplicarse; una respuesta incompleta se vuelve a solicitar una vez. Las cláusulas normativas usan las fuentes disponibles o se identifican para revisión, sin atribuir a una ley condiciones comerciales aportadas por el usuario.
 
 Pruebas: `npm run test:revision` no consulta servicios reales. `npm run test:revision-live` utiliza OpenCode GO y datos ficticios, sin guardar expedientes.
+
+### Lectura de antecedentes y demoras
+
+El asistente envía datos de la compra sin incluir las fuentes normativas del TDR ni los borradores de otras carpetas. Una demora o fallo temporal permite un único reintento automático (55 y 85 segundos como máximo por intento, dentro del límite de la función). La pantalla recibe el progreso real, permite cancelar y conserva el texto y los archivos seleccionados mientras la página permanezca abierta. Al terminar o fallar se retira el aviso de lectura. Los errores de credenciales o cuota no se reintentan automáticamente.
+
+`npm run test:reading` comprueba tiempos límite simulados, reintentos, cancelación y respuestas interrumpidas, sin consultas reales ni escrituras en expedientes.
