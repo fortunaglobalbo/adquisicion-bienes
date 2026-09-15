@@ -6,8 +6,11 @@ export async function extractText(buffer: Buffer, name: string): Promise<string>
     return (await mammoth.extractRawText({ buffer })).value;
   }
   if (extension === "pdf") {
+    // Initialize DOMMatrix/canvas before PDF.js, including Vercel's isolated Node runtime.
+    const { CanvasFactory, getData } = await import("pdf-parse/worker");
     const { PDFParse } = await import("pdf-parse");
-    const parser = new PDFParse({ data: new Uint8Array(buffer) });
+    PDFParse.setWorker(getData());
+    const parser = new PDFParse({ data: new Uint8Array(buffer), CanvasFactory });
     try { return (await parser.getText()).text; } finally { await parser.destroy(); }
   }
   return "";

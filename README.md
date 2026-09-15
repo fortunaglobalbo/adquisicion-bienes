@@ -387,3 +387,5 @@ Pruebas: `npm run test:revision` no consulta servicios reales. `npm run test:rev
 El asistente envía datos de la compra sin incluir las fuentes normativas del TDR ni los borradores de otras carpetas. Una demora o fallo temporal permite un único reintento automático (55 y 85 segundos como máximo por intento, dentro del límite de la función). La pantalla recibe el progreso real, permite cancelar y conserva el texto y los archivos seleccionados mientras la página permanezca abierta. Al terminar o fallar se retira el aviso de lectura. Los errores de credenciales o cuota no se reintentan automáticamente.
 
 `npm run test:reading` comprueba tiempos límite simulados, reintentos, cancelación y respuestas interrumpidas, sin consultas reales ni escrituras en expedientes.
+
+La lectura PDF inicializa `pdf-parse/worker` antes del parser y empaqueta el soporte nativo de canvas para Vercel; el worker se carga desde los datos de la dependencia instalada. La prueba `node scripts/pdf-upload-smoke.cjs` verifica la extracción en Next.js sin consultar IA ni guardar documentos.
