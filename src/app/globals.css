@@ -79,6 +79,8 @@ always-on-top-app {
   }
 
   html, body {
+    /* La lupa de pantalla no debe cambiar el tamaño físico del documento. */
+    zoom: 1 !important;
     background-color: #ffffff !important;
     color: #000000 !important;
     font-size: 11pt !important;

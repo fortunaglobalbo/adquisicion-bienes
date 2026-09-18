@@ -53,7 +53,7 @@ export const HojaRutaGeneralPrintSlip: React.FC<Props> = ({ hojas, onClose }) =>
       </div>
 
       {/* Documento Carta Horizontal (11 x 8.5 pulgadas / 279.4 x 215.9 mm) */}
-      <div className="bg-white text-neutral-900 w-[279.4mm] max-w-full min-h-[205mm] p-6 shadow-2xl rounded-sm print:shadow-none print:w-full print:p-0 print:min-h-0 print:border-none font-sans border border-neutral-300">
+      <div className="print-document bg-white text-neutral-900 w-[279.4mm] max-w-full min-h-[205mm] p-6 shadow-2xl rounded-sm print:shadow-none print:w-full print:p-0 print:min-h-0 print:border-none font-sans border border-neutral-300">
         
         {/* Encabezado Superior con Colores Oficiales ENDE y Logo */}
         <div className="bg-[#001e40] text-white px-5 py-3 rounded-t-sm flex items-center justify-between border-b-2 border-[#feb316]">
