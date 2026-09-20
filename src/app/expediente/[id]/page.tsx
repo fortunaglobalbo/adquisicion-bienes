@@ -21,6 +21,8 @@ import { FolderProgressBar } from "@/components/expediente/FolderProgressBar";
 import { FolderSidebar } from "@/components/expediente/FolderSidebar";
 import { FolderViewAi } from "@/components/expediente/FolderViewAi";
 import { FixedDocumentFolder } from "@/components/expediente/FixedDocumentFolder";
+import { SelectionPanel } from '@/components/expediente/SelectionPanel';
+import { QuoteEvaluationPanel } from '@/components/expediente/QuoteEvaluationPanel';
 import { PurchaseAssistant } from "@/components/expediente/PurchaseAssistant";
 import { FolderViewManual } from "@/components/expediente/FolderViewManual";
 import { FolderManagerModal } from "@/components/expediente/FolderManagerModal";
@@ -245,7 +247,12 @@ export default function ExpedienteDetailPage() {
             {/* Right 9 Columns: Active Folder Canvas */}
             <div className="col-span-12 lg:col-span-9 bg-surface-container-lowest border border-outline-variant rounded-lg p-6 md:p-8 min-h-[550px] shadow-institutional flex flex-col">
               {activeFolder && activeFolder.numero >= 1 && activeFolder.numero <= 7 ? (
-                <><PurchaseAssistant key={adquisicion.id} adquisicion={adquisicion} carpetas={safeCarpetas} onUpdated={() => void loadData(true)} onBusyChange={setAssistantBusy} /><FixedDocumentFolder key={`${adquisicion.id}:${activeFolder.numero}:${adquisicion.borradores_ia?.[activeFolder.numero]?.updatedAt || ''}`} adquisicion={adquisicion} carpeta={activeFolder} onSaved={() => void loadData(true)} assistantBusy={assistantBusy} /></>
+                <>
+                  <PurchaseAssistant key={adquisicion.id} adquisicion={adquisicion} carpetas={safeCarpetas} onUpdated={() => void loadData(true)} onBusyChange={setAssistantBusy} />
+                  {activeFolder.numero===1&&<SelectionPanel key={`${adquisicion.id}:${adquisicion.selection_plan?.revision||''}:${adquisicion.items.map(i=>i.id).join(',')}`} adquisicion={adquisicion} carpetas={safeCarpetas} onSaved={()=>void loadData(true)} disabled={assistantBusy}/>}
+                  {activeFolder.numero===4&&<QuoteEvaluationPanel key={`${adquisicion.id}:${adquisicion.selection_plan?.revision||''}`} adquisicion={adquisicion} onSaved={()=>void loadData(true)}/>}
+                  <FixedDocumentFolder key={`${adquisicion.id}:${activeFolder.numero}:${adquisicion.selection_plan?.revision||''}:${adquisicion.borradores_ia?.[activeFolder.numero]?.updatedAt || ''}`} adquisicion={adquisicion} carpeta={activeFolder} onSaved={() => void loadData(true)} assistantBusy={assistantBusy} />
+                </>
               ) : activeFolder && (activeFolder.tipo_generacion === "IA" || !activeFolder.tipo_generacion) ? (
                 <FolderViewAi
                   adquisicion={adquisicion}

@@ -1,5 +1,17 @@
 # ENDE Deoruro — Gestión de adquisiciones
 
+## Condiciones del TDR y comparación de cotizaciones
+
+En la carpeta 1, «Condiciones y evaluación del TDR» permite escoger **Menor precio** o **Calidad y Precio**, definir la adjudicación por ítem, lote, tramo o paquete y guardar las condiciones comunes en el TDR y S1. La base de mantenimiento e higiene incluye la vigencia de 30 días, el pago contra los cuatro documentos indicados por el usuario y la multa diaria del 0,25 %. Es una base comercial editable para esa especialidad, no una regla general para otras compras. La categoría descriptiva del TDR se distingue de la categoría por cuantía del S1.
+
+Calidad y Precio utiliza la escala 50/50 del documento aportado: hasta 50 puntos por precio y 50 por requisitos adicionales. El usuario confirma mínimos, previsión por unidad, criterios, niveles y ponderaciones antes de evaluar; los pesos adicionales deben sumar 100 %. La IA puede proponer mejoras comerciales medibles, sin añadir por su cuenta obligaciones legales a los mínimos.
+
+En la carpeta 4, «Comparar cotizaciones» lee una oferta por proveedor y unidad desde texto, PDF, Word o imágenes. Los datos extraídos permanecen editables y requieren revisión. El cálculo es determinista: verifica mínimos, aplica los límites del 80 % y 120 % de la previsión y calcula PP, ERA, PRA y PT. Las ofertas incompletas quedan por verificar; un empate requiere resolución documentada. La descarga Word incluye resultados, evidencia, versión de reglas y escalas utilizadas.
+
+Cada comparación conserva sus reglas. Cambiar el TDR permite iniciar otra comparación y conservar la anterior en el historial. Las ediciones sin guardar se recuperan localmente al volver a la carpeta. Los archivos originales de ofertas se usan para la lectura y no se archivan automáticamente. La integración sigue usando AnythingLLM como biblioteca y OpenCode GO para la lectura/redacción; no certifica la aplicabilidad normativa del modelo de ejemplo.
+
+Pruebas: `npm run test:selection` verifica límites, mínimos, evidencia, empates, unidades independientes, conservación de versiones y los Word de ambos métodos y del comparativo.
+
 ## Flujo actual con modelos Word fijos
 
 El expediente incluye **Asistente de esta compra**: lee texto, PDF, Word o fotos, presenta los datos esenciales para confirmar y prepara las carpetas 1 a 4 con una ficha común. La finalidad se explica con una frase; la IA desarrolla los párrafos. La ficha y cada borrador se conservan en el estado del expediente. Las condiciones sugeridas se aceptan o modifican y se reutilizan al actualizar documentos. Las carpetas 5 a 7 también pueden redactarse con esta información y sus antecedentes propios.

@@ -11,6 +11,8 @@ import { extractDocumentEvidence, verifiedQuotes } from './documentEvidence';
 import { fixedDocumentPrompt } from './fixedDocumentPrompt';
 
 import { officialPeople } from "../docx/officialPeople";
+import { applySelection, assertPlan } from '../procurement/selection';
+import { addSelectionTables } from './selectionWord';
 
 const text = (value: unknown): string => typeof value === "string" ? value.trim() : "";
 export function seedFixedDraft(number: number, adq: Adquisicion): FixedDraft {
@@ -34,13 +36,18 @@ export function seedFixedDraft(number: number, adq: Adquisicion): FixedDraft {
       precio: item.precioUnitarioEstimado > 0 ? String(item.precioUnitarioEstimado) : missingValue,
       precio_oferta: "", total_oferta: "" } as Record<string, string>)[c.key] ?? missingValue,
   ])));
-  return { modelVersion: model.version, companyId: adq.empresa_id || "ende", fields: Object.fromEntries(model.fields.map(f => [f.key, f.normative ? missingValue : text(values[f.key]) || missingValue])),
+  const draft:FixedDraft = { modelVersion: model.version, companyId: adq.empresa_id || "ende", fields: Object.fromEntries(model.fields.map(f => [f.key, f.normative ? missingValue : text(values[f.key]) || missingValue])),
     editedFields: Object.keys(people), items, sourceIds: {}, sources: [], warnings: [], consultedAt: null, normativeStatus: "pending" };
+  return adq.selection_plan?.confirmedAt ? applySelection(draft,adq.selection_plan,number) : draft;
 }
 
 export function validateFixedDraft(model: FixedModel, draft: FixedDraft) {
   if (!draft || draft.modelVersion !== model.version || !draft.fields || !Array.isArray(draft.items)) throw Error("El borrador no corresponde a la versión actual del modelo.");
   companyKnowledge(draft.companyId);
+  if(draft.selectionPlan) {
+    assertPlan(draft.selectionPlan,draft.selectionPlan.method==='calidad_precio');
+    if(model.number===1 && (draft.selectionPlan.method==='calidad_precio' ? /menor\s+precio/i.test(draft.fields.seleccion) : /calidad\s+y\s+precio/i.test(draft.fields.seleccion))) throw Error('El método escrito contradice las reglas guardadas. Cambia el método desde Condiciones y evaluación.');
+  }
   if (Object.keys(draft.fields).some(key => !model.fields.some(f => f.key === key))) throw Error("El documento contiene campos que no pertenecen al modelo.");
   if (model.fields.some(f => typeof draft.fields[f.key] !== "string" || draft.fields[f.key].length > 16000)) throw Error("Revisa los campos del documento: falta un valor o su texto es demasiado extenso.");
   if (draft.items.length > 100 || draft.items.some(row => !row || model.columns.some(c => typeof row[c.key] !== "string" || row[c.key].length > 5000) || Object.keys(row).some(k => !model.columns.some(c => c.key === k)))) throw Error("Revisa las columnas o la cantidad de ítems (máximo 100).");
@@ -82,7 +89,8 @@ export async function renderFixedWord(number: number, input: FixedDraft) {
     const rows = draft.items.length ? draft.items : [Object.fromEntries(model.columns.map(c => [c.key, c.key.endsWith("oferta") ? "" : missingValue]))];
     tables.push({ target: itemTable.id, label: "Ítems", rows: rows.map(r => model.columns.map(c => /^\[PENDIENTE[^\]]*\]$/.test(r[c.key] || '') ? '________' : r[c.key] || '')) });
   }
-  return { buffer: await fillTemplate(buffer, changes, tables), draft };
+  const filled=await fillTemplate(buffer, changes, tables);
+  return { buffer: number===1&&draft.selectionPlan ? await addSelectionTables(filled,draft.selectionPlan) : filled, draft };
 }
 
 export async function completeFixedDocument(number: number, adq: Adquisicion, current: FixedDraft, context: string, images: string[] = []) {
@@ -94,7 +102,8 @@ export async function completeFixedDocument(number: number, adq: Adquisicion, cu
   let sources: FixedDraft["sources"] = [], answer = "", status: FixedDraft["normativeStatus"] = hasNormativeFields ? "unavailable" : "not_applicable", partialSearch = false;
   if(hasNormativeFields) try {
     const queries: Record<string,string> = {calidad:'Especificaciones técnicas características fundamentales capacidad calidad rendimiento requisitos normalizados',seleccion:'MÉTODOS DE SELECCIÓN Menor precio cumplimiento requisitos mínimos',vigencia:'validez vigencia propuesta oferta plazo presentación',categoria:'CATEGORÍAS Y SUS CUANTÍAS nivel materialidad',adjudicacion:'ADJUDICACIÓN POR ITEMS LOTES TRAMOS PAQUETES',aceptacion:'recepción bienes verificación parcial total actas disconformidad',pago:'forma de pago moneda documento contractual',multas:'APLICACIÓN DE MULTAS incumplimiento plazos documento contractual',garantias:'GARANTÍAS SEGÚN EL OBJETO bienes cumplimiento contrato'};
-    const groups = model.fields.filter(f=>f.normative).map(f=>queries[f.key]||f.label);
+    if((current.selectionPlan||adq.selection_plan)?.method==='calidad_precio')queries.seleccion='Método Calidad y Precio requisitos mínimos adicionales ERA previsión de precio PvP ponderaciones';
+    const groups = model.fields.filter(f=>f.normative && !current.confirmedFields?.includes(f.key)).map(f=>queries[f.key]||f.label);
     const results = await Promise.allSettled(groups.map(topic=>AnythingLlmClient.searchWorkspaceSources(
       topic, company.workspace, 3)));
     partialSearch = results.some(r=>r.status==='rejected');
@@ -142,7 +151,7 @@ export async function completeFixedDocument(number: number, adq: Adquisicion, cu
     if(f.normative){
       sourceQuotes[f.key]=verifiedQuotes(value,sourceIds[f.key],result.sourceQuotes?.[f.key],sources);
       sourceIds[f.key]=Array.from(new Set(sourceQuotes[f.key].map(q=>q.sourceId)));
-      if(value && !/PENDIENTE/.test(value) && !sourceIds[f.key].length) reviewWarnings.push(`${f.label}: el texto propuesto no tiene un extracto verificable suficiente; se dejó pendiente.`);
+      if(value && !/PENDIENTE/.test(value) && !sourceIds[f.key].length && !current.confirmedFields?.includes(f.key)) reviewWarnings.push(`${f.label}: el texto propuesto no tiene un extracto verificable suficiente; se dejó pendiente.`);
     }
     if(decisionKeys.includes(f.key) && text(result.proposals?.[f.key]?.value) && !decisions[f.key]) proposals[f.key]={value:text(result.proposals[f.key].value).slice(0,4000),reason:text(result.proposals[f.key].reason).slice(0,1500)};
     if(f.key==='categoria' && [1,2].includes(number) && !/categor[ií]a\s+(?:I{1,3}|especial)\b/i.test(value)) return [f.key,missingValue];
@@ -162,5 +171,5 @@ export async function completeFixedDocument(number: number, adq: Adquisicion, cu
   if (hasNormativeFields && !sources.length) warnings.unshift("No se recuperó fundamento normativo. Requiere revisión antes de su uso oficial.");
   if (partialSearch && sources.length) warnings.unshift("Parte de las búsquedas no respondió. El fundamento recuperado puede estar incompleto.");
   if(sources.length) warnings.push("Las fuentes recuperadas son propuestas de fundamento; revisa su aplicabilidad y vigencia antes de firmar.");
-  return normalizeFixedDraft(model, { companyId: company.id, modelVersion: model.version, fields, items: current.editedItems ? current.items : items, editedItems: current.editedItems, sources, sourceIds, sourceQuotes, proposals, warnings, editedFields:current.editedFields || [], consultedAt: new Date().toISOString(), normativeStatus: status });
+  return normalizeFixedDraft(model, { companyId: company.id, modelVersion: model.version, fields, items: current.editedItems ? current.items : items, editedItems: current.editedItems, sources, sourceIds, sourceQuotes, proposals, warnings, editedFields:current.editedFields || [], confirmedFields:current.confirmedFields, selectionPlan:current.selectionPlan, consultedAt: new Date().toISOString(), normativeStatus: status });
 }

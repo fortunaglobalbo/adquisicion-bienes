@@ -19,7 +19,8 @@
     "test:revision": "node scripts/revise-fixed-document-test.cjs",
     "test:revision-live": "node scripts/revise-fixed-document-live.cjs",
     "test:reading": "node scripts/purchase-reading-test.cjs",
-    "test:hoja-ruta-print": "node scripts/hoja-ruta-print-test.cjs"
+    "test:hoja-ruta-print": "node scripts/hoja-ruta-print-test.cjs",
+    "test:selection": "node scripts/selection-test.cjs"
   },
   "dependencies": {
     "@xmldom/xmldom": "0.8.15",

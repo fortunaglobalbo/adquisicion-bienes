@@ -6,6 +6,7 @@ const nextConfig = {
     serverComponentsExternalPackages: ['pdf-parse', 'pdfjs-dist', '@napi-rs/canvas'],
     outputFileTracingIncludes: {
       '/api/fixed-documents': ['./templates/ende/*.docx', './node_modules/@napi-rs/canvas*/**/*'],
+      '/api/evaluation': ['./node_modules/@napi-rs/canvas*/**/*'],
     },
     serverActions: {
       bodySizeLimit: '20mb',
