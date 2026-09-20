@@ -21,7 +21,6 @@ import { FolderProgressBar } from "@/components/expediente/FolderProgressBar";
 import { FolderSidebar } from "@/components/expediente/FolderSidebar";
 import { FolderViewAi } from "@/components/expediente/FolderViewAi";
 import { FixedDocumentFolder } from "@/components/expediente/FixedDocumentFolder";
-import { SelectionPanel } from '@/components/expediente/SelectionPanel';
 import { QuoteEvaluationPanel } from '@/components/expediente/QuoteEvaluationPanel';
 import { PurchaseAssistant } from "@/components/expediente/PurchaseAssistant";
 import { FolderViewManual } from "@/components/expediente/FolderViewManual";
@@ -249,7 +248,6 @@ export default function ExpedienteDetailPage() {
               {activeFolder && activeFolder.numero >= 1 && activeFolder.numero <= 7 ? (
                 <>
                   <PurchaseAssistant key={adquisicion.id} adquisicion={adquisicion} carpetas={safeCarpetas} onUpdated={() => void loadData(true)} onBusyChange={setAssistantBusy} />
-                  {activeFolder.numero===1&&<SelectionPanel key={`${adquisicion.id}:${adquisicion.selection_plan?.revision||''}:${adquisicion.items.map(i=>i.id).join(',')}`} adquisicion={adquisicion} carpetas={safeCarpetas} onSaved={()=>void loadData(true)} disabled={assistantBusy}/>}
                   {activeFolder.numero===4&&<QuoteEvaluationPanel key={`${adquisicion.id}:${adquisicion.selection_plan?.revision||''}`} adquisicion={adquisicion} onSaved={()=>void loadData(true)}/>}
                   <FixedDocumentFolder key={`${adquisicion.id}:${activeFolder.numero}:${adquisicion.selection_plan?.revision||''}:${adquisicion.borradores_ia?.[activeFolder.numero]?.updatedAt || ''}`} adquisicion={adquisicion} carpeta={activeFolder} onSaved={() => void loadData(true)} assistantBusy={assistantBusy} />
                 </>

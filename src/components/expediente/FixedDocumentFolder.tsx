@@ -8,7 +8,7 @@ import { officialPeople, officialPeopleKeys } from "@/lib/docx/officialPeople";
 import { initialBrief } from '@/lib/docx/purchaseBrief';
 
 const control = "w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-900 focus:ring-2 focus:ring-blue-600";
-const action = "inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold disabled:opacity-50";
+const action = "inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-800 shadow-sm px-4 py-2 text-sm font-semibold disabled:opacity-50 transition-colors cursor-pointer";
 const purchaseSnapshot = (adq: Adquisicion) => JSON.stringify({ title: adq.titulo_proceso, items: adq.items, background: adq.antecedentes_texto, reason: adq.justificacion_texto });
 function documentFrame(html: string) {
   return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'"><style>body{max-width:760px;margin:0 auto;padding:20px;font:14px Arial;color:#151515;background:white;line-height:1.45}img{display:block;max-width:180px;max-height:100px;width:auto;height:auto;object-fit:contain;margin:0 auto 16px}table{border-collapse:collapse;width:100%;margin:18px 0;table-layout:auto}td,th{border:1px solid #888;padding:7px;overflow-wrap:anywhere}p{white-space:pre-wrap}h1,h2{text-align:center}a{color:inherit}</style></head><body>${html}</body></html>`;
@@ -150,25 +150,35 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
     } catch (e) { setError(e instanceof Error ? e.message : "No se pudo guardar el documento."); }
     finally { setBusy(false); }
   }
-  async function useProposal(key:string) {
-    if(!draft?.proposals?.[key])return;
-    const proposal=draft.proposals[key];
-    if(!proposal.value.trim() || /\[PENDIENTE[^\]]*\]/.test(proposal.value)){setError('La condición todavía contiene un dato sin definir. Completa ese dato antes de confirmarla.');return;}
-    const proposals={...draft.proposals};delete proposals[key];
-    setDraft({...draft,fields:{...draft.fields,[key]:proposal.value},proposals,sourceIds:{...draft.sourceIds,[key]:[]},sourceQuotes:{...draft.sourceQuotes,[key]:[]}});
-    setDirty(true);setStale(true);
-    const current=DataStore.getAdquisicionById(adquisicion.id)||adquisicion;
-    const brief=initialBrief(current);
-    const updated=await DataStore.updateAdquisicion(adquisicion.id,{asistente_compra:{...brief,decisions:{...brief.decisions,[key]:proposal.value},revision:crypto.randomUUID()}});
-    if(!updated.success){setError(updated.error||'No se pudo guardar la decisión.');return;}
-    setMessage('Condición confirmada para esta compra. Actualiza la vista. Al preparar las demás carpetas se utilizará esta decisión.');onSaved();
-  }
+
+  // Integrar automáticamente las condiciones sugeridas por la IA directo al documento
+  useEffect(() => {
+    if (draft?.proposals && Object.keys(draft.proposals).length > 0) {
+      const pendingKeys = Object.keys(draft.proposals).filter(k => draft.proposals![k]?.value && (!draft.fields[k] || draft.fields[k] === '[PENDIENTE]'));
+      if (pendingKeys.length > 0) {
+        const mergedFields = { ...draft.fields };
+        const newDecisions: Record<string, string> = {};
+        for (const k of pendingKeys) {
+          mergedFields[k] = draft.proposals![k].value;
+          newDecisions[k] = draft.proposals![k].value;
+        }
+        setDraft(d => d ? { ...d, fields: mergedFields, proposals: {} } : null);
+        setDirty(true);
+        const current = DataStore.getAdquisicionById(adquisicion.id) || adquisicion;
+        const brief = initialBrief(current);
+        void DataStore.updateAdquisicion(adquisicion.id, {
+          asistente_compra: { ...brief, decisions: { ...brief.decisions, ...newDecisions }, revision: crypto.randomUUID() }
+        });
+      }
+    }
+  }, [draft?.proposals]);
+
   return <section className="space-y-4 text-base">
     <div><h2 className="text-xl font-bold text-primary">{model.title}</h2><p className="mt-1 text-sm text-slate-600">Modelo institucional fijo · Word editable · {dirty ? "Cambios sin guardar en el expediente" : "Documento para revisión"}</p></div>
     {purchaseChanged && <p role="status" className="rounded-lg bg-amber-50 p-3 text-sm">El TDR o los datos de la compra cambiaron desde esta versión. Revisa el objeto y los ítems en «Editar documento» antes de utilizar este documento.</p>}
     <fieldset disabled={busy || assistantBusy} className="space-y-4 min-w-0">
-      {model.number>4&&adquisicion.asistente_compra?.confirmedAt&&<button className={`${action} bg-primary text-white`} onClick={()=>refresh('complete')}><Sparkles size={16}/>Redactar con los datos de esta compra</button>}
-      <div className="flex flex-wrap gap-2"><button className={`${action} bg-primary text-white`} onClick={() => setEdit(v => !v)}><RefreshCw size={16} />{edit ? "Cerrar edición" : "Editar documento"}</button><button className={action} onClick={() => setAiEdit(v => !v)}><Sparkles size={16} />Completar o corregir con IA</button><button className={action} disabled={!draft} onClick={() => download(true)}><Save size={16} />Guardar cambios</button><button className={action} disabled={!draft} onClick={() => download(false)}><Download size={16} />Descargar Word</button></div>
+      {model.number>4&&adquisicion.asistente_compra?.confirmedAt&&<button className={`${action} bg-primary hover:bg-primary/90 text-white shadow-sm border-primary`} onClick={()=>refresh('complete')}><Sparkles size={16}/>Redactar con los datos de esta compra</button>}
+      <div className="flex flex-wrap gap-2"><button className={`${action} bg-primary hover:bg-primary/90 text-white shadow-sm border-primary`} onClick={() => setEdit(v => !v)}><RefreshCw size={16} />{edit ? "Cerrar edición" : "Editar documento"}</button><button className={`${action} bg-white hover:bg-slate-100 text-slate-800 shadow-sm border-slate-300`} onClick={() => setAiEdit(v => !v)}><Sparkles size={16} />Completar o corregir con IA</button><button className={`${action} bg-white hover:bg-slate-100 text-slate-800 shadow-sm border-slate-300`} disabled={!draft} onClick={() => download(true)}><Save size={16} />Guardar cambios</button><button className={`${action} bg-white hover:bg-slate-100 text-slate-800 shadow-sm border-slate-300`} disabled={!draft} onClick={() => download(false)}><Download size={16} />Descargar Word</button></div>
       {aiEdit && <div className="rounded-xl border border-slate-300 p-4 space-y-4 bg-slate-50">
         {clarification && <div role="status" className="rounded-lg border border-blue-200 bg-blue-50 p-3"><p className="font-semibold">{clarification}</p><p className="text-sm mt-1">Responde abajo; conservaré tu petición anterior. El documento sigue igual.</p></div>}
         <label className="block space-y-2"><span className="font-semibold">Describe lo que necesitas o los datos que cambian</span><textarea className={control} rows={4} value={context} onChange={e => {setContext(e.target.value);setDirty(true);}} placeholder="Ejemplo: cambia la entrega a 45 días, pon a María Pérez como responsable y cambia la cantidad del ítem 2 a 20 pares." /></label>
@@ -184,9 +194,8 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
         </div>}
         <div className="mt-4 grid gap-4 sm:grid-cols-2">{model.fields.map(f => <label key={f.key} className="block text-sm"><span className="font-semibold">{f.label}</span>{choiceOptions[f.key]?<select className={`${control} mt-1`} value={draft.fields[f.key]} onChange={e=>changeField(f.key,e.target.value)}><option value="[PENDIENTE]">Sin confirmar</option>{!choiceOptions[f.key].includes(draft.fields[f.key]) && draft.fields[f.key]!=="[PENDIENTE]"&&<option value={draft.fields[f.key]}>{draft.fields[f.key]}</option>}{choiceOptions[f.key].map(v=><option key={v}>{v}</option>)}</select>:<textarea rows={draft.fields[f.key]?.length > 140 ? 5 : 2} className={`${control} mt-1 ${/PENDIENTE/.test(draft.fields[f.key] || "") ? "border-amber-500" : ""}`} value={draft.fields[f.key] || ""} onChange={e => changeField(f.key, e.target.value)} />}{f.normative && <span className="text-slate-600">{draft.confirmedFields?.includes(f.key) ? "Condición confirmada para esta compra" : draft.sourceIds[f.key]?.length ? `Fundamento: ${draft.sourceIds[f.key].join(", ")}` : "Fundamento pendiente de revisión"}</span>}</label>)}</div>
           {!!model.columns.length && <div className="mt-5 space-y-3"><h3 className="font-semibold">Ítems</h3><div className="overflow-x-auto"><table className="text-sm w-full"><thead><tr>{model.columns.map(c => <th className="p-2" key={c.key}>{c.label}</th>)}<th /></tr></thead><tbody>{draft.items.map((row, i) => <tr key={i}>{model.columns.map(c => <td key={c.key} className="p-1"><textarea aria-label={`${c.label}, ítem ${i+1}`} disabled={c.key === "numero"} className={`${control} min-w-[100px]`} value={row[c.key] || ""} onChange={e => { setDraft({...draft,editedItems:true,items:draft.items.map((r,j)=>j===i?{...r,[c.key]:e.target.value}:r)});setDirty(true);setStale(true); }} /></td>)}<td><button className="text-red-700 p-2" onClick={() => {setDraft({...draft,editedItems:true,items:draft.items.filter((_,j)=>j!==i)});setDirty(true);setStale(true);}}>Quitar</button></td></tr>)}</tbody></table></div><button className={action} onClick={() => {setDraft({...draft,editedItems:true,items:[...draft.items,Object.fromEntries(model.columns.map(c=>[c.key,c.key==='numero'?String(draft.items.length+1):'']))]});setDirty(true);setStale(true);}}>Añadir ítem</button>{model.number===6&&<p className="text-sm">Los precios y condiciones de oferta los completa el proveedor.</p>}</div>}
-        <div className="flex flex-wrap gap-2"><button className={`${action} bg-primary text-white`} onClick={()=>download(true)}><Save size={16}/>Guardar cambios</button><button className={action} onClick={()=>refresh()}>Actualizar vista</button></div>
+        <div className="flex flex-wrap gap-2"><button className={`${action} bg-primary hover:bg-primary/90 text-white shadow-sm border-primary`} onClick={()=>download(true)}><Save size={16}/>Guardar cambios</button><button className={`${action} bg-white hover:bg-slate-100 text-slate-800 shadow-sm border-slate-300`} onClick={()=>refresh()}>Actualizar vista</button></div>
       </div>}
-      {!!draft?.proposals && !!Object.keys(draft.proposals).filter(k=>!adquisicion.asistente_compra?.decisions?.[k]).length && <details className="rounded-xl border border-blue-200 p-4 space-y-3"><summary className="font-semibold cursor-pointer">Confirmar condiciones sugeridas por la IA</summary><p className="text-sm text-slate-600">Son sugerencias para esta compra. Confirma las que correspondan o cambia el texto; se reutilizarán en las demás carpetas.</p>{Object.entries(draft.proposals).filter(([key])=>!adquisicion.asistente_compra?.decisions?.[key]).map(([key,p])=><div key={key} className="border-t pt-3 space-y-2"><label className="text-sm font-semibold">{model.fields.find(f=>f.key===key)?.label}<textarea className={`${control} mt-1`} rows={3} value={p.value} onChange={e=>{setDraft({...draft,proposals:{...draft.proposals,[key]:{...p,value:e.target.value}}});setDirty(true);}} /></label><p className="text-sm text-slate-600">{p.reason}</p><button className={action} onClick={()=>useProposal(key)}>Usar esta condición</button></div>)}</details>}
       {stale && <div className="flex flex-wrap items-center gap-3 bg-amber-50 p-3"><span className="text-sm">La vista aún no incluye los últimos cambios.</span><button className={action} onClick={() => refresh()}><RefreshCw size={16} />Actualizar vista</button></div>}
       {!!draft?.warnings.length && <div className="rounded-lg bg-amber-50 p-3 text-sm"><p>{pendingNorms.length ? `Falta confirmar: ${pendingNorms.join(', ')}. Los datos disponibles se muestran en el documento.` : draft.sources.length ? 'El borrador incluye fuentes normativas propuestas. Comprueba su aplicación antes de firmar.' : draft.warnings[0]}</p></div>}
       {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-red-800">{error}</p>}

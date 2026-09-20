@@ -49,7 +49,9 @@ export function validateFixedDraft(model: FixedModel, draft: FixedDraft) {
   companyKnowledge(draft.companyId);
   if(draft.selectionPlan) {
     assertPlan(draft.selectionPlan,draft.selectionPlan.method==='calidad_precio');
-    if(model.number===1 && (draft.selectionPlan.method==='calidad_precio' ? /menor\s+precio/i.test(draft.fields.seleccion) : /calidad\s+y\s+precio/i.test(draft.fields.seleccion))) throw Error('El método escrito contradice las reglas guardadas. Cambia el método desde Condiciones y evaluación.');
+    if(model.number===1 && draft.fields.seleccion) {
+      draft.selectionPlan.method = /calidad\s+y\s+precio/i.test(draft.fields.seleccion) ? 'calidad_precio' : 'menor_precio';
+    }
   }
   if (Object.keys(draft.fields).some(key => !model.fields.some(f => f.key === key))) throw Error("El documento contiene campos que no pertenecen al modelo.");
   if (model.fields.some(f => typeof draft.fields[f.key] !== "string" || draft.fields[f.key].length > 16000)) throw Error("Revisa los campos del documento: falta un valor o su texto es demasiado extenso.");
@@ -156,13 +158,21 @@ export async function completeFixedDocument(number: number, adq: Adquisicion, cu
       sourceIds[f.key]=Array.from(new Set(sourceQuotes[f.key].map(q=>q.sourceId)));
       if(value && !/PENDIENTE/.test(value) && !sourceIds[f.key].length && !current.confirmedFields?.includes(f.key)) reviewWarnings.push(`${f.label}: el texto propuesto no tiene un extracto verificable suficiente; se dejó pendiente.`);
     }
-    if(decisionKeys.includes(f.key) && text(result.proposals?.[f.key]?.value) && !decisions[f.key]) proposals[f.key]={value:text(result.proposals[f.key].value).slice(0,4000),reason:text(result.proposals[f.key].reason).slice(0,1500)};
+    const proposedVal = text(result.proposals?.[f.key]?.value);
+    if(decisionKeys.includes(f.key) && proposedVal && !decisions[f.key]) proposals[f.key]={value:proposedVal.slice(0,4000),reason:text(result.proposals[f.key].reason).slice(0,1500)};
     if(f.key==='categoria' && [1,2].includes(number) && !/categor[ií]a\s+(?:I{1,3}|especial)\b/i.test(value)) return [f.key,missingValue];
-    return [f.key, decisionKeys.includes(f.key) && decisions[f.key] ? decisions[f.key] : f.normative && !sourceIds[f.key].length ? missingValue : value || missingValue];
+    const decisionVal = decisionKeys.includes(f.key) ? (decisions[f.key] || proposedVal) : '';
+    return [f.key, decisionVal ? decisionVal : f.normative && !sourceIds[f.key].length ? missingValue : value || missingValue];
   }));
   let items: Record<string,string>[] = model.columns.length ? result.items.map((r: Record<string, unknown>) => Object.fromEntries(model.columns.map(c => [c.key, c.key.endsWith('oferta') ? '' : text(r?.[c.key]) || missingValue]))) : [];
   if (brief && [1,3,6].includes(number)) items = brief.items.map((item,i)=>Object.fromEntries(model.columns.map(c=>[c.key, ({numero:String(i+1),descripcion:item.descripcion,cantidad:item.cantidad,unidad:item.unidad,especificaciones:item.especificaciones,precio:item.precio,precio_oferta:'',total_oferta:''} as Record<string,string>)[c.key] || text(items[i]?.[c.key]) || (c.key.endsWith('oferta')?'':missingValue)])));
   if(brief){
+    if(!brief.decisions) brief.decisions = {};
+    for(const key of decisionKeys) {
+      if(!brief.decisions[key] && fields[key] && fields[key] !== missingValue) {
+        brief.decisions[key] = fields[key];
+      }
+    }
     for(const [key,value] of Object.entries({...brief.details,lugar:brief.location,plazo:brief.deliveryDays?`${brief.deliveryDays} días calendario`:''})) if(value && model.fields.some(f=>f.key===key&&!f.normative)) fields[key]=value;
   }
   // User-authored paragraphs remain editable and survive subsequent automatic completion.
