@@ -71,49 +71,61 @@ export async function callOpenCodeGo(
   const baseUrl = (process.env.OPENCODE_GO_BASE_URL || DEFAULT_OPENCODE_BASE_URL).replace(/\/+$/, "");
   const model = process.env.OPENCODE_GO_MODEL || DEFAULT_OPENCODE_MODEL;
 
-  try {
-    const res = await fetch(`${baseUrl}/chat/completions`, {
-      method: "POST",
-      signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs),
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-        "User-Agent": "ende-document-assistant/1.0",
-        "x-opencode-session": sessionId || crypto.randomUUID(),
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature,
-        max_tokens: maxTokens,
-        ...(options.disableThinking && model.startsWith("deepseek") ? { thinking: { type: "disabled" } } : {}),
-      }),
-    });
+  const maxAttempts = 2;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const res = await fetch(`${baseUrl}/chat/completions`, {
+        method: "POST",
+        signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+          "User-Agent": "ende-document-assistant/1.0",
+          "x-opencode-session": sessionId || crypto.randomUUID(),
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature,
+          max_tokens: maxTokens,
+          ...(options.disableThinking && model.startsWith("deepseek") ? { thinking: { type: "disabled" } } : {}),
+        }),
+      });
 
-    if (!res.ok) {
-      console.warn(`OpenCode Go API Error [${res.status}]`);
-      if (options.strict) throw new OpenCodeError(res.status === 429 ? 'rate_limit' : res.status >= 500 || res.status === 408 ? 'unavailable' : 'rejected', res.status === 429 ? "OpenCode GO alcanzó su límite de uso. Intenta de nuevo más tarde." : `OpenCode GO rechazó la solicitud (HTTP ${res.status}). El borrador se conserva.`);
+      if (!res.ok) {
+        console.warn(`OpenCode Go API Error [${res.status}] (intento ${attempt}/${maxAttempts})`);
+        if ((res.status === 503 || res.status === 502 || res.status === 504) && attempt < maxAttempts && !options.signal?.aborted) {
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+          continue;
+        }
+        if (options.strict) throw new OpenCodeError(res.status === 429 ? 'rate_limit' : res.status >= 500 || res.status === 408 ? 'unavailable' : 'rejected', res.status === 429 ? "OpenCode GO alcanzó su límite de uso. Intenta de nuevo más tarde." : `OpenCode GO rechazó la solicitud (HTTP ${res.status}). El borrador se conserva.`);
+        return "";
+      }
+
+      const data = await res.json();
+      const choice = data.choices?.[0];
+      const content = typeof choice?.message?.content === "string" ? choice.message.content.trim() : "";
+      if (options.strict && (!content || choice?.finish_reason === "length")) {
+        console.warn("[GO incomplete]", JSON.stringify({ finishReason: choice?.finish_reason, completionTokens: data.usage?.completion_tokens }));
+        throw new OpenCodeError("incomplete", choice?.finish_reason === "length" ? "OpenCode GO alcanzó su límite de respuesta sin terminar. El documento anterior se conserva. Intenta un cambio por vez o utiliza «Editar documento»." : "OpenCode GO devolvió una respuesta vacía. Vuelve a intentar; el borrador se conserva.");
+      }
+      return content;
+    } catch (error) {
+      if (attempt < maxAttempts && error instanceof TypeError && /fetch|network/i.test(error.message) && !options.signal?.aborted) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        continue;
+      }
+      if (options.strict) {
+        if (options.signal?.aborted) throw new OpenCodeError('cancelled', 'Lectura cancelada. Los datos se conservan.');
+        if (error instanceof Error && /TimeoutError|AbortError/.test(error.name)) throw new OpenCodeError('timeout', "OpenCode GO tardó demasiado en responder. Vuelve a intentar; el borrador se conserva.");
+        if (error instanceof TypeError && /fetch|network/i.test(error.message)) throw new OpenCodeError('unavailable', 'No se pudo conectar con OpenCode GO. Los datos se conservan.');
+        throw error instanceof Error ? error : Error("No se pudo conectar con OpenCode GO.");
+      }
+      console.error("Error llamando a OpenCode Go:", error);
       return "";
     }
-
-    const data = await res.json();
-    const choice = data.choices?.[0];
-    const content = typeof choice?.message?.content === "string" ? choice.message.content.trim() : "";
-    if (options.strict && (!content || choice?.finish_reason === "length")) {
-      console.warn("[GO incomplete]", JSON.stringify({ finishReason: choice?.finish_reason, completionTokens: data.usage?.completion_tokens }));
-      throw new OpenCodeError("incomplete", choice?.finish_reason === "length" ? "OpenCode GO alcanzó su límite de respuesta sin terminar. El documento anterior se conserva. Intenta un cambio por vez o utiliza «Editar documento»." : "OpenCode GO devolvió una respuesta vacía. Vuelve a intentar; el borrador se conserva.");
-    }
-    return content;
-  } catch (error) {
-    if (options.strict) {
-      if (options.signal?.aborted) throw new OpenCodeError('cancelled', 'Lectura cancelada. Los datos se conservan.');
-      if (error instanceof Error && /TimeoutError|AbortError/.test(error.name)) throw new OpenCodeError('timeout', "OpenCode GO tardó demasiado en responder. Vuelve a intentar; el borrador se conserva.");
-      if (error instanceof TypeError && /fetch|network/i.test(error.message)) throw new OpenCodeError('unavailable', 'No se pudo conectar con OpenCode GO. Los datos se conservan.');
-      throw error instanceof Error ? error : Error("No se pudo conectar con OpenCode GO.");
-    }
-    console.error("Error llamando a OpenCode Go:", error);
-    return "";
   }
+  return "";
 }
 
 import {
