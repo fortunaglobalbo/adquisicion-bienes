@@ -94,11 +94,11 @@ export interface Adquisicion {
   // Campos específicos de la Plantilla Institucional (PDF ENDE Deoruro)
   revision?: string; // ej. "Rev. N° 1"
   mes_anio_documento?: string; // ej. "Mayo - 2026"
-  elaborado_por?: string; // ej. "Heydi Canaviri Padilla"
+  elaborado_por?: string; // ej. "Ing. Tatiana Torres Andrade - Supervisor de Seguridad Industrial"
   elaborado_cargo?: string;
-  revisado_por?: string; // ej. "Heydi Canaviri Padilla"
+  revisado_por?: string; // ej. "Lic. Raul Torrico Gomez - Área Administrativa / Financiera"
   revisado_cargo?: string;
-  aprobado_por?: string; // ej. "Lic. Raul Alberto Torrico Gomez"
+  aprobado_por?: string; // ej. "Lic. Raul Torrico Gomez - Gerencia / Unidades Administrativas"
   aprobado_cargo?: string;
   antecedentes_texto?: string;
   justificacion_texto?: string;

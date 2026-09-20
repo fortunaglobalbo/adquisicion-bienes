@@ -103,12 +103,12 @@ export class CuadernoNormativoEngine {
       forma_pago: "Contra entrega satisfactoria, conformidad técnica y factura.",
       metodo_seleccion: "Menor Precio (Art. 31 SBC)",
       firmas_oficiales: {
-        elaborado_por: adquisicionBase?.elaborado_por || "Ing. Responsable de Adquisición",
-        elaborado_cargo: adquisicionBase?.elaborado_cargo || "SUPERVISOR TÉCNICO",
-        revisado_por: adquisicionBase?.revisado_por || "Ing. Jefatura de Mantenimiento",
-        revisado_cargo: adquisicionBase?.revisado_cargo || "JEFE DE DEPARTAMENTO TÉCNICO",
-        aprobado_por: adquisicionBase?.aprobado_por || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
-        aprobado_cargo: adquisicionBase?.aprobado_cargo || "GERENTE GENERAL",
+        elaborado_por: adquisicionBase?.elaborado_por || "Ing. Tatiana Torres Andrade - Supervisor de Seguridad Industrial",
+        elaborado_cargo: adquisicionBase?.elaborado_cargo || "Supervisor de Seguridad Industrial",
+        revisado_por: adquisicionBase?.revisado_por || "Lic. Raul Torrico Gomez - Área Administrativa / Financiera",
+        revisado_cargo: adquisicionBase?.revisado_cargo || "Área Administrativa / Financiera",
+        aprobado_por: adquisicionBase?.aprobado_por || "Lic. Raul Torrico Gomez - Gerencia / Unidades Administrativas",
+        aprobado_cargo: adquisicionBase?.aprobado_cargo || "Gerencia / Unidades Administrativas",
       },
     };
   }

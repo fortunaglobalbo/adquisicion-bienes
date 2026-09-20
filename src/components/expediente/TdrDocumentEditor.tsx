@@ -37,9 +37,9 @@ export const TdrDocumentEditor: React.FC<TdrDocumentEditorProps> = ({
   const [partida, setPartida] = useState(adquisicion.partida_presupuestaria || "39500 - Herramientas Menores");
   const [lugarEntrega, setLugarEntrega] = useState(adquisicion.lugar_entrega || "Almacenes ENDE DEORURO S.A.");
 
-  const [elaborado, setElaborado] = useState(adquisicion.elaborado_por || "Heydi Canaviri Padilla");
-  const [revisado, setRevisado] = useState(adquisicion.revisado_por || "Heydi Canaviri Padilla");
-  const [aprobado, setAprobado] = useState(adquisicion.aprobado_por || "[PENDIENTE DE COMPLETAR Y VERIFICAR]");
+  const [elaborado, setElaborado] = useState(adquisicion.elaborado_por || "Ing. Tatiana Torres Andrade - Supervisor de Seguridad Industrial");
+  const [revisado, setRevisado] = useState(adquisicion.revisado_por || "Lic. Raul Torrico Gomez - Área Administrativa / Financiera");
+  const [aprobado, setAprobado] = useState(adquisicion.aprobado_por || "Lic. Raul Torrico Gomez - Gerencia / Unidades Administrativas");
 
   const [antecedentes, setAntecedentes] = useState(adquisicion.antecedentes_texto || "");
   const [justificacion, setJustificacion] = useState(adquisicion.justificacion_texto || "");
@@ -465,7 +465,7 @@ export const TdrDocumentEditor: React.FC<TdrDocumentEditorProps> = ({
                   onChange={(e) => setElaborado(e.target.value)}
                   className="w-full px-2 py-1 border border-outline-variant rounded text-xs font-semibold"
                 />
-                <span className="text-[10px] text-outline">Supervisora Seguridad Industrial</span>
+                <span className="text-[10px] text-outline">Supervisor de Seguridad Industrial</span>
               </div>
 
               <div className="p-3 bg-surface border border-outline-variant rounded space-y-1.5">
@@ -476,7 +476,7 @@ export const TdrDocumentEditor: React.FC<TdrDocumentEditorProps> = ({
                   onChange={(e) => setRevisado(e.target.value)}
                   className="w-full px-2 py-1 border border-outline-variant rounded text-xs font-semibold"
                 />
-                <span className="text-[10px] text-outline">Supervisora Seguridad Industrial</span>
+                <span className="text-[10px] text-outline">Área Administrativa / Financiera</span>
               </div>
 
               <div className="p-3 bg-surface border border-outline-variant rounded space-y-1.5">
@@ -487,7 +487,7 @@ export const TdrDocumentEditor: React.FC<TdrDocumentEditorProps> = ({
                   onChange={(e) => setAprobado(e.target.value)}
                   className="w-full px-2 py-1 border border-outline-variant rounded text-xs font-semibold"
                 />
-                <span className="text-[10px] text-outline">Gerencia ENDE Deoruro S.A.</span>
+                <span className="text-[10px] text-outline">Gerencia / Unidades Administrativas</span>
               </div>
             </div>
           </div>

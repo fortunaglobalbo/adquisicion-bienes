@@ -21,7 +21,10 @@ export function seedFixedDraft(number: number, adq: Adquisicion): FixedDraft {
   const people = officialPeople(number, adq.responsables_oficiales?.[number]);
   const values: Record<string, string> = {
     objeto: adq.titulo_proceso, solicitante: adq.responsable_proceso, area: adq.unidad_solicitante,
-    lugar: adq.lugar_entrega, elaborado: adq.elaborado_por || "", revisado: adq.revisado_por || "", aprobado: adq.aprobado_por || "",
+    lugar: adq.lugar_entrega,
+    elaborado: adq.elaborado_por || (number === 1 ? "Ing. Tatiana Torres Andrade - Supervisor de Seguridad Industrial" : ""),
+    revisado: adq.revisado_por || (number === 1 ? "Lic. Raul Torrico Gomez - Área Administrativa / Financiera" : ""),
+    aprobado: adq.aprobado_por || (number === 1 ? "Lic. Raul Torrico Gomez - Gerencia / Unidades Administrativas" : ""),
     antecedentes: adq.antecedentes_texto || "", justificacion: adq.justificacion_texto || "",
     plazo: adq.plazo_entrega_dias > 0 ? `${adq.plazo_entrega_dias} días calendario` : "",
     presupuesto: adq.prevision_presupuesto > 0 ? adq.prevision_presupuesto.toFixed(2) : "",

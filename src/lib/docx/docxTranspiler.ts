@@ -92,22 +92,22 @@ export class DocxTranspiler {
             id: "firm-1",
             rol: "ELABORADO",
             etiqueta: "ELABORADO POR:",
-            nombreDefault: "Ing. Responsable de Adquisición",
-            cargoDefault: "SUPERVISOR TÉCNICO",
+            nombreDefault: "Ing. Tatiana Torres Andrade - Supervisor de Seguridad Industrial",
+            cargoDefault: "Supervisor de Seguridad Industrial",
           },
           {
             id: "firm-2",
             rol: "REVISADO",
             etiqueta: "REVISADO POR:",
-            nombreDefault: "Ing. Jefatura de Mantenimiento",
-            cargoDefault: "JEFE DE DEPARTAMENTO TÉCNICO",
+            nombreDefault: "Lic. Raul Torrico Gomez - Área Administrativa / Financiera",
+            cargoDefault: "Área Administrativa / Financiera",
           },
           {
             id: "firm-3",
             rol: "APROBADO",
             etiqueta: "APROBADO POR:",
-            nombreDefault: "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
-            cargoDefault: "GERENTE GENERAL",
+            nombreDefault: "Lic. Raul Torrico Gomez - Gerencia / Unidades Administrativas",
+            cargoDefault: "Gerencia / Unidades Administrativas",
           }
         );
       }

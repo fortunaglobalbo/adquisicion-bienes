@@ -30,9 +30,9 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
         ? tpl.fechaDoc
         : getMesAnioActual());
   const tituloUpper = (tpl.tituloProceso || adquisicion.titulo_proceso || "ADQUISICIÓN DE BIENES Y SUMINISTROS").toUpperCase();
-  const elaborado = adquisicion.elaborado_por || tpl.firmaNombre || "Área Solicitante";
-  const revisado = adquisicion.revisado_por || "Jefatura de Adquisiciones y Contrataciones";
-  const aprobado = adquisicion.aprobado_por || "Gerencia General / Administrativa Financiera";
+  const elaborado = adquisicion.elaborado_por || tpl.firmaNombre || "Ing. Tatiana Torres Andrade - Supervisor de Seguridad Industrial";
+  const revisado = adquisicion.revisado_por || "Lic. Raul Torrico Gomez - Área Administrativa / Financiera";
+  const aprobado = adquisicion.aprobado_por || "Lic. Raul Torrico Gomez - Gerencia / Unidades Administrativas";
 
 
   // Resumen de ítems en viñeta

@@ -244,9 +244,9 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
         ...docData,
         tipo_tabla_tdr: detectedTabla,
         titulo_proceso: aiData.titulo_proceso || docData.titulo_proceso,
-        elaborado_por: aiData.elaborado_por || docData.elaborado_por || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
-        revisado_por: aiData.revisado_por || docData.revisado_por || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
-        aprobado_por: aiData.aprobado_por || docData.aprobado_por || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
+        elaborado_por: aiData.elaborado_por || docData.elaborado_por || "Ing. Tatiana Torres Andrade - Supervisor de Seguridad Industrial",
+        revisado_por: aiData.revisado_por || docData.revisado_por || "Lic. Raul Torrico Gomez - Área Administrativa / Financiera",
+        aprobado_por: aiData.aprobado_por || docData.aprobado_por || "Lic. Raul Torrico Gomez - Gerencia / Unidades Administrativas",
         antecedentes_texto: aiData.antecedentes_texto || detectedPuntos[1] || docData.antecedentes_texto || `De acuerdo a la legislación vigente y normas internas de ENDE DEORURO S.A., se da inicio al proceso de adquisición para "${docData.titulo_proceso}".`,
         justificacion_texto: aiData.justificacion_texto || detectedPuntos[2] || docData.justificacion_texto || `La presente adquisición tiene por objeto garantizar la continuidad operativa y técnica de ENDE DEORURO S.A.`,
         calidad_texto: aiData.calidad_texto || detectedPuntos[4] || docData.calidad_texto,
@@ -694,7 +694,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
                   onBlur={(e) => handleTextChange("elaborado_por", e.currentTarget.textContent || "")}
                   className="p-1 hover:bg-blue-50 focus:outline-none font-medium"
                 >
-                  {docData.elaborado_por || "[PENDIENTE DE COMPLETAR Y VERIFICAR]"}
+                  {docData.elaborado_por || "Ing. Tatiana Torres Andrade - Supervisor de Seguridad Industrial"}
                 </div>
                 <div
                   contentEditable
@@ -702,7 +702,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
                   onBlur={(e) => handleTextChange("revisado_por", e.currentTarget.textContent || "")}
                   className="p-1 hover:bg-blue-50 focus:outline-none font-medium"
                 >
-                  {docData.revisado_por || "[PENDIENTE DE COMPLETAR Y VERIFICAR]"}
+                  {docData.revisado_por || "Lic. Raul Torrico Gomez - Área Administrativa / Financiera"}
                 </div>
                 <div
                   contentEditable
@@ -710,7 +710,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
                   onBlur={(e) => handleTextChange("aprobado_por", e.currentTarget.textContent || "")}
                   className="p-1 hover:bg-blue-50 focus:outline-none font-medium"
                 >
-                  {docData.aprobado_por || "[PENDIENTE DE COMPLETAR Y VERIFICAR]"}
+                  {docData.aprobado_por || "Lic. Raul Torrico Gomez - Gerencia / Unidades Administrativas"}
                 </div>
               </div>
             </div>
