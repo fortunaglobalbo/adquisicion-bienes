@@ -28,6 +28,12 @@ export function seedFixedDraft(number: number, adq: Adquisicion): FixedDraft {
     antecedentes: adq.antecedentes_texto || "", justificacion: adq.justificacion_texto || "",
     plazo: adq.plazo_entrega_dias > 0 ? `${adq.plazo_entrega_dias} días calendario` : "",
     presupuesto: adq.prevision_presupuesto > 0 ? adq.prevision_presupuesto.toFixed(2) : "",
+    calidad: adq.calidad_texto || "",
+    seleccion: adq.metodo_seleccion_texto || "",
+    vigencia: adq.vigencia_propuesta_texto || (number === 1 ? "Mínimo 30 días calendario computables a partir de la apertura de propuestas." : ""),
+    categoria: adq.categoria_texto || (number === 1 ? (adq.categoria === "Bienes" ? "Bienes y Herramientas" : adq.categoria || "Bienes y Herramientas") : ""),
+    pago: adq.forma_pago_texto || "",
+    multas: adq.multas_texto || (number === 1 && adq.multa_diaria_porcentaje ? `Ante el incumplimiento de los plazos y otras condiciones establecidas en la Orden de Compra y Especificaciones Técnicas, se aplicará la multa del ${adq.multa_diaria_porcentaje}% por cada día de retraso injustificado.` : ""),
     ...(adq.asistente_compra?.confirmedAt ? adq.asistente_compra.details : {}),
     ...people,
   };
@@ -39,7 +45,9 @@ export function seedFixedDraft(number: number, adq: Adquisicion): FixedDraft {
       precio: item.precioUnitarioEstimado > 0 ? String(item.precioUnitarioEstimado) : missingValue,
       precio_oferta: "", total_oferta: "" } as Record<string, string>)[c.key] ?? missingValue,
   ])));
-  const draft:FixedDraft = { modelVersion: model.version, companyId: adq.empresa_id || "ende", fields: Object.fromEntries(model.fields.map(f => [f.key, f.normative ? missingValue : text(values[f.key]) || missingValue])),
+  const confirmedNorms = model.fields.filter(f => f.normative && text(values[f.key]) && text(values[f.key]) !== missingValue).map(f => f.key);
+  const draft:FixedDraft = { modelVersion: model.version, companyId: adq.empresa_id || "ende", fields: Object.fromEntries(model.fields.map(f => [f.key, text(values[f.key]) || missingValue])),
+    confirmedFields: confirmedNorms,
     editedFields: Object.keys(people), items, sourceIds: {}, sources: [], warnings: [], consultedAt: null, normativeStatus: "pending" };
   return adq.selection_plan?.confirmedAt ? applySelection(draft,adq.selection_plan,number) : draft;
 }
@@ -160,7 +168,15 @@ export async function completeFixedDocument(number: number, adq: Adquisicion, cu
     }
     const proposedVal = text(result.proposals?.[f.key]?.value);
     if(decisionKeys.includes(f.key) && proposedVal && !decisions[f.key]) proposals[f.key]={value:proposedVal.slice(0,4000),reason:text(result.proposals[f.key].reason).slice(0,1500)};
-    if(f.key==='categoria' && [1,2].includes(number) && !/categor[ií]a\s+(?:I{1,3}|especial)\b/i.test(value)) return [f.key,missingValue];
+    if(f.key==='categoria' && number === 2 && !/categor[ií]a\s+(?:I{1,3}|especial)\b/i.test(value)) return [f.key,missingValue];
+    if(f.key==='categoria' && number === 1) {
+      const cat = (value && !/PENDIENTE/.test(value)) ? value : adq.categoria_texto || (adq.categoria === "Bienes" ? "Bienes y Herramientas" : adq.categoria) || "Bienes y Herramientas";
+      return [f.key, cat];
+    }
+    if(f.key==='multas' && number === 1 && (!value || /PENDIENTE/.test(value) || !sourceIds[f.key]?.length)) {
+      const multaText = adq.multas_texto || (adq.multa_diaria_porcentaje ? `Ante el incumplimiento de los plazos y otras condiciones establecidas en la Orden de Compra y Especificaciones Técnicas, se aplicará la multa del ${adq.multa_diaria_porcentaje}% por cada día de retraso injustificado.` : '');
+      if (multaText) return [f.key, multaText];
+    }
     const decisionVal = decisionKeys.includes(f.key) ? (decisions[f.key] || proposedVal) : '';
     return [f.key, decisionVal ? decisionVal : f.normative && !sourceIds[f.key].length ? missingValue : value || missingValue];
   }));
@@ -184,5 +200,11 @@ export async function completeFixedDocument(number: number, adq: Adquisicion, cu
   if (hasNormativeFields && !sources.length) warnings.unshift("No se recuperó fundamento normativo. Requiere revisión antes de su uso oficial.");
   if (partialSearch && sources.length) warnings.unshift("Parte de las búsquedas no respondió. El fundamento recuperado puede estar incompleto.");
   if(sources.length) warnings.push("Las fuentes recuperadas son propuestas de fundamento; revisa su aplicabilidad y vigencia antes de firmar.");
-  return normalizeFixedDraft(model, { companyId: company.id, modelVersion: model.version, fields, items: current.editedItems ? current.items : items, editedItems: current.editedItems, sources, sourceIds, sourceQuotes, proposals, warnings, editedFields:current.editedFields || [], confirmedFields:current.confirmedFields, selectionPlan:current.selectionPlan, consultedAt: new Date().toISOString(), normativeStatus: status });
+  const confirmedFields = Array.from(new Set([
+    ...(current.confirmedFields || []),
+    ...(fields.categoria && fields.categoria !== missingValue ? ['categoria'] : []),
+    ...(fields.multas && fields.multas !== missingValue ? ['multas'] : []),
+    ...(fields.vigencia && fields.vigencia !== missingValue ? ['vigencia'] : []),
+  ]));
+  return normalizeFixedDraft(model, { companyId: company.id, modelVersion: model.version, fields, items: current.editedItems ? current.items : items, editedItems: current.editedItems, sources, sourceIds, sourceQuotes, proposals, warnings, editedFields:current.editedFields || [], confirmedFields, selectionPlan:current.selectionPlan, consultedAt: new Date().toISOString(), normativeStatus: status });
 }

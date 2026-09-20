@@ -106,6 +106,8 @@ export const INITIAL_ADQUISICIONES: Adquisicion[] = [
     calidad_texto: "El ofertante deberá presentar un certificado en el cual garantice que las herramientas cumplan con todas las características técnicas y los estándares de calidad de acuerdo a normativa vigente.",
     metodo_seleccion_texto: "Menor Precio (Art. 31 Reglamento SBC)",
     vigencia_propuesta_texto: "Mínimo 30 días calendario computables a partir de la apertura de propuestas.",
+    categoria_texto: "Bienes y Herramientas",
+    multas_texto: "Ante el incumplimiento de los plazos y otras condiciones establecidas en la Orden de Compra y Especificaciones Técnicas, se aplicará la multa del 0.25% por cada día de retraso injustificado.",
     forma_pago_texto: "El pago se realizará contra entrega satisfactoria del producto, conformidad de la Distribuidora de Electricidad ENDE DEORURO S.A. y entrega de la siguiente documentación: Nota de Entrega, Solicitud de Pago y Factura.",
 
     items: [
@@ -270,6 +272,8 @@ export const INITIAL_ADQUISICIONES: Adquisicion[] = [
     plazo_entrega_dias: 60,
     multa_diaria_porcentaje: 0.25,
     lugar_entrega: "Subestaciones Oruro, Challapata y Poopó",
+    categoria_texto: "Servicios",
+    multas_texto: "Ante el incumplimiento de los plazos y otras condiciones establecidas en la Orden de Compra y Especificaciones Técnicas, se aplicará la multa del 0.25% por cada día de retraso injustificado.",
     items: [
       {
         id: "item-2-1",
