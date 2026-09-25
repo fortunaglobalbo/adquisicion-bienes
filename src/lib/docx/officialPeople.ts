@@ -5,7 +5,7 @@ export const officialPeopleKeys: Record<number, string[]> = {
   3: ['solicitante', 'destinatario'],
   4: ['remitente'],
   5: ['destinatario', 'via', 'solicitante'],
-  6: [],
+  6: ['destinatario', 'via', 'solicitante'],
   7: ['destinatario', 'via', 'solicitante'],
 };
 export function officialPeople(number: number, fields: Record<string, string> = {}) {

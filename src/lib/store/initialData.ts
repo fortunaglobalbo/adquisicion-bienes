@@ -38,9 +38,9 @@ export const FOLDER_TEMPLATES: {
   },
   {
     numero: 6,
-    nombre: "Form S2-N014 (Solicitud de Cotización)",
+    nombre: "Informe técnico de evaluación",
     tipo_generacion: "IA",
-    descripcion: "Generación con IA del pliego oficial de invitación a cotizar.",
+    descripcion: "Evaluación técnica y económica de cotizaciones, cuadro comparativo, conclusiones y recomendaciones.",
   },
   {
     numero: 7,

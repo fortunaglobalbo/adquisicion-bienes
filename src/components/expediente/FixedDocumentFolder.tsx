@@ -47,6 +47,7 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
   const requestVersion = useRef(0);
   const pdfUrl = useRef<string | null>(null);
   const pendingNorms = model.fields.filter(f=>f.normative && !draft?.confirmedFields?.includes(f.key) && !adquisicion.asistente_compra?.decisions?.[f.key] && (!draft?.sourceIds[f.key]?.length || /PENDIENTE/.test(draft?.fields[f.key] || ''))).map(f=>f.label);
+  const evaluationChanged=model.number===6&&!!draft&&!!adquisicion.quote_evaluation&&draft.evaluationRevision!==adquisicion.quote_evaluation.updatedAt;
   const choiceOptions:Record<string,string[]>=model.number===2?{almacen:['Con saldo','Sin saldo'],publicar_precio:['Sí','No'],con_presupuesto:['Sí','No']}:{};
   async function request(kind: string) {
     const form = new FormData();
@@ -63,12 +64,12 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
       const result = await (await request(kind)).json();
       if (!mounted.current || version !== requestVersion.current) return;
       if (result.question) { setClarification(result.question); setPendingInstruction(result.instruction || context); setContext(''); setAiEdit(true); return; }
-      if (kind === 'complete' || kind === 'revise') {setUndoDraft(draft);setClarification('');setPendingInstruction('');}
+      if (kind === 'complete' || kind === 'revise' || kind === 'refresh-evaluation') {setUndoDraft(draft);setClarification('');setPendingInstruction('');}
       setDraft(result.draft); setHtml(result.html); setPreviewWarning(result.previewWarning); setStale(false);
       if (pdfUrl.current) URL.revokeObjectURL(pdfUrl.current);
       pdfUrl.current = result.pdf ? URL.createObjectURL(new Blob([Uint8Array.from(atob(result.pdf), c => c.charCodeAt(0))], { type: "application/pdf" })) : null;
       setPdf(pdfUrl.current);
-      if (kind === "complete" || kind === "revise") { setDirty(true); setAiEdit(false); setContext(""); setFiles([]); setMessage(result.revised ? `Cambios aplicados: ${(result.revisionSummary || []).join(", ") || "el documento ya contiene los datos solicitados"}. Revisa la vista y pulsa Guardar cambios.` : "Datos incorporados al borrador. Revisa los campos pendientes antes de guardarlo."); }
+      if (kind === "complete" || kind === "revise" || kind === 'refresh-evaluation') { setDirty(true); setAiEdit(false); setContext(""); setFiles([]); setMessage(kind==='refresh-evaluation'?'Cuadro y conclusiones actualizados desde las cotizaciones guardadas. Puedes editarlos y guardar el informe.':result.revised ? `Cambios aplicados: ${(result.revisionSummary || []).join(", ") || "el documento ya contiene los datos solicitados"}. Revisa la vista y pulsa Guardar cambios.` : "Datos incorporados al borrador. Revisa los campos pendientes antes de guardarlo."); }
     } catch (e) { if (mounted.current && version === requestVersion.current) setError(e instanceof Error ? e.message : "No se pudo actualizar."); }
     finally { if (mounted.current && version === requestVersion.current) setBusy(false); }
   }
@@ -126,6 +127,7 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
           }
         }
         const currentAdq = DataStore.getAdquisicionById(adquisicion.id) || adquisicion;
+        if(model.number===2)await DataStore.updateAdquisicion(adquisicion.id,{solicitud_numero:savedDraft.fields.numero});
         const stored = await DataStore.updateAdquisicion(adquisicion.id, {borradores_ia: {...currentAdq.borradores_ia, [model.number]: {draft: savedDraft, briefRevision: currentAdq.asistente_compra?.revision || '', updatedAt: new Date().toISOString()}}});
         if (!stored.success) throw Error(stored.error);
         if (saveOfficial) {
@@ -138,6 +140,8 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
           const company = adquisicion.empresa_id || 'ende';
           const result = await DataStore.updatePlantilla(template.id, {datos_completos: {...template.datos_completos, officialPeopleByCompany: {...template.datos_completos?.officialPeopleByCompany, [company]: {fields: people, updatedAt: new Date().toISOString()}}}});
           if (!result.success) throw Error('Los datos oficiales quedaron en este equipo pendientes de sincronizar. Vuelve a guardar cuando haya conexión.');
+          const refreshed=DataStore.getAdquisicionById(adquisicion.id)||adquisicion;
+          await DataStore.updateAdquisicion(adquisicion.id,{responsables_oficiales:{...refreshed.responsables_oficiales,[model.number]:people}});
         }
         await DataStore.flushPending();
         setDirty(false); setSaveOfficial(false); setEdit(false); setMessage(DataStore.pendingCount() ? "Archivo guardado; el registro tiene cambios pendientes de sincronización." : saveOfficial ? "Documento y responsables oficiales guardados para próximos expedientes." : "Cambios guardados. Esta es la versión actual del documento.");
@@ -202,6 +206,8 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
     <div><h2 className="text-xl font-bold text-primary">{model.title}</h2><p className="mt-1 text-sm text-slate-600">Modelo institucional fijo · Word editable · {dirty ? "Cambios sin guardar en el expediente" : "Documento para revisión"}</p></div>
     {purchaseChanged && <p role="status" className="rounded-lg bg-amber-50 p-3 text-sm">El TDR o los datos de la compra cambiaron desde esta versión. Revisa el objeto y los ítems en «Editar documento» antes de utilizar este documento.</p>}
     <fieldset disabled={busy || assistantBusy} className="space-y-4 min-w-0">
+      {model.number===2&&<p className="text-sm text-slate-600">El número se propone desde el código del expediente. Cargo, área y responsable de recepción se completan con los datos oficiales disponibles. Todo se puede editar.</p>}
+      {model.number===6&&<div className="rounded-lg border border-blue-200 bg-blue-50 p-3 space-y-2 text-sm"><p>Informe técnico de evaluación basado en el modelo aportado. Puedes editar libremente los párrafos y el cuadro de proveedores.</p>{evaluationChanged&&<p className="font-semibold">Las cotizaciones cambiaron desde esta versión del informe.</p>}{adquisicion.quote_evaluation?.quotes.length?<button className={action} onClick={()=>refresh('refresh-evaluation')}>Actualizar cuadro y conclusiones desde cotizaciones</button>:<p>Guarda la comparación en la carpeta 4 para incorporar sus proveedores, precios y resultados automáticamente.</p>}</div>}
       {model.number>4&&adquisicion.asistente_compra?.confirmedAt&&<button className={action} onClick={()=>refresh('complete')}><Sparkles size={16}/>Redactar con los datos de esta compra</button>}
       <div className="flex flex-wrap gap-2">
         <button className={action} onClick={() => setEdit(v => !v)}>
@@ -231,7 +237,7 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
           <ul className="mt-2 space-y-1">{model.fields.filter(f=>officialPeopleKeys[model.number].includes(f.key)).map(f=><li key={f.key}><strong>{f.label}:</strong> {draft.fields[f.key] || 'Sin completar'}</li>)}</ul>
         </div>}
         <div className="mt-4 grid gap-4 sm:grid-cols-2">{model.fields.map(f => <label key={f.key} className="block text-sm"><span className="font-semibold">{f.label}</span>{choiceOptions[f.key]?<select className={`${control} mt-1`} value={draft.fields[f.key]} onChange={e=>changeField(f.key,e.target.value)}><option value="[PENDIENTE]">Sin confirmar</option>{!choiceOptions[f.key].includes(draft.fields[f.key]) && draft.fields[f.key]!=="[PENDIENTE]"&&<option value={draft.fields[f.key]}>{draft.fields[f.key]}</option>}{choiceOptions[f.key].map(v=><option key={v}>{v}</option>)}</select>:<textarea rows={draft.fields[f.key]?.length > 140 ? 5 : 2} className={`${control} mt-1 ${/PENDIENTE/.test(draft.fields[f.key] || "") ? "border-amber-500" : ""}`} value={draft.fields[f.key] || ""} onChange={e => changeField(f.key, e.target.value)} />}{f.normative && <span className="text-slate-600">{draft.confirmedFields?.includes(f.key) ? "Condición confirmada para esta compra" : draft.sourceIds[f.key]?.length ? `Fundamento: ${draft.sourceIds[f.key].join(", ")}` : "Fundamento pendiente de revisión"}</span>}</label>)}</div>
-          {!!model.columns.length && <div className="mt-5 space-y-3"><h3 className="font-semibold">Ítems</h3><div className="overflow-x-auto"><table className="text-sm w-full"><thead><tr>{model.columns.map(c => <th className="p-2" key={c.key}>{c.label}</th>)}<th /></tr></thead><tbody>{draft.items.map((row, i) => <tr key={i}>{model.columns.map(c => <td key={c.key} className="p-1"><textarea aria-label={`${c.label}, ítem ${i+1}`} disabled={c.key === "numero"} className={`${control} min-w-[100px]`} value={row[c.key] || ""} onChange={e => { setDraft({...draft,editedItems:true,items:draft.items.map((r,j)=>j===i?{...r,[c.key]:e.target.value}:r)});setDirty(true);setStale(true); }} /></td>)}<td><button className="text-red-700 p-2" onClick={() => {setDraft({...draft,editedItems:true,items:draft.items.filter((_,j)=>j!==i)});setDirty(true);setStale(true);}}>Quitar</button></td></tr>)}</tbody></table></div><button className={action} onClick={() => {setDraft({...draft,editedItems:true,items:[...draft.items,Object.fromEntries(model.columns.map(c=>[c.key,c.key==='numero'?String(draft.items.length+1):'']))]});setDirty(true);setStale(true);}}>Añadir ítem</button>{model.number===6&&<p className="text-sm">Los precios y condiciones de oferta los completa el proveedor.</p>}</div>}
+          {!!model.columns.length && <div className="mt-5 space-y-3"><h3 className="font-semibold">{model.number===6?"Cuadro de proveedores y evaluación":"Ítems"}</h3><div className="overflow-x-auto"><table className="text-sm w-full"><thead><tr>{model.columns.map(c => <th className="p-2" key={c.key}>{c.label}</th>)}<th /></tr></thead><tbody>{draft.items.map((row, i) => <tr key={i}>{model.columns.map(c => <td key={c.key} className="p-1"><textarea aria-label={`${c.label}, ítem ${i+1}`} disabled={c.key === "numero"} className={`${control} min-w-[100px]`} value={row[c.key] || ""} onChange={e => { setDraft({...draft,editedItems:true,items:draft.items.map((r,j)=>j===i?{...r,[c.key]:e.target.value}:r)});setDirty(true);setStale(true); }} /></td>)}<td><button className="text-red-700 p-2" onClick={() => {setDraft({...draft,editedItems:true,items:draft.items.filter((_,j)=>j!==i)});setDirty(true);setStale(true);}}>Quitar</button></td></tr>)}</tbody></table></div><button className={action} onClick={() => {setDraft({...draft,editedItems:true,items:[...draft.items,Object.fromEntries(model.columns.map(c=>[c.key,c.key==='numero'?String(draft.items.length+1):'']))]});setDirty(true);setStale(true);}}>{model.number===6?"Añadir proveedor":"Añadir ítem"}</button>{model.number===6&&<p className="text-sm">Puedes completar o corregir cada oferta y su respaldo. Los cambios de este informe no alteran la comparación guardada en la carpeta 4.</p>}</div>}
         <div className="flex flex-wrap gap-2"><button className={action} onClick={()=>download(true)}><Save size={16}/>Guardar cambios</button><button className={action} onClick={()=>refresh()}><RefreshCw size={16}/>Actualizar vista</button></div>
       </div>}
       {stale && <div className="flex flex-wrap items-center gap-3 bg-amber-50 p-3"><span className="text-sm">La vista aún no incluye los últimos cambios.</span><button className={action} onClick={() => refresh()}><RefreshCw size={16} />Actualizar vista</button></div>}

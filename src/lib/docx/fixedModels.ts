@@ -10,6 +10,7 @@ export function fixedModel(number: number): FixedModel {
 }
 export interface FixedSource { id: string; title: string; excerpt: string; page: string; version: string }
 export interface FixedDraft {
+  evaluationRevision?: string;
   selectionPlan?: import('../procurement/selection').SelectionPlan;
   confirmedFields?: string[];
   modelVersion: string;

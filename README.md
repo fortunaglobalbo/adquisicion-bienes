@@ -1,5 +1,15 @@
 # ENDE Deoruro — Gestión de adquisiciones
 
+## Informe técnico de evaluación y datos automáticos del S1
+
+La carpeta 6 utiliza el **Informe técnico de evaluación de ofertas**, reconstruido como Word editable a partir del PDF aportado el 25 de septiembre de 2026. Reemplaza el S2 en el flujo actual y conserva las descargas de documentos anteriores. Incluye destinatario, vía, informante, antecedentes, recepción de cotizaciones, cuadro por proveedor, conclusiones y recomendaciones. El encabezado A6 de conformidad del ejemplo se corrigió; la conformidad de bienes/servicios permanece en la carpeta 7. No se trasladan proveedores, importes, firmas ni artículos del ejemplo a otras compras.
+
+Cuando existe una comparación guardada en la carpeta 4, el informe incorpora sus ofertas y resultados. Si cambia esa comparación, aparece un aviso y el botón «Actualizar cuadro y conclusiones desde cotizaciones». Las ediciones manuales se conservan durante la redacción con IA; esa actualización explícita sustituye el cuadro y las conclusiones por los datos guardados y se puede deshacer. Una evaluación incompleta, un empate o reglas desactualizadas no producen una recomendación automática de adjudicación.
+
+El S1 propone su número desde el código del expediente (`ENDE-D-2026-066` → `66/2026`); no es un correlativo institucional independiente. Un número escrito por el usuario se conserva y alimenta la referencia del informe. Cargo, área y responsable de recepción se completan con datos confirmados u oficiales disponibles, sin inventar cargos ni asignar automáticamente al solicitante como receptor. Los datos faltantes de expedientes anteriores pueden tomar los valores oficiales guardados, manteniendo los valores propios ya consignados. Todos siguen editables.
+
+Prueba: `npm run test:evaluation-template` comprueba autollenado y correcciones del S1, datos de ofertas, empates, pendientes, conservación de ediciones y ambos Word.
+
 ## Condiciones del TDR y comparación de cotizaciones
 
 En la carpeta 1, «Condiciones y evaluación del TDR» permite escoger **Menor precio** o **Calidad y Precio**, definir la adjudicación por ítem, lote, tramo o paquete y guardar las condiciones comunes en el TDR y S1. La base de mantenimiento e higiene incluye la vigencia de 30 días, el pago contra los cuatro documentos indicados por el usuario y la multa diaria del 0,25 %. Es una base comercial editable para esa especialidad, no una regla general para otras compras. La categoría descriptiva del TDR se distingue de la categoría por cuantía del S1.

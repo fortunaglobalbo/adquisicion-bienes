@@ -2,6 +2,7 @@
 
 import { Adquisicion, Carpeta, Documento, CampoExtraido, Firma, LogProceso, Plantilla } from "@/types";
 import { createInitialFolders, FOLDER_TEMPLATES } from "./initialData";
+import { officialPeople } from '../docx/officialPeople';
 
 const KEYS = { adq: "ende_adquisiciones_v2026", folders: "ende_carpetas_v2026", fields: "ende_campos_extraidos_v2026", logs: "ende_logs_v2026", signs: "ende_firmas_v2026", templates: "ende_plantillas_v2026", pending: "ende_pending_v1", revisions: "ende_revisions_v1", templatePending: "ende_templates_pending_v1" };
 type Result = { success: boolean; error?: string };
@@ -119,7 +120,20 @@ export class DataStore {
     finally { this.hydrating = false; }
   }
   static getAdquisiciones(): Adquisicion[] { return this.read(KEYS.adq, []); }
-  static getAdquisicionById(id: string) { return this.getAdquisiciones().find(a => a.id === id || a.codigo === id); }
+  static getAdquisicionById(id: string) {
+    const adq=this.getAdquisiciones().find(a => a.id === id || a.codigo === id);
+    if(!adq)return undefined;
+    const people={...adq.responsables_oficiales};
+    for(const template of this.getPlantillas()) {
+      const defaults=officialPeople(template.fk_carpeta,template.datos_completos?.officialPeopleByCompany?.[adq.empresa_id||'ende']?.fields);
+      people[template.fk_carpeta]={...defaults,...officialPeople(template.fk_carpeta,people[template.fk_carpeta])};
+    }
+    const latestS1=this.getAllCarpetas().find(c=>c.adquisicion_id===adq.id&&c.numero===2)?.documentos
+      .filter(d=>d.metadata?.fixedDraft?.fields).sort((a,b)=>b.fecha_creacion.localeCompare(a.fecha_creacion))[0];
+    const prepared={...adq.borradores_ia};
+    if(latestS1&&(!prepared['2']||latestS1.fecha_creacion>prepared['2'].updatedAt))prepared['2']={draft:latestS1.metadata!.fixedDraft!,updatedAt:latestS1.fecha_creacion,briefRevision:''};
+    return {...adq,responsables_oficiales:people,borradores_ia:prepared};
+  }
   static saveAdquisiciones(list: Adquisicion[]) {
     const old = this.getAdquisiciones(); this.write(KEYS.adq, list);
     list.filter(a => JSON.stringify(old.find(o => o.id === a.id)) !== JSON.stringify(a)).forEach(a => this.changed(a.id));
@@ -157,7 +171,9 @@ export class DataStore {
       return { success: true };
     } catch (e) { return { success: false, error: e instanceof Error ? e.message : "No se pudo eliminar." }; }
   }
-  static getAllCarpetas(): Carpeta[] { return this.read(KEYS.folders, []); }
+  static getAllCarpetas(): Carpeta[] {
+    return this.read<Carpeta[]>(KEYS.folders, []).map(c=>c.numero===6?{...c,nombre:'Informe técnico de evaluación',descripcion:'Evaluación técnica y económica de cotizaciones, cuadro comparativo, conclusiones y recomendaciones.'}:c);
+  }
   static getCarpetasByAdquisicion(id: string): Carpeta[] {
     return this.getAllCarpetas().filter(c => c.adquisicion_id === id).sort((a,b) => (a.orden || a.numero) - (b.orden || b.numero));
   }

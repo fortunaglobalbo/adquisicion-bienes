@@ -93,19 +93,19 @@ export const FolderAiGuideBanner: React.FC<FolderAiGuideBannerProps> = ({
     },
     6: {
       queHace:
-        "Genera la Solicitud de Cotización Oficial (Formulario S2-N014) enviada al proponente adjudicado.",
-      deQuienDepende: ["Carpeta 1 (Ítems y TDR) y Carpeta 4 (Proveedor con menor precio)"],
+        "Prepara el informe técnico de evaluación de ofertas y su cuadro comparativo.",
+      deQuienDepende: ["Carpeta 1 (Ítems y TDR) y Carpeta 4 (Comparación de cotizaciones)"],
       pasos: [
-        "Verifica el proveedor seleccionado de la Carpeta 4.",
-        "La IA consolida el cuadro de cotización oficial y plazos de entrega.",
-        "Descarga el pliego para invitar formalmente al proponente.",
+        "Revisa los resultados y la evidencia en la carpeta 4.",
+        "Incorpora el cuadro y redacta las conclusiones del informe.",
+        "Edita, guarda y descarga el informe en Word.",
       ],
-      consejo: "Incluye la cláusula de requerimiento de fotocopia simple de NIT y SEPREC/Fundempresa.",
+      consejo: "Los requisitos y la recomendación deben corresponder a las reglas confirmadas y a la evidencia registrada.",
     },
     7: {
       queHace:
         "Genera el Informe Técnico de Conformidad y Recepción Definitiva (Formulario A6-N014) certificando el cumplimiento del 100%.",
-      deQuienDepende: ["Carpeta 1 (TDR), Carpeta 4 (Cotizaciones) y Carpeta 6 (Formulario S-2)"],
+      deQuienDepende: ["Carpeta 1 (TDR), Carpeta 4 (Cotizaciones) y Carpeta 6 (Evaluación)"],
       pasos: [
         "Haz clic en 'Generar con IA' para elaborar el informe de cumplimiento.",
         "Verifica la conclusión de recepción definitiva a satisfacción de ENDE DEORURO.",

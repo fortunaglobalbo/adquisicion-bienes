@@ -1,0 +1,34 @@
+const assert=require('node:assert/strict'),fs=require('fs'),path=require('path'),Module=require('module'),ts=require('typescript');
+require.extensions['.ts']=(m,file)=>m._compile(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText,file);
+const resolve=Module._resolveFilename;Module._resolveFilename=function(name,...args){return resolve.call(this,name.startsWith('@/')?path.join(process.cwd(),'src',name.slice(2)):name,...args)};
+let response={};const load=Module._load;Module._load=function(name,...args){if(name.endsWith('/ai/openCodeClient'))return{extractJsonFromText:JSON.parse,callOpenCodeGo:async(messages)=>JSON.stringify(messages[0].content.includes('EXTRACT_DOCUMENT_EVIDENCE')?{facts:[],missing:[],conflicts:[]}:response)};if(name.endsWith('/ai/anythingLlmClient'))return{AnythingLlmClient:{searchWorkspaceSources:async()=>({sources:[]})}};return load.call(this,name,...args);};
+const {seedFixedDraft,renderFixedWord,completeFixedDocument}=require('../src/lib/server/fixedDocuments.ts');
+const {requestNumber,fillAdministrativeBlanks}=require('../src/lib/docx/administrativeDefaults.ts');
+const {technicalEvaluationData,updateTechnicalEvaluation}=require('../src/lib/server/technicalEvaluation.ts');
+const {initialSelection}=require('../src/lib/procurement/selection.ts');
+const mammoth=require('mammoth');
+const adq={id:'evaluation-template-test',empresa_id:'ende',codigo:'ENDE-D-2026-066',titulo_proceso:'Adquisición de correas de sujeción de prueba',categoria:'Bienes',responsable_proceso:'Solicitante del expediente',unidad_solicitante:'Área técnica',lugar_entrega:'Oruro',plazo_entrega_dias:30,prevision_presupuesto:10000,items:[{id:'one',item:1,descripcion:'Correa de prueba',unidad:'Pieza',cantidad:10,precioTotalEstimado:10000,precioUnitarioEstimado:1000}],responsables_oficiales:{2:{solicitante:'Solicitante oficial',cargo:'Cargo oficial',area:'Área oficial',responsable_recepcion:'Responsable oficial'},5:{destinatario:'Autoridad de prueba\nCargo de prueba',via:'Gerencia de prueba'}}};
+const plan={...initialSelection(adq),revision:'test-rules',confirmedAt:'2026-09-25T10:00:00Z'};
+const quote=(id,price,reviewed=true)=>({id,provider:`Proveedor ${id}`,groupId:'one',price,source:'Oferta de prueba, página 1',reviewed,minimums:{'min-tecnico':'yes'},levels:{},evidence:{'min-tecnico':'Cumple el alcance técnico solicitado.',precio:`Precio ${price} Bs, impuestos incluidos.`}});
+(async()=>{
+ assert.equal(requestNumber(adq),'66/2026');assert.equal(requestNumber({...adq,codigo:'ENDE-D-2027-001'}),'1/2027');assert.equal(requestNumber({...adq,solicitud_numero:'008/SI/2026'}),'008/SI/2026');
+ const s1=seedFixedDraft(2,adq);assert.equal(s1.fields.numero,'66/2026');assert.equal(s1.fields.cargo,'Cargo oficial');assert.equal(s1.fields.area,'Área oficial');assert.equal(s1.fields.responsable_recepcion,'Responsable oficial');
+ const manual={...s1,fields:{...s1.fields,numero:'90/2026',cargo:'Otro cargo'},editedFields:['numero','cargo']};assert.equal(fillAdministrativeBlanks(manual,adq,2).fields.numero,'90/2026');assert.equal(fillAdministrativeBlanks(manual,adq,2).fields.cargo,'Otro cargo');
+ const old={...s1,fields:{...s1.fields,numero:'[PENDIENTE]',cargo:'[PENDIENTE]'},editedFields:[]};assert.equal(fillAdministrativeBlanks(old,adq,2).fields.numero,'66/2026');assert.equal(fillAdministrativeBlanks(old,adq,2).fields.cargo,'Cargo oficial');
+ const empty=seedFixedDraft(6,adq);assert.equal(empty.items.length,0);assert.equal(empty.fields.solicitud,'66/2026');assert.match(empty.fields.solicitante,/Cargo oficial/);assert.ok(!Object.values(empty.fields).join(' ').includes('ARIOL'));
+ const evaluated={...adq,selection_plan:plan,quote_evaluation:{plan,quotes:[quote('A','9000'),quote('B','8500')],updatedAt:'2026-09-25T12:00:00Z'}};
+ const data=technicalEvaluationData(evaluated);assert.equal(data.items.length,2);assert.match(data.fields.recomendaciones,/Proveedor B/);assert.ok(!/adjudicación emitida\.$/.test(data.fields.conclusiones));
+ const pending=technicalEvaluationData({...evaluated,quote_evaluation:{...evaluated.quote_evaluation,quotes:[quote('A','9000'),quote('B','8500',false)]}});assert.match(pending.fields.conclusiones,/evaluación incompleta/);assert.ok(!pending.fields.recomendaciones.includes('considerar la adjudicación'));
+ const tie=technicalEvaluationData({...evaluated,quote_evaluation:{...evaluated.quote_evaluation,quotes:[quote('A','8500'),quote('B','8500')]}});assert.match(tie.fields.recomendaciones,/empate/);
+ const changed=technicalEvaluationData({...evaluated,selection_plan:{...plan,revision:'new-rules'}});assert.match(changed.fields.recomendaciones,/TDR cambió/);
+ const draft=seedFixedDraft(6,evaluated);draft.fields.conclusiones='Conclusión corregida libremente';draft.editedFields.push('conclusiones');draft.editedItems=true;draft.items[0].respaldo='Respaldo corregido';
+ response={fields:{...draft.fields,conclusiones:'Texto que no debe sustituir la edición'},items:[]};const completed=await completeFixedDocument(6,evaluated,draft,'');assert.equal(completed.fields.conclusiones,'Conclusión corregida libremente');assert.equal(completed.items[0].respaldo,'Respaldo corregido');
+ const updated=updateTechnicalEvaluation(draft,evaluated);assert.match(updated.fields.conclusiones,/Proveedor B/);assert.equal(updated.evaluationRevision,evaluated.quote_evaluation.updatedAt);
+ const {reviseFixedDocument}=require('../src/lib/server/reviseFixedDocument.ts'),{fixedModel}=require('../src/lib/docx/fixedModels.ts');
+ response={changes:{},itemChanges:[{action:'add',values:{empresa:'Proveedor C',cotizacion:'Oferta adicional según el usuario',precio:'8700',respaldo:'Cotización C'}}]};
+ const added=await reviseFixedDocument(fixedModel(6),updated,'Añadir proveedor C con oferta de 8700 Bs y respaldo Cotización C');assert.equal(added.items[2].empresa,'Proveedor C');
+ const dir='test-results/evaluation-template';fs.mkdirSync(dir,{recursive:true});
+ for(const [name,d] of [['informe-evaluacion',updated],['s1-automatico',s1]]){const buffer=(await renderFixedWord(name==='s1-automatico'?2:6,d)).buffer;fs.writeFileSync(`${dir}/${name}.docx`,buffer);const text=(await mammoth.extractRawText({buffer})).value;assert.ok(!text.includes('{{'));if(name==='informe-evaluacion'){assert.match(text,/INFORME TÉCNICO DE EVALUACIÓN/);assert.match(text,/Proveedor B/);assert.ok(!/S2-N014|A6-N014|ARIOL|6119531015/.test(text));}}
+ fs.writeFileSync(`${dir}/fixture.json`,JSON.stringify(evaluated,null,2));
+ console.log('PASS S1 automático y editable; informe sin datos heredados, cotizaciones reales, pendientes, empates, cambio de reglas, edición conservada y Word.');
+})().catch(e=>{console.error(e.stack);process.exitCode=1;});

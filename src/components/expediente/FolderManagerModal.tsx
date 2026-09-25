@@ -88,18 +88,18 @@ export const FolderManagerModal: React.FC<FolderManagerModalProps> = ({
       pasos: ["1. Presionar Generar con IA", "2. Revisar borrador", "3. Descargar documento"],
     },
     6: {
-      queHace: "Solicitud de Cotización Oficial (Formulario S2-N014) para el proveedor adjudicado.",
-      deQuienDepende: "Carpeta 1 (Ítems) y Carpeta 4 (Proveedor con menor precio).",
-      pasos: ["1. Verificar proponente", "2. Generar pliego S-2", "3. Enviar a proveedor"],
+      queHace: "Informe técnico de evaluación de ofertas y cuadro comparativo.",
+      deQuienDepende: "Carpeta 1 (TDR) y Carpeta 4 (Cotizaciones y comparación revisada).",
+      pasos: ["1. Revisar cotizaciones", "2. Preparar informe de evaluación", "3. Editar y guardar Word"],
     },
     7: {
       queHace: "Informe Técnico de Conformidad y Recepción Definitiva (Formulario A6-N014).",
-      deQuienDepende: "Carpeta 1 (TDR), Carpeta 4 (Cotizaciones) y Carpeta 6 (S-2).",
+      deQuienDepende: "Carpeta 1 (TDR), Carpeta 4 (Cotizaciones) y Carpeta 6 (Evaluación).",
       pasos: ["1. Generar con IA", "2. Certificar 100% de cumplimiento", "3. Descargar acta"],
     },
     8: {
       queHace: "Memorándum de Solicitud de Pago y Desembolso contable con documentos de respaldo.",
-      deQuienDepende: "Carpeta 7 (Informe de Conformidad) y Carpeta 6 (Formulario S-2).",
+      deQuienDepende: "Carpeta 7 (Informe de Conformidad) y Carpeta 6 (Evaluación).",
       pasos: ["1. Generar con IA", "2. Verificar adjuntos", "3. Remitir a Finanzas"],
     },
   };

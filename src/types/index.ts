@@ -60,6 +60,7 @@ export interface ItemAdquisicion {
 export type TipoTablaTDR = "BIENES_SIMPLE" | "BIENES_3_COLS" | "SALUD_OCUPACIONAL" | "FICHAS_DINAMICAS" | "MATRIZ_SERVICIOS" | "TABLA_DINAMICA";
 
 export interface Adquisicion {
+  solicitud_numero?: string;
   selection_plan?: import('../lib/procurement/selection').SelectionPlan;
   quote_evaluation?: import('../lib/procurement/selection').QuoteEvaluation;
   quote_evaluation_history?: import('../lib/procurement/selection').QuoteEvaluation[];

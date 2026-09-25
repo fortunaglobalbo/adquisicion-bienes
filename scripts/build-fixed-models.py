@@ -151,18 +151,10 @@ for f in fields: para(d,f['label']+': ',f['key'])
 d.add_paragraph('Atentamente,');signatures(d,['Solicitante'])
 save(d,5,'Solicitud de inicio de proceso',fields,source='5SOL DE INICIO DE PROCESO/fotografía')
 
-d=base('SOLICITUD DE COTIZACIÓN','FORMULARIO S2-N014')
-fields=[field('fecha','Fecha de solicitud'),field('destinatario','Señor(es)'),field('observaciones','Observaciones')]
-para(d,'Fecha de solicitud: ','fecha');para(d,'Señor(es): ','destinatario')
-d.add_paragraph('Por favor cotizar los siguientes bienes/obras/servicios:')
-columns=table(d,['N.º','Cantidad','Unidad','Descripción','Precio unitario','Precio total'],['numero','cantidad','unidad','descripcion','precio_oferta','total_oferta'])
-d.add_paragraph('TOTAL (Bs): ________________________')
-for text in ['Tiempo de entrega: ________________________','Validez de la oferta: ________________________']: d.add_paragraph(text)
-para(d,'OBSERVACIONES: ','observaciones')
-d.add_paragraph('ADJUNTAR FOTOCOPIA SIMPLE DE SU RNC - NIT')
-signatures(d,['Sello y firma del proveedor']);d.add_paragraph('Fecha de cotización: ________________________')
-d.add_paragraph('NOTA: El presente registro no compromete una acción de compra de parte de ENDE DEORURO S.A.')
-save(d,6,'Solicitud de cotización S2-N014',fields,columns,'6FORM S2-N014/fotografía')
+build_evaluation=runpy.run_path(str(ROOT/'scripts/build-evaluation-model.py'))['build_evaluation_model']
+d,fields,columns=build_evaluation()
+save(d,6,'Informe técnico de evaluación',fields,columns,'Ejemplo de informe técnico de evaluación aportado por el usuario (PDF).')
+catalog[-1]['version']='2026-09-25.1'
 
 p=SRC/'7INFORME DE CONFORMIDAD/105 -INFORME de conformidad trepaderas.docx';d=Document(p)
 fields=[field(k,l) for k,l in [('fecha','Fecha'),('numero','Número del informe'),('destinatario','Destinatario'),('via','Vía'),('solicitante','Responsable informante'),('objeto','Proceso y orden de compra'),('antecedentes','Antecedentes'),('conclusiones','Conclusiones'),('recomendaciones','Recomendaciones')]]

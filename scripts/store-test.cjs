@@ -13,7 +13,7 @@ const fetchMock=async (_url,init)=>{
  }
  return {ok:true,json:async()=>({success:true,adquisiciones:[cloud.adquisicion],carpetas:[],documentos:[],plantillas:templates,logs:[],states:[{revision,snapshot:cloud}]})};
 };
-function load(file){const source=ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;const module={exports:{}};const context={module,exports:module.exports,require:p=>p.includes('initialData')?load('src/lib/store/initialData.ts'):require(p),window:new EventTarget(),localStorage:store,navigator:{},crypto:{randomUUID},Event,CustomEvent,fetch:fetchMock,AbortSignal,console,setTimeout,URL,Blob};vm.runInNewContext(source,context,{filename:file});return module.exports;}
+function load(file){const source=ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;const module={exports:{}};const context={module,exports:module.exports,require:p=>p.includes('initialData')?load('src/lib/store/initialData.ts'):p.includes('officialPeople')?load('src/lib/docx/officialPeople.ts'):require(p),window:new EventTarget(),localStorage:store,navigator:{},crypto:{randomUUID},Event,CustomEvent,fetch:fetchMock,AbortSignal,console,setTimeout,URL,Blob};vm.runInNewContext(source,context,{filename:file});return module.exports;}
 async function main(){
  const {DataStore:db}=load('src/lib/store/dataStore.ts');
  const id=randomUUID();store.setItem('ende_adquisiciones_v2026',JSON.stringify([{id,codigo:'TEST',items:[],titulo_proceso:'Prueba'}]));

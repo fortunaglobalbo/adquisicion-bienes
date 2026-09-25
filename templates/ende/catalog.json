@@ -528,25 +528,79 @@
   },
   {
     "number": 6,
-    "title": "Solicitud de cotización S2-N014",
+    "title": "Informe técnico de evaluación",
     "file": "06.docx",
-    "version": "2026-09-10.1",
+    "version": "2026-09-25.1",
     "fields": [
       {
         "key": "fecha",
-        "label": "Fecha de solicitud",
+        "label": "Fecha del informe",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "numero",
+        "label": "Número / referencia del informe",
         "normative": false,
         "hint": ""
       },
       {
         "key": "destinatario",
-        "label": "Señor(es)",
+        "label": "Destinatario y cargo",
         "normative": false,
         "hint": ""
       },
       {
-        "key": "observaciones",
-        "label": "Observaciones",
+        "key": "via",
+        "label": "Vía y cargo",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "solicitante",
+        "label": "Responsable informante y cargo",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "objeto",
+        "label": "Proceso evaluado",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "solicitud",
+        "label": "Número de solicitud S1",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "antecedentes",
+        "label": "Antecedentes",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "recepcion",
+        "label": "Recepción de cotizaciones",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "evaluacion",
+        "label": "Evaluación técnica y económica",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "conclusiones",
+        "label": "Conclusiones",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "recomendaciones",
+        "label": "Recomendaciones",
         "normative": false,
         "hint": ""
       }
@@ -557,28 +611,24 @@
         "label": "N.º"
       },
       {
-        "key": "cantidad",
-        "label": "Cantidad"
+        "key": "empresa",
+        "label": "Empresa"
       },
       {
-        "key": "unidad",
-        "label": "Unidad"
+        "key": "cotizacion",
+        "label": "Cotización / evaluación"
       },
       {
-        "key": "descripcion",
-        "label": "Descripción"
+        "key": "precio",
+        "label": "Precio (Bs)"
       },
       {
-        "key": "precio_oferta",
-        "label": "Precio unitario"
-      },
-      {
-        "key": "total_oferta",
-        "label": "Precio total"
+        "key": "respaldo",
+        "label": "Respaldo / actividad económica"
       }
     ],
-    "source": "6FORM S2-N014/fotografía",
-    "sha256": "6e9307dba6b850bb577d6ebbbcd945a48240c0137ffe8fe0d590ddec633cea86"
+    "source": "Ejemplo aportado: PROCESO ADQUISICIÓN DE CORREAS DE SUJECIÓN Y AMORTIGUADOR DE IMPACTO (PDF). Encabezado corregido a evaluación de ofertas.",
+    "sha256": "c24d57ebe557fbdbe1f26b6fe9b7682b0d0347e3ee6947ded905250027dddb9b"
   },
   {
     "number": 7,

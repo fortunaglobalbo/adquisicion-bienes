@@ -40,7 +40,8 @@ async function main(){
  const long=seedFixedDraft(1,adq);long.items=Array.from({length:30},(_,i)=>({...long.items[0],numero:String(i+1),descripcion:'Cable para mantenimiento '+(i+1)}));
  const longOutput=await renderFixedWord(1,long);fs.writeFileSync('test-results/fixed-models/filled/tdr-30-items.docx',longOutput.buffer);
  const longStructure=await inspectTemplate(longOutput.buffer);assert.equal(longStructure.tables.find(t=>t.headers.includes('CANTIDAD')).rows.length,30);
- const s2=seedFixedDraft(6,adq);s2.items[0].precio_oferta='99';assert.equal(normalizeFixedDraft(FIXED_MODELS[5],s2).items[0].precio_oferta,'99');
+ const evaluation=seedFixedDraft(6,adq);assert.equal(evaluation.items.length,0,'No confundir bienes solicitados con ofertas recibidas');
+ evaluation.items=[{numero:'1',empresa:'Proveedor registrado',cotizacion:'Dato confirmado',precio:'99',respaldo:'Oferta adjunta'}];assert.equal(normalizeFixedDraft(FIXED_MODELS[5],evaluation).items[0].precio,'99');
  for(const n of [2,4,5]) { const empty=seedFixedDraft(n,adq);assert.equal(empty.items.length,0);await renderFixedWord(n,empty); }
  const formDraft=seedFixedDraft(2,adq);formDraft.fields.almacen='Con saldo';formDraft.fields.publicar_precio='No';formDraft.fields.con_presupuesto='[PENDIENTE]';formDraft.fields.solicitante='<script>no ejecutar</script>';
  const formWord=await renderFixedWord(2,formDraft);const {wordFormPreview}=require('../src/lib/server/wordFormPreview.ts');const formHtml=await wordFormPreview(formWord.buffer);

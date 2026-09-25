@@ -13,6 +13,8 @@ import { fixedDocumentPrompt } from './fixedDocumentPrompt';
 import { officialPeople } from "../docx/officialPeople";
 import { applySelection, assertPlan } from '../procurement/selection';
 import { addSelectionTables } from './selectionWord';
+import { administrativeDefaults, fillAdministrativeBlanks } from '../docx/administrativeDefaults';
+import { technicalEvaluationData } from './technicalEvaluation';
 
 const text = (value: unknown): string => typeof value === "string" ? value.trim() : "";
 export function seedFixedDraft(number: number, adq: Adquisicion): FixedDraft {
@@ -36,9 +38,11 @@ export function seedFixedDraft(number: number, adq: Adquisicion): FixedDraft {
     multas: adq.multas_texto || (number === 1 && adq.multa_diaria_porcentaje ? `Ante el incumplimiento de los plazos y otras condiciones establecidas en la Orden de Compra y Especificaciones Técnicas, se aplicará la multa del ${adq.multa_diaria_porcentaje}% por cada día de retraso injustificado.` : ""),
     ...(adq.asistente_compra?.confirmedAt ? adq.asistente_compra.details : {}),
     ...people,
+    ...(number === 2 ? administrativeDefaults(adq) : {}),
+    ...(number === 6 ? technicalEvaluationData(adq).fields : {}),
   };
   // Receiving a new good is a fact to confirm; previous item quantities are not evidence of receipt.
-  const items = number === 7 || !model.columns.length ? [] : (adq.items || []).map((item, i) => Object.fromEntries(model.columns.map(c => [c.key,
+  const items = number === 6 ? technicalEvaluationData(adq).items : number === 7 || !model.columns.length ? [] : (adq.items || []).map((item, i) => Object.fromEntries(model.columns.map(c => [c.key,
     ({ numero: String(i + 1), descripcion: item.descripcion, unidad: item.unidad,
       cantidad: item.cantidad > 0 ? String(item.cantidad) : missingValue,
       especificaciones: item.especificacionMinima || item.caracteristicasTecnicas || missingValue,
@@ -49,7 +53,10 @@ export function seedFixedDraft(number: number, adq: Adquisicion): FixedDraft {
   const draft:FixedDraft = { modelVersion: model.version, companyId: adq.empresa_id || "ende", fields: Object.fromEntries(model.fields.map(f => [f.key, text(values[f.key]) || missingValue])),
     confirmedFields: confirmedNorms,
     editedFields: Object.keys(people), items, sourceIds: {}, sources: [], warnings: [], consultedAt: null, normativeStatus: "pending" };
-  return adq.selection_plan?.confirmedAt ? applySelection(draft,adq.selection_plan,number) : draft;
+  const prepared = fillAdministrativeBlanks(draft,adq,number);
+  if(number===2) prepared.editedFields=Array.from(new Set([...(prepared.editedFields||[]),...Object.keys(administrativeDefaults(adq)).filter(k=>values[k]&&values[k]!==missingValue)]));
+  if(number===6){const data=technicalEvaluationData(adq);prepared.evaluationRevision=data.revision;prepared.warnings=data.warnings;prepared.editedFields=Array.from(new Set([...(prepared.editedFields||[]),...['fecha','numero','solicitud','destinatario','via','solicitante'].filter(k=>values[k]&&values[k]!==missingValue)]));}
+  return adq.selection_plan?.confirmedAt ? applySelection(prepared,adq.selection_plan,number) : prepared;
 }
 
 export function validateFixedDraft(model: FixedModel, draft: FixedDraft) {
@@ -149,7 +156,7 @@ export async function completeFixedDocument(number: number, adq: Adquisicion, cu
   if (!result || typeof result.fields !== "object" || !result.fields || Array.isArray(result.fields)) throw Error("La IA no entregó un documento válido. El borrador anterior se conserva.");
   // Some GO responses omit the table when the confirmed brief already supplies it.
   // Reuse those confirmed rows; never infer a receipt or accept a malformed table object.
-  if(result.items===undefined && (!model.columns.length || (brief && [1,3,6].includes(number)))) result.items=[];
+  if(result.items===undefined && (!model.columns.length || number===6 || (brief && [1,3].includes(number)))) result.items=[];
   if(!Array.isArray(result.items)) throw Error('La IA no entregó una tabla válida. El borrador anterior se conserva.');
   const validIds = new Set(sources.map(s => s.id));
   const decisionKeys = ['seleccion','vigencia','adjudicacion','pago'];
@@ -181,7 +188,11 @@ export async function completeFixedDocument(number: number, adq: Adquisicion, cu
     return [f.key, decisionVal ? decisionVal : f.normative && !sourceIds[f.key].length ? missingValue : value || missingValue];
   }));
   let items: Record<string,string>[] = model.columns.length ? result.items.map((r: Record<string, unknown>) => Object.fromEntries(model.columns.map(c => [c.key, c.key.endsWith('oferta') ? '' : text(r?.[c.key]) || missingValue]))) : [];
-  if (brief && [1,3,6].includes(number)) items = brief.items.map((item,i)=>Object.fromEntries(model.columns.map(c=>[c.key, ({numero:String(i+1),descripcion:item.descripcion,cantidad:item.cantidad,unidad:item.unidad,especificaciones:item.especificaciones,precio:item.precio,precio_oferta:'',total_oferta:''} as Record<string,string>)[c.key] || text(items[i]?.[c.key]) || (c.key.endsWith('oferta')?'':missingValue)])));
+  if (brief && [1,3].includes(number)) items = brief.items.map((item,i)=>Object.fromEntries(model.columns.map(c=>[c.key, ({numero:String(i+1),descripcion:item.descripcion,cantidad:item.cantidad,unidad:item.unidad,especificaciones:item.especificaciones,precio:item.precio,precio_oferta:'',total_oferta:''} as Record<string,string>)[c.key] || text(items[i]?.[c.key]) || (c.key.endsWith('oferta')?'':missingValue)])));
+  if(number===6 && adq.quote_evaluation?.quotes.length){
+    const evaluation=technicalEvaluationData(adq);items=evaluation.items;
+    for(const key of ['recepcion','evaluacion','conclusiones','recomendaciones'])fields[key]=evaluation.fields[key];
+  }
   if(brief){
     if(!brief.decisions) brief.decisions = {};
     for(const key of decisionKeys) {
@@ -206,5 +217,6 @@ export async function completeFixedDocument(number: number, adq: Adquisicion, cu
     ...(fields.multas && fields.multas !== missingValue ? ['multas'] : []),
     ...(fields.vigencia && fields.vigencia !== missingValue ? ['vigencia'] : []),
   ]));
-  return normalizeFixedDraft(model, { companyId: company.id, modelVersion: model.version, fields, items: current.editedItems ? current.items : items, editedItems: current.editedItems, sources, sourceIds, sourceQuotes, proposals, warnings, editedFields:current.editedFields || [], confirmedFields, selectionPlan:current.selectionPlan, consultedAt: new Date().toISOString(), normativeStatus: status });
+  const evaluationRevision=number===6&&!current.editedItems&&!current.editedFields?.some(k=>['recepcion','evaluacion','conclusiones','recomendaciones'].includes(k))?adq.quote_evaluation?.updatedAt:current.evaluationRevision;
+  return normalizeFixedDraft(model, { companyId: company.id, modelVersion: model.version, fields, items: current.editedItems ? current.items : items, editedItems: current.editedItems, sources, sourceIds, sourceQuotes, proposals, warnings, editedFields:current.editedFields || [], confirmedFields, selectionPlan:current.selectionPlan, evaluationRevision, consultedAt: new Date().toISOString(), normativeStatus: status });
 }

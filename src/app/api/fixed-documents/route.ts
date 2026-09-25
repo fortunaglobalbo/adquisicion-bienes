@@ -9,6 +9,8 @@ import { analyzePurchaseBrief } from '@/lib/server/purchaseAssistant';
 import { wordFormPreview } from '@/lib/server/wordFormPreview';
 
 import { reviseFixedDocument, RevisionClarification } from "@/lib/server/reviseFixedDocument";
+import { fillAdministrativeBlanks } from '@/lib/docx/administrativeDefaults';
+import { updateTechnicalEvaluation } from '@/lib/server/technicalEvaluation';
 
 export const runtime = "nodejs";
 export const maxDuration = 180;
@@ -24,6 +26,7 @@ export async function POST(req: NextRequest) {
     if (!adq?.id || !adq?.titulo_proceso || !Array.isArray(adq.items)) throw Error("Selecciona un expediente válido.");
     const company = companyKnowledge(adq.empresa_id || "ende");
     let draft = body.draft || seedFixedDraft(number, adq);
+    draft = fillAdministrativeBlanks(draft, adq, number);
     if (draft.companyId !== company.id) throw Error("El borrador pertenece a otra empresa.");
     let context = String(body.context || "");
     if (context.length > 40000) throw Error("Reduce la descripción a 40.000 caracteres.");
@@ -68,6 +71,9 @@ export async function POST(req: NextRequest) {
         if (JSON.stringify(draft.items)!==JSON.stringify(previous.items)) revisionSummary.push('Ítems del documento');
         revised = true;
       } else draft = await completeFixedDocument(number, adq, draft, context, images);
+    } else if (body.action === 'refresh-evaluation' && number === 6) {
+      validateFixedDraft(model,draft);
+      draft=updateTechnicalEvaluation(draft,adq);
     } else if (!["preview", "download", "export"].includes(body.action)) throw Error("Acción desconocida.");
     if (body.draftOnly === true && body.action === 'complete') return NextResponse.json({ draft }, { headers: { 'Cache-Control': 'no-store' } });
     const output = await renderFixedWord(number, draft);
