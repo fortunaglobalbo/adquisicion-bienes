@@ -10,7 +10,7 @@ import { wordFormPreview } from '@/lib/server/wordFormPreview';
 
 import { reviseFixedDocument, RevisionClarification } from "@/lib/server/reviseFixedDocument";
 import { fillAdministrativeBlanks } from '@/lib/docx/administrativeDefaults';
-import { updateTechnicalEvaluation } from '@/lib/server/technicalEvaluation';
+import { updateTechnicalEvaluation, fillEvaluationReferences } from '@/lib/server/technicalEvaluation';
 import { evaluationPreview } from '@/lib/server/evaluationPreview';
 
 export const runtime = "nodejs";
@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
     const company = companyKnowledge(adq.empresa_id || "ende");
     let draft = upgradeFixedDraft(number,body.draft || seedFixedDraft(number, adq));
     draft = fillAdministrativeBlanks(draft, adq, number);
+    if(number===6) draft = fillEvaluationReferences(draft,adq);
     if (draft.companyId !== company.id) throw Error("El borrador pertenece a otra empresa.");
     let context = String(body.context || "");
     if (context.length > 40000) throw Error("Reduce la descripción a 40.000 caracteres.");

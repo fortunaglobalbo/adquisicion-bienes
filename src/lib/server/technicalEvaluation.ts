@@ -66,3 +66,13 @@ export function updateTechnicalEvaluation(draft:FixedDraft,adq:Adquisicion):Fixe
     evaluationRevision:data.revision,editedItems:false,editedFields:draft.editedFields?.filter(k=>!keys.includes(k)),
     warnings:[...draft.warnings.filter(w=>!w.startsWith('La comparación utiliza')), ...data.warnings]};
 }
+
+export function fillEvaluationReferences(draft:FixedDraft,adq:Adquisicion):FixedDraft {
+  const defaults=technicalEvaluationData(adq).fields,fields={...draft.fields},filled:string[]=[];
+  for(const key of ['destinatario','via','solicitante']) {
+    if(!hasAdministrativeValue(fields[key])&&!draft.editedFields?.includes(key)&&hasAdministrativeValue(defaults[key])) {
+      fields[key]=defaults[key];filled.push(key);
+    }
+  }
+  return {...draft,fields,editedFields:Array.from(new Set([...(draft.editedFields||[]),...filled]))};
+}
