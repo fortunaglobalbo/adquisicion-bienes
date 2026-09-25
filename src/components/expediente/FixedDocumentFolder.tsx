@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Download, Loader2, Save, Sparkles, RefreshCw } from "lucide-react";
 import type { Adquisicion, Carpeta, Documento } from "@/types";
-import { fixedModel, FixedDraft } from "@/lib/docx/fixedModels";
+import { fixedModel, FixedDraft, compatibleFixedDraft, upgradeFixedDraft } from "@/lib/docx/fixedModels";
 import { DataStore } from "@/lib/store/dataStore";
 import { officialPeople, officialPeopleKeys } from "@/lib/docx/officialPeople";
 import { initialBrief } from '@/lib/docx/purchaseBrief';
@@ -15,15 +15,16 @@ function documentFrame(html: string) {
 }
 export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBusy=false }: { adquisicion: Adquisicion; carpeta: Carpeta; onSaved: () => void; assistantBusy?:boolean }) {
   const model = fixedModel(carpeta.numero);
-  const latest = [...carpeta.documentos].sort((a,b)=>b.fecha_creacion.localeCompare(a.fecha_creacion)).find(d => d.metadata?.fixedDraft?.modelVersion === model.version);
+  const latest = [...carpeta.documentos].sort((a,b)=>b.fecha_creacion.localeCompare(a.fecha_creacion)).find(d => compatibleFixedDraft(model.number,d.metadata?.fixedDraft));
   const purchaseChanged = model.number !== 1 && ((latest?.metadata?.purchaseSnapshot && latest.metadata.purchaseSnapshot !== purchaseSnapshot(adquisicion)) || (adquisicion.borradores_ia?.[model.number] && adquisicion.borradores_ia[model.number].briefRevision !== adquisicion.asistente_compra?.revision));
   const prepared = adquisicion.borradores_ia?.[model.number];
-  const initial = prepared?.draft.modelVersion === model.version && (!latest || prepared.updatedAt > latest.fecha_creacion) ? prepared.draft : latest?.metadata?.fixedDraft;
+  const storedInitial = compatibleFixedDraft(model.number,prepared?.draft) && prepared && (!latest || prepared.updatedAt > latest.fecha_creacion) ? prepared.draft : latest?.metadata?.fixedDraft;
+  const initial = storedInitial ? upgradeFixedDraft(model.number,storedInitial) : undefined;
   const [recovery] = useState(() => {
     try {
       const value = JSON.parse(localStorage.getItem(`fixed-draft:${adquisicion.id}:${carpeta.numero}`) || 'null');
       const storedAt = Math.max(Date.parse(prepared?.updatedAt || '') || 0, Date.parse(latest?.fecha_creacion || '') || 0);
-      return value?.draft?.modelVersion === model.version && value.draft.companyId === (adquisicion.empresa_id || 'ende') && value.updatedAt > storedAt ? value : null;
+      return compatibleFixedDraft(model.number,value?.draft) && value.draft.companyId === (adquisicion.empresa_id || 'ende') && value.updatedAt > storedAt ? {...value,draft:upgradeFixedDraft(model.number,value.draft)} : null;
     } catch { return null; }
   });
   const [draft, setDraft] = useState<FixedDraft | null>(recovery?.draft || initial || null);
@@ -84,7 +85,7 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
     try { localStorage.setItem(key, JSON.stringify({ draft, context, updatedAt: Date.now() })); } catch { setMessage("No se pudo guardar la recuperación local. Guarda el borrador antes de salir."); }
   }, [draft, context, dirty, adquisicion.id, carpeta.numero]);
   async function recover() {
-    try { const value = JSON.parse(localStorage.getItem(`fixed-draft:${adquisicion.id}:${carpeta.numero}`) || "null"); if (!value?.draft || value.draft.modelVersion !== model.version) { setMessage("No hay cambios locales de esta versión para recuperar."); return; } setDraft(value.draft); setContext(value.context || ""); setDirty(true); setStale(true); setEdit(true); setMessage("Cambios recuperados. Actualiza la vista y guarda el borrador."); } catch { setError("No se pudo recuperar el borrador local."); }
+    try { const value = JSON.parse(localStorage.getItem(`fixed-draft:${adquisicion.id}:${carpeta.numero}`) || "null"); if (!compatibleFixedDraft(model.number,value?.draft)) { setMessage("No hay cambios locales de esta versión para recuperar."); return; } setDraft(upgradeFixedDraft(model.number,value.draft)); setContext(value.context || ""); setDirty(true); setStale(true); setEdit(true); setMessage("Cambios recuperados. Actualiza la vista y guarda el borrador."); } catch { setError("No se pudo recuperar el borrador local."); }
   }
   function changeField(key: string, value: string) {
     if (!draft) return;

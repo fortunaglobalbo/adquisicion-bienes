@@ -28,3 +28,12 @@ export interface FixedDraft {
   proposals?: Record<string,{value:string;reason:string}>;
 }
 export const missingValue = "[PENDIENTE]";
+
+// This revision changes presentation only; retain every field and manual edit in existing reports.
+export function compatibleFixedDraft(number: number, draft?: FixedDraft): boolean {
+  const version = fixedModel(number).version;
+  return !!draft && (draft.modelVersion === version || (number === 6 && version === '2026-09-25.2' && draft.modelVersion === '2026-09-25.1'));
+}
+export function upgradeFixedDraft(number: number, draft: FixedDraft): FixedDraft {
+  return compatibleFixedDraft(number, draft) ? {...draft, modelVersion: fixedModel(number).version} : draft;
+}

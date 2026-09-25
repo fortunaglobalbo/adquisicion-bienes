@@ -530,7 +530,7 @@
     "number": 6,
     "title": "Informe técnico de evaluación",
     "file": "06.docx",
-    "version": "2026-09-25.1",
+    "version": "2026-09-25.2",
     "fields": [
       {
         "key": "fecha",
@@ -627,8 +627,8 @@
         "label": "Respaldo / actividad económica"
       }
     ],
-    "source": "Ejemplo aportado: PROCESO ADQUISICIÓN DE CORREAS DE SUJECIÓN Y AMORTIGUADOR DE IMPACTO (PDF). Encabezado corregido a evaluación de ofertas.",
-    "sha256": "c24d57ebe557fbdbe1f26b6fe9b7682b0d0347e3ee6947ded905250027dddb9b"
+    "source": "Ejemplo aportado: PROCESO ADQUISICIÓN DE CORREAS DE SUJECIÓN Y AMORTIGUADOR DE IMPACTO (PDF). Se conserva el encabezado institucional INFORME DE CONFORMIDAD (CONTRATACIONES), FORMULARIO A6-N014, por indicación del usuario.",
+    "sha256": "ac1f386e71f45c45c45a57d0a75d424aea9f386db042b9a89e7a0bf831e3c250"
   },
   {
     "number": 7,

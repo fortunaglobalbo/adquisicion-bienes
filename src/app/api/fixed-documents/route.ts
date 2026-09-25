@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { completeFixedDocument, seedFixedDraft, renderFixedWord, validateFixedDraft } from "@/lib/server/fixedDocuments";
-import { fixedModel } from "@/lib/docx/fixedModels";
+import { fixedModel, upgradeFixedDraft } from "@/lib/docx/fixedModels";
 import { extractText } from "@/lib/server/extractText";
 import { companyKnowledge } from "@/lib/server/companyKnowledge";
 import type { Adquisicion } from "@/types";
@@ -11,6 +11,7 @@ import { wordFormPreview } from '@/lib/server/wordFormPreview';
 import { reviseFixedDocument, RevisionClarification } from "@/lib/server/reviseFixedDocument";
 import { fillAdministrativeBlanks } from '@/lib/docx/administrativeDefaults';
 import { updateTechnicalEvaluation } from '@/lib/server/technicalEvaluation';
+import { evaluationPreview } from '@/lib/server/evaluationPreview';
 
 export const runtime = "nodejs";
 export const maxDuration = 180;
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
     const adq: Adquisicion = body.adquisicion;
     if (!adq?.id || !adq?.titulo_proceso || !Array.isArray(adq.items)) throw Error("Selecciona un expediente válido.");
     const company = companyKnowledge(adq.empresa_id || "ende");
-    let draft = body.draft || seedFixedDraft(number, adq);
+    let draft = upgradeFixedDraft(number,body.draft || seedFixedDraft(number, adq));
     draft = fillAdministrativeBlanks(draft, adq, number);
     if (draft.companyId !== company.id) throw Error("El borrador pertenece a otra empresa.");
     let context = String(body.context || "");
@@ -99,7 +100,7 @@ export async function POST(req: NextRequest) {
       } catch { previewWarning = "El convertidor PDF no respondió. Se muestra el contenido; el Word sigue disponible."; }
     }
     const mammoth = await import("mammoth");
-    const html = number===2 ? await wordFormPreview(output.buffer) : (await mammoth.convertToHtml({ buffer: output.buffer })).value;
+    const html = number===2 ? await wordFormPreview(output.buffer) : number===6 ? await evaluationPreview(output.buffer) : (await mammoth.convertToHtml({ buffer: output.buffer })).value;
     return NextResponse.json({ draft: output.draft, html, pdf, previewWarning, revised, revisionSummary, modelVersion: model.version }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     console.error("[fixed-documents]", e instanceof Error ? e.stack : "Error al preparar documento");

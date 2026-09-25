@@ -154,7 +154,7 @@ save(d,5,'Solicitud de inicio de proceso',fields,source='5SOL DE INICIO DE PROCE
 build_evaluation=runpy.run_path(str(ROOT/'scripts/build-evaluation-model.py'))['build_evaluation_model']
 d,fields,columns=build_evaluation()
 save(d,6,'Informe técnico de evaluación',fields,columns,'Ejemplo de informe técnico de evaluación aportado por el usuario (PDF).')
-catalog[-1]['version']='2026-09-25.1'
+catalog[-1]['version']='2026-09-25.2'
 
 p=SRC/'7INFORME DE CONFORMIDAD/105 -INFORME de conformidad trepaderas.docx';d=Document(p)
 fields=[field(k,l) for k,l in [('fecha','Fecha'),('numero','Número del informe'),('destinatario','Destinatario'),('via','Vía'),('solicitante','Responsable informante'),('objeto','Proceso y orden de compra'),('antecedentes','Antecedentes'),('conclusiones','Conclusiones'),('recomendaciones','Recomendaciones')]]

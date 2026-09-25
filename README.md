@@ -2,7 +2,7 @@
 
 ## Informe técnico de evaluación y datos automáticos del S1
 
-La carpeta 6 utiliza el **Informe técnico de evaluación de ofertas**, reconstruido como Word editable a partir del PDF aportado el 25 de septiembre de 2026. Reemplaza el S2 en el flujo actual y conserva las descargas de documentos anteriores. Incluye destinatario, vía, informante, antecedentes, recepción de cotizaciones, cuadro por proveedor, conclusiones y recomendaciones. El encabezado A6 de conformidad del ejemplo se corrigió; la conformidad de bienes/servicios permanece en la carpeta 7. No se trasladan proveedores, importes, firmas ni artículos del ejemplo a otras compras.
+La carpeta 6 utiliza el **Informe técnico de evaluación de ofertas**, reconstruido como Word editable a partir del PDF aportado el 25 de septiembre de 2026. Reemplaza el S2 en el flujo actual y conserva las descargas de documentos anteriores. Incluye destinatario, vía, informante, antecedentes, recepción de cotizaciones, cuadro por proveedor, conclusiones y recomendaciones. Por indicación del usuario se conserva el encabezado institucional **INFORME DE CONFORMIDAD (CONTRATACIONES), FORMULARIO A6-N014**, el logo de ENDE y la distribución de A, VIA y De con sus cargos. Los destinatarios del ejemplo se usan como base editable cuando no existen responsables propios guardados. La conformidad de bienes/servicios permanece en la carpeta 7. No se trasladan proveedores, importes, firmas ni artículos del ejemplo a otras compras. El ajuste de formato actualiza también los borradores de evaluación anteriores, preservando su texto y ediciones.
 
 Cuando existe una comparación guardada en la carpeta 4, el informe incorpora sus ofertas y resultados. Si cambia esa comparación, aparece un aviso y el botón «Actualizar cuadro y conclusiones desde cotizaciones». Las ediciones manuales se conservan durante la redacción con IA; esa actualización explícita sustituye el cuadro y las conclusiones por los datos guardados y se puede deshacer. Una evaluación incompleta, un empate o reglas desactualizadas no producen una recomendación automática de adjudicación.
 
@@ -94,7 +94,7 @@ Cada proceso de adquisición se organiza cronológica y normativamente en **8 ca
  ├── 📁 Carpeta 3: Cuadro de Justificación (Previsión de Precios e Informe Técnico) [Documento Respaldatorio]
  ├── 📁 Carpeta 4: Solicitud de Cotización a Empresas (Proformas, Proveedores y NIT) [Documento Respaldatorio]
  ├── 📁 Carpeta 5: Solicitud de Inicio de Proceso (Autorización y Memorándum Formal) [IA]
- ├── 📁 Carpeta 6: Form S2-N014 (Solicitud Oficial de Cotización al Proveedor) [IA]
+ ├── 📁 Carpeta 6: Informe técnico de evaluación (formato institucional A6-N014) [IA]
  ├── 📁 Carpeta 7: Informe de Conformidad (Formulario A6-N014 / Comisión de Recepción) [IA]
  └── 📁 Carpeta 8: Memo Solicitud de Pago (Desembolso Financiero y Trámite de Factura) [IA]
 ```

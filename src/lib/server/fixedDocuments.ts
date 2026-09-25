@@ -1,7 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 import { createHash } from "crypto";
-import { fixedModel, FixedDraft, FixedModel, missingValue } from "../docx/fixedModels";
+import { fixedModel, FixedDraft, FixedModel, missingValue, upgradeFixedDraft } from "../docx/fixedModels";
 import { inspectTemplate, fillTemplate, DocumentChange, TableChange } from "../docx/templateEditor";
 import { AnythingLlmClient } from "../ai/anythingLlmClient";
 import { callOpenCodeGo, extractJsonFromText } from "../ai/openCodeClient";
@@ -75,6 +75,7 @@ export function validateFixedDraft(model: FixedModel, draft: FixedDraft) {
 }
 
 export function normalizeFixedDraft(model: FixedModel, draft: FixedDraft): FixedDraft {
+  draft = upgradeFixedDraft(model.number, draft);
   validateFixedDraft(model, draft);
   const result: FixedDraft = { ...draft, fields: { ...draft.fields }, items: draft.items.map((r, i) => ({ ...r, numero: String(i + 1) })) };
   if (model.number === 3) {
@@ -93,6 +94,12 @@ export async function renderFixedWord(number: number, input: FixedDraft) {
   const structure = await inspectTemplate(buffer);
   const changes: DocumentChange[] = [];
   const tables: TableChange[] = [];
+  const referenceFields: Record<string,string> = {};
+  if(number===6) for(const key of ['destinatario','via','solicitante']) {
+    const [name,...role] = (draft.fields[key] || '').split(/\r?\n/);
+    referenceFields[`${key}_nombre`] = name;
+    referenceFields[`${key}_cargo`] = role.join('\n');
+  }
   const itemTable = structure.tables.find(t => t.rows.some(row => row.some(cell => cell.includes("{{items."))));
   const excluded = new Set(itemTable?.paragraphIds || []);
   for (const p of structure.paragraphs) {
@@ -102,7 +109,10 @@ export async function renderFixedWord(number: number, input: FixedDraft) {
       const value=(draft.fields[key] || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
       marks[`${key}_si`]=value===yes?'☒':'☐';marks[`${key}_no`]=value===no?'☒':'☐';
     }
-    const display=(key:string)=>marks[key] || (draft.fields[key] && !/^\[PENDIENTE[^\]]*\]$/.test(draft.fields[key]) ? draft.fields[key] : number===2 ? '\u00a0' : '________________');
+    const display=(key:string)=>{
+      const value=referenceFields[key] ?? draft.fields[key];
+      return marks[key] || (value && !/^\[PENDIENTE[^\]]*\]$/.test(value) ? value : number===2 || key.endsWith('_cargo') ? '\u00a0' : '________________');
+    };
     changes.push({ target: p.id, label: "Campo fijo", value: p.text.replace(/\{\{([a-z_]+)\}\}/g, (_m, key) => display(key)), sourceIds: [] });
   }
   if (itemTable) {
@@ -114,6 +124,7 @@ export async function renderFixedWord(number: number, input: FixedDraft) {
 }
 
 export async function completeFixedDocument(number: number, adq: Adquisicion, current: FixedDraft, context: string, images: string[] = []) {
+  current = upgradeFixedDraft(number, current);
   const company = companyKnowledge(adq.empresa_id || "ende"), model = fixedModel(number);
   validateFixedDraft(model, current);
   if (current.companyId !== company.id) throw Error("El borrador corresponde a otra empresa.");
