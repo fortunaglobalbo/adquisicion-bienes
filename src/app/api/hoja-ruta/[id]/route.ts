@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { database } from "@/lib/server/database";
+import { HOJA_RUTA_ESTADO_MAX } from '@/lib/types/hojaRuta';
 
 export async function PATCH(
   req: Request,
@@ -8,6 +9,9 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await req.json();
+    if(body.estado_actual !== undefined && (typeof body.estado_actual !== 'string' || !body.estado_actual.trim() || body.estado_actual.trim().length > HOJA_RUTA_ESTADO_MAX)) {
+      return NextResponse.json({success:false,error:`Escribe un estado de hasta ${HOJA_RUTA_ESTADO_MAX} caracteres.`},{status:400});
+    }
     const db = database();
 
     const updates: Record<string, any> = {
@@ -15,10 +19,10 @@ export async function PATCH(
     };
 
     if (body.estado_actual !== undefined) {
-      updates.estado_actual = body.estado_actual;
-      if (body.estado_actual === "Adjudicado") {
+      updates.estado_actual = body.estado_actual.trim();
+      if (updates.estado_actual === "Adjudicado") {
         updates.fecha_adjudicacion = new Date().toISOString();
-      } else if (body.limpiar_fecha_adjudicacion) {
+      } else {
         updates.fecha_adjudicacion = null;
       }
     }

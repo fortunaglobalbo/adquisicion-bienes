@@ -6,12 +6,8 @@ export interface HojaRutaPase {
   firma: string;
 }
 
-export type HojaRutaEstado =
-  | 'En Circulación'
-  | 'En Evaluación'
-  | 'Evaluado'
-  | 'Adjudicado'
-  | 'Desierto';
+export type HojaRutaEstado = string;
+export const HOJA_RUTA_ESTADO_MAX = 50;
 
 export type HojaRutaArea =
   | 'DISTRIBUCION'

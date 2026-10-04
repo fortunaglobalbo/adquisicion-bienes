@@ -6,6 +6,7 @@ import {
   HojaRutaFormData,
   HojaRutaEstado,
   HojaRutaPase,
+  HOJA_RUTA_ESTADO_MAX,
 } from "@/lib/types/hojaRuta";
 import { HojaRutaService } from "@/lib/services/hojaRutaService";
 import {
@@ -173,7 +174,7 @@ export const FormularioHojaRuta: React.FC<Props> = ({ onCreated }) => {
       categoria: categoria.trim() || "CAT 1",
       asunto_descripcion: asunto.trim(),
       ubicacion_actual: ubicacionActual.trim() || areaOrigen.trim() || "DISTRIBUCION",
-      estado_actual: estadoActual,
+      estado_actual: estadoActual.trim() || 'En Circulación',
       pases: pases,
     };
 
@@ -447,17 +448,11 @@ export const FormularioHojaRuta: React.FC<Props> = ({ onCreated }) => {
             <label className="block text-[11px] font-bold text-neutral-700 dark:text-neutral-300 mb-1">
               Estado Inicial:
             </label>
-            <select
+            <input type="text" aria-label="Estado inicial" maxLength={HOJA_RUTA_ESTADO_MAX} placeholder="Escribe el estado"
               value={estadoActual}
-              onChange={(e) => setEstadoActual(e.target.value as HojaRutaEstado)}
+              onChange={(e) => setEstadoActual(e.target.value)}
               className="w-full bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-neutral-800 dark:text-neutral-200"
-            >
-              <option value="En Circulación">En Circulación</option>
-              <option value="En Evaluación">En Evaluación</option>
-              <option value="Evaluado">Evaluado</option>
-              <option value="Adjudicado">Adjudicado</option>
-              <option value="Desierto">Desierto</option>
-            </select>
+            />
           </div>
         </div>
 

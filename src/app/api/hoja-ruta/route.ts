@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { database } from "@/lib/server/database";
-import { HojaRuta } from "@/lib/types/hojaRuta";
+import { HojaRuta, HOJA_RUTA_ESTADO_MAX } from "@/lib/types/hojaRuta";
 
 // Datos de fallback en caso de que la tabla aún no se haya creado en Supabase
 const FALLBACK_HOJAS: HojaRuta[] = [
@@ -70,6 +70,10 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+    if(body.estado_actual !== undefined && (typeof body.estado_actual !== 'string' || !body.estado_actual.trim() || body.estado_actual.trim().length > HOJA_RUTA_ESTADO_MAX)) {
+      return NextResponse.json({success:false,error:`Escribe un estado de hasta ${HOJA_RUTA_ESTADO_MAX} caracteres.`},{status:400});
+    }
+    if(typeof body.estado_actual==='string')body.estado_actual=body.estado_actual.trim();
 
     if (!body.asunto_descripcion || !body.asunto_descripcion.trim()) {
       return NextResponse.json(

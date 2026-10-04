@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { HojaRuta, HojaRutaEstado } from "@/lib/types/hojaRuta";
-import { HojaRutaService } from "@/lib/services/hojaRutaService";
+import { EstadoEditable } from './EstadoEditable';
 import {
   Search,
   Printer,
@@ -16,7 +16,7 @@ import {
 
 interface Props {
   hojas: HojaRuta[];
-  onUpdateEstado: (id: string, nuevoEstado: HojaRutaEstado) => void;
+  onUpdateEstado: (id: string, nuevoEstado: HojaRutaEstado) => Promise<void>;
   onPrint: (hoja: HojaRuta) => void;
   onPrintGeneral?: (items: HojaRuta[]) => void;
   onDelete: (id: string) => void;
@@ -30,7 +30,7 @@ export const TablaSeguimientoMaster: React.FC<Props> = ({
   onDelete,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterEstado, setFilterEstado] = useState<string>("TODOS");
+  const [filterEstado, setFilterEstado] = useState<string>("");
   const [filterArea, setFilterArea] = useState<string>("TODAS");
 
   // Filtrado reactivo
@@ -38,10 +38,11 @@ export const TablaSeguimientoMaster: React.FC<Props> = ({
     const matchSearch =
       h.cite_correlativo.toLowerCase().includes(searchTerm.toLowerCase()) ||
       h.asunto_descripcion.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      h.ubicacion_actual.toLowerCase().includes(searchTerm.toLowerCase());
+      h.ubicacion_actual.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      h.estado_actual.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchEstado =
-      filterEstado === "TODOS" || h.estado_actual === filterEstado;
+      filterEstado === "" || h.estado_actual === filterEstado;
     const matchArea =
       filterArea === "TODAS" ||
       h.ubicacion_actual === filterArea ||
@@ -56,6 +57,7 @@ export const TablaSeguimientoMaster: React.FC<Props> = ({
   const enEvaluacion = hojas.filter((h) => h.estado_actual === "En Evaluación").length;
   const adjudicados = hojas.filter((h) => h.estado_actual === "Adjudicado").length;
   const desiertos = hojas.filter((h) => h.estado_actual === "Desierto").length;
+  const estados = Array.from(new Set([...hojas.map(h=>h.estado_actual), filterEstado])).filter(Boolean).sort((a,b)=>a.localeCompare(b,'es'));
 
   const getEstadoBadgeClass = (estado: HojaRutaEstado) => {
     switch (estado) {
@@ -126,7 +128,7 @@ export const TablaSeguimientoMaster: React.FC<Props> = ({
           <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-2.5" />
           <input
             type="text"
-            placeholder="Buscar por CITE, Asunto o Área..."
+            placeholder="Buscar por CITE, Asunto, Área o Estado..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-9 pr-3 py-1.5 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs outline-none focus:ring-2 focus:ring-[#001e40]"
@@ -137,16 +139,13 @@ export const TablaSeguimientoMaster: React.FC<Props> = ({
         <div className="flex items-center gap-2">
           <Filter className="w-3.5 h-3.5 text-neutral-400" />
           <select
+            aria-label="Filtrar por estado"
             value={filterEstado}
             onChange={(e) => setFilterEstado(e.target.value)}
             className="bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-lg px-2.5 py-1.5 text-xs font-medium outline-none"
           >
-            <option value="TODOS">Todos los Estados</option>
-            <option value="En Circulación">En Circulación</option>
-            <option value="En Evaluación">En Evaluación</option>
-            <option value="Evaluado">Evaluado</option>
-            <option value="Adjudicado">Adjudicado</option>
-            <option value="Desierto">Desierto</option>
+            <option value="">Todos los Estados</option>
+            {estados.map(estado=><option key={estado} value={estado}>{estado}</option>)}
           </select>
         </div>
       </div>
@@ -215,21 +214,14 @@ export const TablaSeguimientoMaster: React.FC<Props> = ({
 
                   {/* Estado Actual y Fecha Adjudicación */}
                   <td className="py-3 px-3">
-                    <select
+                    <EstadoEditable
                       value={item.estado_actual}
-                      onChange={(e) =>
-                        onUpdateEstado(item.id, e.target.value as HojaRutaEstado)
-                      }
-                      className={`w-full py-1 px-2 rounded-md font-bold text-xs border outline-none cursor-pointer ${getEstadoBadgeClass(
+                      label={`Estado actual de ${item.cite_correlativo}`}
+                      onSave={value=>onUpdateEstado(item.id,value)}
+                      className={`w-full min-w-[140px] py-1 px-2 rounded-md font-bold text-xs border outline-none focus:ring-2 focus:ring-blue-500 ${getEstadoBadgeClass(
                         item.estado_actual
                       )}`}
-                    >
-                      <option value="En Circulación">En Circulación</option>
-                      <option value="En Evaluación">En Evaluación</option>
-                      <option value="Evaluado">Evaluado</option>
-                      <option value="Adjudicado">Adjudicado</option>
-                      <option value="Desierto">Desierto</option>
-                    </select>
+                    />
 
                     {item.estado_actual === "Adjudicado" && (
                       <div className="text-[10px] text-emerald-700 dark:text-emerald-400 mt-1 font-mono font-semibold flex items-center gap-1">

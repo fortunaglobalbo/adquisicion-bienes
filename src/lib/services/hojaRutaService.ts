@@ -116,30 +116,20 @@ export class HojaRutaService {
     try {
       const res = await fetch(`/api/hoja-ruta/${id}`, {
         method: "PATCH",
+        keepalive: true,
+        signal: AbortSignal.timeout(25000),
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ estado_actual }),
       });
       const json = await res.json();
-      if (json.success && json.data) {
+      if (res.ok && json.success && json.data) {
         const current = this.getLocalCache();
         this.saveLocalCache(current.map((item) => (item.id === id ? json.data : item)));
         return { success: true, data: json.data };
       }
       return { success: false, error: json.error };
     } catch (err: any) {
-      const current = this.getLocalCache();
-      const updated = current.map((item) => {
-        if (item.id === id) {
-          return {
-            ...item,
-            estado_actual,
-            fecha_adjudicacion: estado_actual === "Adjudicado" ? new Date().toISOString() : item.fecha_adjudicacion,
-          };
-        }
-        return item;
-      });
-      this.saveLocalCache(updated);
-      return { success: true };
+      return { success: false, error: 'No se pudo guardar. Revisa la conexión y vuelve a intentar.' };
     }
   }
 

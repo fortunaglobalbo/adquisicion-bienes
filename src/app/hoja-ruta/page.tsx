@@ -43,23 +43,11 @@ export default function HojaRutaPage() {
   };
 
   const handleUpdateEstado = async (id: string, nuevoEstado: HojaRutaEstado) => {
-    // Actualización optimista inmediata en UI
-    const now = new Date().toISOString();
-    setHojas((prev) =>
-      prev.map((h) => {
-        if (h.id === id) {
-          return {
-            ...h,
-            estado_actual: nuevoEstado,
-            fecha_adjudicacion:
-              nuevoEstado === "Adjudicado" ? now : h.fecha_adjudicacion,
-          };
-        }
-        return h;
-      })
-    );
-
-    await HojaRutaService.updateStatus(id, nuevoEstado);
+    const result = await HojaRutaService.updateStatus(id, nuevoEstado);
+    if(!result.success || !result.data) throw Error(result.error || 'No se pudo guardar. Intenta nuevamente.');
+    setHojas(prev=>prev.map(h=>h.id===id?result.data!:h));
+    setPrintingHoja(prev=>prev?.id===id?result.data!:prev);
+    setPrintingGeneral(prev=>prev?.map(h=>h.id===id?result.data!:h)||null);
   };
 
   const handleDelete = async (id: string) => {
