@@ -77,9 +77,9 @@ export const TablaSeguimientoMaster: React.FC<Props> = ({
   };
 
   return (
-    <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-sm overflow-hidden flex flex-col h-full">
+    <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-sm overflow-hidden flex flex-col h-full min-h-0 min-w-0">
       {/* Encabezado Oficial ENDE Deoruro */}
-      <div className="bg-[#001e40] text-white px-5 py-3 flex flex-wrap items-center justify-between gap-3 border-b-2 border-[#feb316]">
+      <div className="shrink-0 bg-[#001e40] text-white px-5 py-3 flex flex-wrap items-center justify-between gap-3 border-b-2 border-[#feb316]">
         <div className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -123,7 +123,7 @@ export const TablaSeguimientoMaster: React.FC<Props> = ({
       </div>
 
       {/* Barra de Filtros y Búsqueda */}
-      <div className="p-4 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50/70 dark:bg-neutral-900/50 flex flex-wrap items-center justify-between gap-3">
+      <div className="shrink-0 p-4 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50/70 dark:bg-neutral-900/50 flex flex-wrap items-center justify-between gap-3">
         <div className="relative flex-1 min-w-[220px]">
           <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-2.5" />
           <input
@@ -151,9 +151,11 @@ export const TablaSeguimientoMaster: React.FC<Props> = ({
       </div>
 
       {/* Tabla Máster */}
-      <div className="flex-1 overflow-x-auto overflow-y-auto">
-        <table className="w-full border-collapse text-left text-xs">
-          <thead>
+      <div role="region" aria-label="Registros de correspondencia" tabIndex={0}
+        className="flex-1 min-h-0 overflow-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+        style={{ scrollbarGutter: 'stable' }}>
+        <table className="w-full min-w-[760px] border-collapse text-left text-xs">
+          <thead className="sticky top-0 z-10 bg-neutral-100 dark:bg-neutral-800">
             <tr className="bg-neutral-100 dark:bg-neutral-800/60 text-neutral-700 dark:text-neutral-300 font-bold border-b border-neutral-200 dark:border-neutral-800">
               <th className="py-2.5 px-3 w-12 text-center">ID</th>
               <th className="py-2.5 px-3 w-36">Nº Trámite / Correlativo</th>

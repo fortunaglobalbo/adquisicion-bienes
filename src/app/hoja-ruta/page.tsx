@@ -56,9 +56,9 @@ export default function HojaRutaPage() {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-100 dark:bg-neutral-950 p-4 md:p-6 flex flex-col gap-5">
+    <div className="flex-1 min-h-0 overflow-y-auto bg-neutral-100 dark:bg-neutral-950 p-4 md:p-6 flex flex-col gap-5">
       {/* Top Banner & Acciones Rápidas */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-white dark:bg-neutral-900 px-6 py-4 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-sm border-l-4 border-l-[#001e40]">
+      <div className="shrink-0 flex flex-wrap items-center justify-between gap-4 bg-white dark:bg-neutral-900 px-6 py-4 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-sm border-l-4 border-l-[#001e40]">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-[#001e40] text-white flex items-center justify-center font-bold shadow-sm">
             <FileSpreadsheet className="w-6 h-6 text-[#feb316]" />
@@ -76,7 +76,7 @@ export default function HojaRutaPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={loadData}
             disabled={loading}
@@ -116,7 +116,7 @@ export default function HojaRutaPage() {
 
       {/* Vista Principal: Panel Dual o Tabla Completa */}
       <div
-        className={`grid gap-5 flex-1 items-start ${
+        className={`grid gap-5 shrink-0 lg:flex-1 lg:min-h-[24rem] lg:grid-rows-[minmax(0,1fr)] ${
           fullTableView
             ? "grid-cols-1"
             : "grid-cols-1 lg:grid-cols-12"
@@ -124,13 +124,13 @@ export default function HojaRutaPage() {
       >
         {/* Lado Izquierdo: Formulario Rápido (40% en desktop) */}
         {!fullTableView && (
-          <div className="lg:col-span-5 flex flex-col gap-4">
+          <div className="min-w-0 lg:min-h-0 lg:overflow-y-auto lg:col-span-5 flex flex-col gap-4">
             <FormularioHojaRuta onCreated={handleCreated} />
           </div>
         )}
 
         {/* Lado Derecho: Tabla Seguimiento Máster (60% en desktop) */}
-        <div className={fullTableView ? "col-span-1" : "lg:col-span-7"}>
+        <div className={`min-w-0 min-h-0 h-[70dvh] lg:h-full ${fullTableView ? "col-span-1" : "lg:col-span-7"}`}>
           <TablaSeguimientoMaster
             hojas={hojas}
             onUpdateEstado={handleUpdateEstado}
