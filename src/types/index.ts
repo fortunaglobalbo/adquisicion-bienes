@@ -60,6 +60,8 @@ export interface ItemAdquisicion {
 export type TipoTablaTDR = "BIENES_SIMPLE" | "BIENES_3_COLS" | "SALUD_OCUPACIONAL" | "FICHAS_DINAMICAS" | "MATRIZ_SERVICIOS" | "TABLA_DINAMICA";
 
 export interface Adquisicion {
+  // Free-text status is part of the synchronized dossier, alongside the legacy workflow code.
+  estado_personalizado?: string | null;
   solicitud_numero?: string;
   selection_plan?: import('../lib/procurement/selection').SelectionPlan;
   quote_evaluation?: import('../lib/procurement/selection').QuoteEvaluation;

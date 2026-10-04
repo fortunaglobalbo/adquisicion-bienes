@@ -4,28 +4,33 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronRight, Trash2, AlertTriangle, CheckCircle2 } from "lucide-react";
-import { Adquisicion, CategoriaAdquisicion, EstadoAdquisicion } from "@/types";
+import { Adquisicion } from "@/types";
 import { formatCurrencyBs } from "@/lib/docx/formatters";
 import { Modal } from "../ui/Modal";
+import { EstadoEditable } from '../ui/EstadoEditable';
+import { estadoAdquisicion } from '@/lib/adquisicionEstado';
 
 interface AcquisitionsTableProps {
   adquisiciones: Adquisicion[];
   searchTerm?: string;
   onAdquisicionDeleted?: (id: string) => void;
+  onUpdateEstado: (id:string, estado:string) => Promise<void>;
 }
 
 export const AcquisitionsTable: React.FC<AcquisitionsTableProps> = ({
   adquisiciones,
   searchTerm = "",
   onAdquisicionDeleted,
+  onUpdateEstado,
 }) => {
   const router = useRouter();
   const [categoriaFilter, setCategoriaFilter] = useState<string>("ALL");
-  const [estadoFilter, setEstadoFilter] = useState<string>("ALL");
+  const [estadoFilter, setEstadoFilter] = useState<string>("");
   const [deletingItem, setDeletingItem] = useState<Adquisicion | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const safeList = Array.isArray(adquisiciones) ? adquisiciones : [];
+  const estados=Array.from(new Set([...safeList.filter(Boolean).map(estadoAdquisicion),estadoFilter])).filter(Boolean).sort((a,b)=>a.localeCompare(b,'es'));
 
   const filtered = safeList.filter((item) => {
     if (!item) return false;
@@ -33,10 +38,11 @@ export const AcquisitionsTable: React.FC<AcquisitionsTableProps> = ({
       searchTerm.trim() === "" ||
       (item.codigo || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       (item.titulo_proceso || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.partida_presupuestaria || "").toLowerCase().includes(searchTerm.toLowerCase());
+      (item.partida_presupuestaria || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      estadoAdquisicion(item).toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchCategoria = categoriaFilter === "ALL" || item.categoria === categoriaFilter;
-    const matchEstado = estadoFilter === "ALL" || item.estado === estadoFilter;
+    const matchEstado = estadoFilter === "" || estadoAdquisicion(item) === estadoFilter;
 
     return matchSearch && matchCategoria && matchEstado;
   });
@@ -52,44 +58,6 @@ export const AcquisitionsTable: React.FC<AcquisitionsTableProps> = ({
     }, 400);
   };
 
-  const getStatusBadge = (estado: EstadoAdquisicion) => {
-    switch (estado) {
-      case "Iniciado":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-mono bg-surface-container-high border border-outline-variant text-on-surface-variant">
-            <span className="w-1.5 h-1.5 rounded-full bg-outline-variant"></span>
-            Iniciado
-          </span>
-        );
-      case "Generación IA":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-mono bg-primary-fixed text-primary border border-primary-fixed-dim">
-            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping"></span>
-            Generación IA
-          </span>
-        );
-      case "Revisión y Firmas":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-mono bg-secondary-container/30 text-on-secondary-container border border-secondary">
-            <span className="w-1.5 h-1.5 rounded-full bg-secondary"></span>
-            Revisión y Firmas
-          </span>
-        );
-      case "Concluido":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-mono bg-emerald-100 text-emerald-800 border border-emerald-300">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
-            Concluido
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-mono bg-surface-container border border-outline text-outline">
-            {estado}
-          </span>
-        );
-    }
-  };
 
   return (
     <>
@@ -121,15 +89,13 @@ export const AcquisitionsTable: React.FC<AcquisitionsTableProps> = ({
 
             {/* Estado Selector */}
             <select
+              aria-label="Filtrar expedientes por estado"
               value={estadoFilter}
               onChange={(e) => setEstadoFilter(e.target.value)}
               className="border border-outline-variant rounded bg-surface text-on-surface font-mono text-xs py-1.5 px-3 focus:border-primary focus:ring-0 focus:border-b-2"
             >
-              <option value="ALL">Estado: Todos</option>
-              <option value="Iniciado">Iniciado</option>
-              <option value="Generación IA">Generación IA</option>
-              <option value="Revisión y Firmas">Revisión y Firmas</option>
-              <option value="Concluido">Concluido</option>
+              <option value="">Estado: Todos</option>
+              {estados.map(estado=><option key={estado} value={estado}>{estado}</option>)}
             </select>
           </div>
         </div>
@@ -178,7 +144,11 @@ export const AcquisitionsTable: React.FC<AcquisitionsTableProps> = ({
                     <td className="p-3.5 text-xs text-on-surface-variant whitespace-nowrap">
                       {item.categoria}
                     </td>
-                    <td className="p-3.5 whitespace-nowrap">{getStatusBadge(item.estado)}</td>
+                    <td className="p-3.5 min-w-[200px] cursor-text" onClick={e=>e.stopPropagation()}>
+                      <EstadoEditable value={estadoAdquisicion(item)} label={`Estado de ${item.codigo}`}
+                        onSave={estado=>onUpdateEstado(item.id,estado)}
+                        className="w-full min-w-[170px] rounded border border-outline-variant bg-surface text-on-surface font-mono text-xs px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary"/>
+                    </td>
                     <td className="p-3.5 text-right font-mono text-xs font-semibold text-primary whitespace-nowrap">
                       {formatCurrencyBs(item.prevision_presupuesto)}
                     </td>

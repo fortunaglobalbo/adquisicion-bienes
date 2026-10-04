@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { HojaRuta, HojaRutaEstado } from "@/lib/types/hojaRuta";
-import { EstadoEditable } from './EstadoEditable';
+import { EstadoEditable } from '../ui/EstadoEditable';
 import {
   Search,
   Printer,

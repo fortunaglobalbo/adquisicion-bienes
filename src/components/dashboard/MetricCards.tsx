@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { estadoEs } from '@/lib/adquisicionEstado';
 import { TrendingUp, Clock, CheckCircle2 } from "lucide-react";
 import { Adquisicion } from "@/types";
 
@@ -10,9 +11,9 @@ interface MetricCardsProps {
 
 export const MetricCards: React.FC<MetricCardsProps> = ({ adquisiciones = [] }) => {
   const safeList = Array.isArray(adquisiciones) ? adquisiciones : [];
-  const totalActivos = safeList.filter((a) => a && a.estado !== "Concluido" && a.estado !== "Cancelado").length;
-  const pendientesIA = safeList.filter((a) => a && (a.estado === "Generación IA" || a.estado === "Iniciado")).length;
-  const concluidos = safeList.filter((a) => a && a.estado === "Concluido").length;
+  const totalActivos = safeList.filter((a) => a && !estadoEs(a,'Concluido') && !estadoEs(a,'Cancelado')).length;
+  const pendientesIA = safeList.filter((a) => a && (estadoEs(a,'Generación IA') || estadoEs(a,'Iniciado'))).length;
+  const concluidos = safeList.filter((a) => a && estadoEs(a,'Concluido')).length;
   const montoTotalBs = safeList.reduce((sum, a) => sum + (Number(a?.prevision_presupuesto) || 0), 0);
 
   return (

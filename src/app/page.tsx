@@ -56,6 +56,13 @@ export default function DashboardPage() {
     }
   };
 
+  const handleUpdateEstado = async (id:string, estado:string) => {
+    const result=await DataStore.updateEstadoAdquisicion(id,estado);
+    setAdquisiciones(DataStore.getAdquisiciones());
+    setDbError(result.success?null:result.error || 'Falta sincronizar el estado.');
+    if(!result.success)throw Error(result.error);
+  };
+
   const calculateNextCodigo = (list: Adquisicion[]): string => {
     const currentYear = new Date().getFullYear();
     let maxNum = 0;
@@ -160,6 +167,7 @@ export default function DashboardPage() {
                 adquisiciones={adquisiciones}
                 searchTerm={searchTerm}
                 onAdquisicionDeleted={handleDeleteAdquisicion}
+                onUpdateEstado={handleUpdateEstado}
               />
             )}
           </div>

@@ -26,6 +26,8 @@ import { PurchaseAssistant } from "@/components/expediente/PurchaseAssistant";
 import { FolderViewManual } from "@/components/expediente/FolderViewManual";
 import { FolderManagerModal } from "@/components/expediente/FolderManagerModal";
 import { Modal } from "@/components/ui/Modal";
+import { EstadoEditable } from '@/components/ui/EstadoEditable';
+import { estadoAdquisicion } from '@/lib/adquisicionEstado';
 import { DataStore } from "@/lib/store/dataStore";
 import { createInitialFolders } from "@/lib/store/initialData";
 import {
@@ -34,7 +36,6 @@ import {
   Documento,
   CampoExtraido,
   Firma,
-  EstadoAdquisicion,
 } from "@/types";
 import { formatCurrencyBs, formatDateBO } from "@/lib/docx/formatters";
 
@@ -126,7 +127,7 @@ export default function ExpedienteDetailPage() {
       DataStore.saveCamposExtraidos(adquisicion.id, newCampos);
     }
     // Check if state should transition to Generación IA or Revisión
-    if (activeFolderNum >= 5 && adquisicion.estado === "Iniciado") {
+    if (activeFolderNum >= 5 && !adquisicion.estado_personalizado && adquisicion.estado === "Iniciado") {
       DataStore.updateAdquisicion(adquisicion.id, { estado: "Generación IA" });
     }
     loadData(true);
@@ -138,9 +139,10 @@ export default function ExpedienteDetailPage() {
     loadData();
   };
 
-  const handleStatusChange = (newStatus: EstadoAdquisicion) => {
-    DataStore.updateAdquisicion(adquisicion.id, { estado: newStatus });
-    loadData();
+  const handleStatusChange = async (newStatus: string) => {
+    const result=await DataStore.updateEstadoAdquisicion(adquisicion.id,newStatus);
+    await loadData(true);
+    if(!result.success)throw Error(result.error);
   };
 
   const handleDeleteExpediente = async () => {
@@ -199,17 +201,8 @@ export default function ExpedienteDetailPage() {
 
               {/* Status Switcher & Delete Action */}
               <div className="flex items-center gap-2">
-                <select
-                  value={adquisicion.estado}
-                  onChange={(e) => handleStatusChange(e.target.value as EstadoAdquisicion)}
-                  className="font-mono text-xs py-1.5 px-3 rounded border border-outline-variant bg-surface text-primary font-bold focus:border-primary focus:ring-0"
-                >
-                  <option value="Iniciado">Estado: Iniciado</option>
-                  <option value="Generación IA">Estado: Generación IA</option>
-                  <option value="Revisión y Firmas">Estado: Revisión y Firmas</option>
-                  <option value="Concluido">Estado: Concluido</option>
-                  <option value="Cancelado">Estado: Cancelado</option>
-                </select>
+                <EstadoEditable value={estadoAdquisicion(adquisicion)} label="Estado del expediente" onSave={handleStatusChange}
+                  className="w-56 font-mono text-xs py-1.5 px-3 rounded border border-outline-variant bg-surface text-primary font-bold focus:outline-none focus:ring-2 focus:ring-primary"/>
 
                 <button
                   type="button"

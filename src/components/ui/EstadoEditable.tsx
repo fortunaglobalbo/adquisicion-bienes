@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from 'react';
-import { HOJA_RUTA_ESTADO_MAX } from '@/lib/types/hojaRuta';
 
-export function EstadoEditable({value, label, className, onSave}: {
-  value:string; label:string; className:string; onSave:(value:string)=>Promise<void>;
+export function EstadoEditable({value, label, className, onSave, maxLength=50}: {
+  value:string; label:string; className:string; onSave:(value:string)=>Promise<void>; maxLength?:number;
 }) {
   const [text,setText]=useState(value);
   const [status,setStatus]=useState<'idle'|'pending'|'saving'|'saved'|'error'>('idle');
@@ -49,7 +48,7 @@ export function EstadoEditable({value, label, className, onSave}: {
   },[]);
 
   return <div>
-    <input type="text" value={text} aria-label={label} title={text} maxLength={HOJA_RUTA_ESTADO_MAX}
+    <input type="text" value={text} aria-label={label} title={text} maxLength={maxLength}
       placeholder="Escribe el estado" className={className}
       aria-invalid={status==='error'}
       onChange={e=>{current.current=e.target.value;setText(e.target.value);setStatus('pending');setError('');cancelTimer();timer.current=setTimeout(()=>void save(),700);}}

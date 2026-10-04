@@ -3,6 +3,7 @@
 import { Adquisicion, Carpeta, Documento, CampoExtraido, Firma, LogProceso, Plantilla } from "@/types";
 import { createInitialFolders, FOLDER_TEMPLATES } from "./initialData";
 import { officialPeople } from '../docx/officialPeople';
+import { cambiosEstadoAdquisicion } from '../adquisicionEstado';
 
 const KEYS = { adq: "ende_adquisiciones_v2026", folders: "ende_carpetas_v2026", fields: "ende_campos_extraidos_v2026", logs: "ende_logs_v2026", signs: "ende_firmas_v2026", templates: "ende_plantillas_v2026", pending: "ende_pending_v1", revisions: "ende_revisions_v1", templatePending: "ende_templates_pending_v1" };
 type Result = { success: boolean; error?: string };
@@ -158,6 +159,14 @@ export class DataStore {
     if (index < 0) return { success: false, error: "Expediente no encontrado." };
     list[index] = { ...list[index], ...updates, id: list[index].id, fecha_actualizacion: new Date().toISOString() };
     this.saveAdquisiciones(list); return { success: true };
+  }
+  static async updateEstadoAdquisicion(id:string, text:string):Promise<Result> {
+    try {
+      const local=await this.updateAdquisicion(id,cambiosEstadoAdquisicion(text));
+      if(!local.success)return local;
+      const synced=await this.flushPending();
+      return synced.success?synced:{success:false,error:'Guardado en este equipo; falta sincronizar. Revisa la conexión y pulsa Reintentar.'};
+    }catch(e){return {success:false,error:e instanceof Error?e.message:'No se pudo guardar el estado.'};}
   }
   static async deleteAdquisicion(id: string): Promise<Result> {
     const target = this.getAdquisicionById(id);

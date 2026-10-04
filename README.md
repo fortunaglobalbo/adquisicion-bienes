@@ -1,5 +1,9 @@
 # ENDE Deoruro — Gestión de adquisiciones
 
+## Estados editables
+
+En Mis compras y dentro del expediente, el estado admite texto libre y se guarda automáticamente al pausar la escritura, salir del campo o pulsar Enter. El texto se conserva en `estado_personalizado` del snapshot JSONB sincronizado; la columna SQL `estado` mantiene los códigos de flujo compatibles con su restricción original. Los filtros y las métricas usan el estado visible. Los códigos conocidos también se actualizan al escribirlos, sin modificar el texto elegido por el usuario. Un fallo de red conserva el cambio en la cola local y muestra que falta sincronizar; «Guardado» requiere confirmar la sincronización. La hoja de ruta utiliza el mismo editor.
+
 ## Informe técnico de evaluación y datos automáticos del S1
 
 La carpeta 6 utiliza el **Informe técnico de evaluación de ofertas**, reconstruido como Word editable a partir del PDF aportado el 25 de septiembre de 2026. Reemplaza el S2 en el flujo actual y conserva las descargas de documentos anteriores. Incluye destinatario, vía, informante, antecedentes, recepción de cotizaciones, cuadro por proveedor, conclusiones y recomendaciones. Por indicación del usuario se conserva el encabezado institucional **INFORME DE CONFORMIDAD (CONTRATACIONES), FORMULARIO A6-N014**, el logo de ENDE y la distribución de A, VIA y De con sus cargos. Los destinatarios del ejemplo se usan como base editable cuando no existen responsables propios guardados. La conformidad de bienes/servicios permanece en la carpeta 7. No se trasladan proveedores, importes, firmas ni artículos del ejemplo a otras compras. El ajuste de formato actualiza también los borradores de evaluación anteriores, preservando su texto y ediciones.
