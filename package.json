@@ -24,21 +24,23 @@
     "test:selection": "node scripts/selection-test.cjs",
     "test:evaluation-template": "node scripts/evaluation-template-test.cjs",
     "test:editor": "node scripts/editable-document-test.cjs",
-    "test:editor-preview": "node scripts/editable-document-preview-test.cjs"
+    "test:editor-preview": "node scripts/editable-document-preview-test.cjs",
+    "test:fixed-response": "node scripts/fixed-response-test.cjs"
   },
   "dependencies": {
-    "@xmldom/xmldom": "0.8.15",
-    "jszip": "3.10.1",
     "@supabase/supabase-js": "^2.48.1",
+    "@xmldom/xmldom": "0.8.15",
     "clsx": "^2.1.1",
     "docx": "9.6.1",
     "file-saver": "^2.0.5",
+    "jszip": "3.10.1",
     "lucide-react": "^0.475.0",
     "mammoth": "^1.12.2",
     "next": "^14.2.23",
     "pdf-parse": "^2.4.5",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "sweetalert2": "11.26.25",
     "tailwind-merge": "^3.0.1"
   },
   "devDependencies": {

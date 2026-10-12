@@ -4,7 +4,8 @@ import { createHash } from "crypto";
 import { fixedModel, FixedDraft, FixedModel, missingValue, upgradeFixedDraft } from "../docx/fixedModels";
 import { inspectTemplate, fillTemplate, DocumentChange, TableChange } from "../docx/templateEditor";
 import { AnythingLlmClient } from "../ai/anythingLlmClient";
-import { callOpenCodeGo, extractJsonFromText } from "../ai/openCodeClient";
+import { callOpenCodeGo } from "../ai/openCodeClient";
+import { parseFixedDocumentResponse } from './fixedDocumentResponse';
 import { companyKnowledge } from "./companyKnowledge";
 import type { Adquisicion } from "@/types";
 import { extractDocumentEvidence, verifiedQuotes } from './documentEvidence';
@@ -193,12 +194,10 @@ export async function completeFixedDocument(number: number, adq: Adquisicion, cu
       suggestedConditions:defaultDocumentProposals(number,adq,current), sources }) }, ...images.map(url => ({ type: "image_url" as const, image_url: { url } }))] },
   ], 0.1, 16000, 85000, session, {strict:true,disableThinking:true});
   if (!raw) throw Error("OpenCode GO devolvió una respuesta vacía. Vuelve a intentar; el borrador se conserva.");
-  const result = extractJsonFromText(raw);
-  if (!result || typeof result.fields !== "object" || !result.fields || Array.isArray(result.fields)) throw Error("La IA no entregó un documento válido. El borrador anterior se conserva.");
-  // Some GO responses omit the table when the confirmed brief already supplies it.
-  // Reuse those confirmed rows; never infer a receipt or accept a malformed table object.
-  if(result.items===undefined && (!model.columns.length || number===6 || (brief && [1,3].includes(number)))) result.items=[];
-  if(!Array.isArray(result.items)) throw Error('La IA no entregó una tabla válida. El borrador anterior se conserva.');
+  const result = parseFixedDocumentResponse(raw,model,{
+    authoritativeItems:!!current.editedItems || !!(brief&&[1,3].includes(number)) || !!(number===6&&adq.quote_evaluation?.quotes.length),
+    allowMissingItems:number===6,
+  });
   const validIds = new Set(sources.map(s => s.id));
   const decisionKeys = ['seleccion','vigencia','adjudicacion','pago'];
   const decisions = brief?.decisions || {};
@@ -279,6 +278,7 @@ export async function completeFixedDocument(number: number, adq: Adquisicion, cu
   }
   if(brief && narrative)for(const key of ['objeto','antecedentes','justificacion','resumen','especificacion','ambito','asunto','cuerpo']) {
     if(!(key in fields) || current.editedFields?.includes(key))continue;
+    if(number===1&&['antecedentes','justificacion'].includes(key)&&(!fields[key].trim()||/^\[PENDIENTE[^\]]*\]$/i.test(fields[key].trim()))) fields[key]=narrative[key];
     if(staleMention(fields[key])) {
       fields[key]=narrative[key] || brief.purpose;
       reviewWarnings.push('Se actualizó la redacción automática para que corresponda a los bienes actuales de esta compra.');
