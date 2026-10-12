@@ -1,5 +1,15 @@
 # ENDE Deoruro — Gestión de adquisiciones
 
+## Asistente desde una cotización o imagen
+
+Crear un expediente requiere su nombre y tipo de compra; los responsables oficiales se reutilizan y los datos adicionales son opcionales. El asistente admite una cotización, PDF con texto o escaneado, Word, TXT o una foto. «Crear documentos con IA» extrae los datos y prepara los borradores editables de las carpetas 1 a 5. «Leer y revisar primero» permite revisar la ficha antes de redactar. Una cantidad ausente o una contradicción concreta detiene el avance para corregirla; las condiciones comerciales sugeridas se incorporan con su identificación, sin atribuir confirmación al usuario. Las carpetas de evaluación, conformidad y pago se completan con sus ofertas y hechos reales. Las correcciones manuales, los formatos y los logos se conservan.
+
+Los PDF escaneados y mixtos se leen mediante imágenes de sus páginas; se admiten hasta seis páginas escaneadas por consulta, sin truncarlas silenciosamente. Se mantienen los límites de tres archivos y 3 MB de entrada. Cantidades y precios son datos de los antecedentes; entrega, crédito y vigencia comercial se distinguen. No se infieren certificaciones, tensiones, materiales o prestaciones por conocimiento general de una marca.
+
+`templates/ende/normative-v04.json` contiene extractos literales auditados, páginas y hash del PDF V04 seleccionado por el usuario. Se combinan con las fuentes recuperadas desde AnythingLLM para redactar cláusulas generales incluso si la biblioteca falla parcialmente. La portada corresponde a ENDE Servicios y Construcciones; su adopción por ENDE DEORURO permanece como observación explícita. El artículo 32 trata categorías por cuantía, separadas de la categoría descriptiva del TDR. Vigencia, selección, adjudicación y pago pueden ser propuestas editables; no se convierten automáticamente en decisiones confirmadas. La referencia no fija una multa universal del 0,25 %.
+
+Mis compras muestra los expedientes por fecha de creación descendente, incluyendo la copia local. Editar o cambiar el estado de un expediente anterior no cambia ese orden.
+
 ## Estados editables
 
 En Mis compras y dentro del expediente, el estado admite texto libre y se guarda automáticamente al pausar la escritura, salir del campo o pulsar Enter. El texto se conserva en `estado_personalizado` del snapshot JSONB sincronizado; la columna SQL `estado` mantiene los códigos de flujo compatibles con su restricción original. Los filtros y las métricas usan el estado visible. Los códigos conocidos también se actualizan al escribirlos, sin modificar el texto elegido por el usuario. Un fallo de red conserva el cambio en la cola local y muestra que falta sincronizar; «Guardado» requiere confirmar la sincronización. La hoja de ruta utiliza el mismo editor.

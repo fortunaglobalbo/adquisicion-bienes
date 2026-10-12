@@ -212,12 +212,12 @@ Todo documento generado debe seguir estrictamente este índice:
 3. **ESPECIFICACIÓN TÉCNICA:** Tabla completa con todos los ítems individuales solicitados, reconociendo cantidades (incluso escritas en palabras: 'dos palas' -> Cantidad 2, 'una cinta' -> Cantidad 1), unidad ('PZA', 'ROLLO', etc.) y especificaciones técnicas detalladas con normas ASTM/IEC/ISO.
 4. **CALIDAD:** Estándares normativos aplicables (ASTM/IEC/ISO), garantía técnica mínima de 12 meses y certificados del fabricante.
 5. **ÁMBITO DE APLICACIÓN:** Cuadrillas técnicas, personal operativo y subestaciones de ENDE DEORURO S.A.
-6. **MÉTODO DE SELECCIÓN:** Menor Precio (Art. 31 del Reglamento SBC).
+6. **MÉTODO DE SELECCIÓN:** Menor precio.
 7. **VIGENCIA DE LA PROPUESTA:** Validez mínima de 30 días calendario.
 8. **CATEGORÍA:** Bienes / Herramientas / Salud Ocupacional.
 9. **LUGAR DE ENTREGA:** Almacenes ENDE DEORURO S.A., Oruro.
 10. **TIEMPO DE ENTREGA:** Máximo 30 días calendario a partir de la Orden de Compra.
-11. **FORMA DE ADJUDICACIÓN:** Por ítem requerido (Art. 31 SBC).
+11. **FORMA DE ADJUDICACIÓN:** Modalidad por ítem, lote, tramo o paquete definida previamente para este proceso.
 12. **PARA LA ACEPTACIÓN DEL LOTE / SERVICIO:** Inspección y evaluación técnica de conformidad en almacén.
 13. **FORMA DE PAGO:** 100% contra entrega a satisfacción, informe de conformidad y factura oficial.
 14. **APLICACIÓN DE MULTAS:** 0.25% por día de retraso injustificado.
@@ -239,12 +239,12 @@ DEBES RESPONDER EXCLUSIVAMENTE UN OBJETO JSON VÁLIDO CON ESTA ESTRUCTURA:
   "justificacion_texto": "Texto formal de 5 a 8 líneas de justificación basado en los ítems solicitados",
   "calidad_texto": "Texto de calidad",
   "ambito_aplicacion": "Texto de ámbito",
-  "metodo_seleccion_texto": "Menor Precio (Art. 31 del Reglamento SBC)",
+  "metodo_seleccion_texto": "Menor precio",
   "vigencia_propuesta_texto": "30 días calendario computables a partir de la fecha de presentación",
   "categoria_texto": "Bienes y Herramientas",
   "lugar_entrega": "Almacenes ENDE DEORURO S.A., Oruro",
   "tiempo_entrega_texto": "Máximo 30 días calendario",
-  "forma_adjudicacion": "Por ítem requerido, formalizada por Orden de Compra (Art. 31 SBC)",
+  "forma_adjudicacion": "Modalidad por ítem, lote, tramo o paquete definida previamente para este proceso",
   "aceptacion_lote": "Inspección técnica de conformidad al momento de la entrega",
   "forma_pago_texto": "El pago se realizará contra entrega a satisfacción...",
   "multas_texto": "Multa del 0.25% por cada día de retraso",
@@ -355,7 +355,7 @@ DEBES RESPONDER EXCLUSIVAMENTE UN OBJETO JSON VÁLIDO CON ESTA ESTRUCTURA:
           categoria_texto: parsed.categoria_texto || (isSalud ? "Salud Ocupacional" : "Bienes y Herramientas"),
           lugar_entrega: parsed.lugar_entrega || "Almacenes ENDE DEORURO S.A., Oruro",
           tiempo_entrega_texto: parsed.tiempo_entrega_texto || "Máximo 30 días calendario",
-          forma_adjudicacion: parsed.forma_adjudicacion || "Por ítem requerido (Art. 31 SBC)",
+          forma_adjudicacion: parsed.forma_adjudicacion || "Modalidad por ítem, lote, tramo o paquete definida previamente para este proceso",
           aceptacion_lote: parsed.aceptacion_lote || "Inspección técnica de conformidad en almacén",
           forma_pago_texto: parsed.forma_pago_texto || "Contra entrega a satisfacción y factura oficial",
           multas_texto: parsed.multas_texto || "Multa del 0.25% por día de retraso",
@@ -463,12 +463,12 @@ DEBES RESPONDER EXCLUSIVAMENTE UN OBJETO JSON VÁLIDO CON ESTA ESTRUCTURA:
     2: justText,
     4: "Los bienes deberán ser nuevos, de primer uso y fabricados bajo normas de calidad aplicables (ASTM/IEC/ISO) con garantía técnica mínima de 12 meses.",
     5: "Subestaciones, cuadrillas operativas y redes de distribución de ENDE DEORURO S.A.",
-    6: "Por ítem requerido al Menor Precio evaluado, conforme al Artículo 31 del Reglamento SBC.",
+    6: "Menor precio. Se seleccionará la propuesta de menor precio entre las que cumplan los requisitos mínimos establecidos para este proceso.",
     7: "Tendrá una validez mínima de 30 (treinta) días calendario computables a partir de la fecha de presentación de ofertas.",
     8: "Bienes, Herramientas y Suministros Oficiales.",
     9: adquisicion.lugar_entrega || "Almacenes Centrales de ENDE DEORURO S.A., Oruro - Bolivia.",
     10: "Máximo 30 días calendario computables a partir del día siguiente de la recepción de la Orden de Compra formal.",
-    11: "Por ítem requerido, formalizada por Orden de Compra (Art. 31 SBC).",
+    11: "La evaluación y adjudicación se realizarán conforme a la modalidad por ítem, lote, tramo o paquete definida previamente para este proceso.",
     12: "El personal técnico de ENDE DEORURO S.A. realizará una evaluación técnica de conformidad el día de la entrega física del lote.",
     13: "El pago se realizará en moneda nacional contra entrega satisfactoria del lote, conformidad de ENDE DEORURO S.A. y factura comercial oficial.",
     14: "Se aplicará la multa del 0.25% por cada día de retraso en la entrega respecto al plazo contractual.",

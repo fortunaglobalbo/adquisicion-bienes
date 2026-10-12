@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { completeFixedDocument, seedFixedDraft, renderFixedWord, validateFixedDraft } from "@/lib/server/fixedDocuments";
 import { fixedModel, upgradeFixedDraft } from "@/lib/docx/fixedModels";
-import { extractText } from "@/lib/server/extractText";
+import { extractPurchaseAttachment } from "@/lib/server/extractText";
 import { companyKnowledge } from "@/lib/server/companyKnowledge";
 import type { Adquisicion } from "@/types";
 import { purchaseReadingStream } from '@/lib/server/purchaseReadingStream';
@@ -50,11 +50,13 @@ export async function POST(req: NextRequest) {
           images.push(`data:${mime};base64,${buffer.toString("base64")}`);
           continue;
         }
-        const content = await extractText(buffer, file.name);
-        if (!content.trim()) throw Error(`No se pudo leer ${file.name}. Copia su contenido en la descripción si es un escaneo.`);
-        context += `\nANTECEDENTE DE ESTE EXPEDIENTE (${file.name}):\n${content}`;
+        const content = await extractPurchaseAttachment(buffer, file.name, 6-images.length);
+        if (!content.text.trim() && !content.images.length) throw Error(`No se pudo leer ${file.name}. Adjunta una imagen legible o un documento con contenido.`);
+        images.push(...content.images);
+        context += `\nANTECEDENTE DE ESTE EXPEDIENTE (${file.name}):\n${content.text}${content.images.length?'\nSus páginas escaneadas se adjuntan como imágenes para lectura con visión.':''}`;
         if (context.length > 60000) throw Error("Los antecedentes son demasiado extensos. Adjunta solo la información de esta compra.");
       }
+      if(images.reduce((total,url)=>total+url.length,0)>12*1024*1024) throw Error('Las imágenes preparadas son demasiado grandes para una lectura completa. Divide los antecedentes en consultas más pequeñas.');
       if (body.action === 'analyze') {
         if (body.stream === true) return purchaseReadingStream(adq,context,images,req.signal);
         return NextResponse.json({ brief: await analyzePurchaseBrief(adq, context, images, {signal:req.signal}) }, { headers: { 'Cache-Control': 'no-store' } });

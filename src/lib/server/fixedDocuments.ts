@@ -15,8 +15,12 @@ import { applySelection, assertPlan } from '../procurement/selection';
 import { addSelectionTables } from './selectionWord';
 import { administrativeDefaults, fillAdministrativeBlanks } from '../docx/administrativeDefaults';
 import { technicalEvaluationData } from './technicalEvaluation';
+import { availablePurchaseBrief } from '../docx/purchaseBrief';
+import referenceV04 from '../../../templates/ende/normative-v04.json';
+import { keepTdrHeadingsWithBody } from './wordPagination';
 
 const text = (value: unknown): string => typeof value === "string" ? value.trim() : "";
+const amountCategory = (value:unknown) => /^(?:categor[ií]a\s+)?(?:I{1,3}|especial)\b/i.test(text(value)) ? text(value) : '';
 export function seedFixedDraft(number: number, adq: Adquisicion): FixedDraft {
   const model = fixedModel(number);
   companyKnowledge(adq.empresa_id || "ende");
@@ -32,11 +36,11 @@ export function seedFixedDraft(number: number, adq: Adquisicion): FixedDraft {
     presupuesto: adq.prevision_presupuesto > 0 ? adq.prevision_presupuesto.toFixed(2) : "",
     calidad: adq.calidad_texto || "",
     seleccion: adq.metodo_seleccion_texto || "",
-    vigencia: adq.vigencia_propuesta_texto || (number === 1 ? "Mínimo 30 días calendario computables a partir de la apertura de propuestas." : ""),
-    categoria: adq.categoria_texto || (number === 1 ? (adq.categoria === "Bienes" ? "Bienes y Herramientas" : adq.categoria || "Bienes y Herramientas") : ""),
+    vigencia: adq.vigencia_propuesta_texto || "",
+    categoria: number===1 ? adq.categoria_texto || (adq.categoria === "Bienes" ? "Bienes y Herramientas" : adq.categoria || "Bienes y Herramientas") : number===2 ? amountCategory(adq.asistente_compra?.decisions?.categoria_s1) || amountCategory(adq.asistente_compra?.decisions?.categoria) : '',
     pago: adq.forma_pago_texto || "",
-    multas: adq.multas_texto || (number === 1 && adq.multa_diaria_porcentaje ? `Ante el incumplimiento de los plazos y otras condiciones establecidas en la Orden de Compra y Especificaciones Técnicas, se aplicará la multa del ${adq.multa_diaria_porcentaje}% por cada día de retraso injustificado.` : ""),
-    ...(adq.asistente_compra?.confirmedAt ? adq.asistente_compra.details : {}),
+    multas: adq.multas_texto || "",
+    ...(availablePurchaseBrief(adq)?.details || {}),
     ...people,
     ...(number === 2 ? administrativeDefaults(adq) : {}),
     ...(number === 6 ? technicalEvaluationData(adq).fields : {}),
@@ -120,7 +124,8 @@ export async function renderFixedWord(number: number, input: FixedDraft) {
     tables.push({ target: itemTable.id, label: "Ítems", rows: rows.map(r => model.columns.map(c => /^\[PENDIENTE[^\]]*\]$/.test(r[c.key] || '') ? '________' : r[c.key] || '')) });
   }
   const filled=await fillTemplate(buffer, changes, tables);
-  return { buffer: number===1&&draft.selectionPlan ? await addSelectionTables(filled,draft.selectionPlan) : filled, draft };
+  const paginated=number===1?await keepTdrHeadingsWithBody(filled):filled;
+  return { buffer: number===1&&draft.selectionPlan ? await addSelectionTables(paginated,draft.selectionPlan) : paginated, draft };
 }
 
 export async function completeFixedDocument(number: number, adq: Adquisicion, current: FixedDraft, context: string, images: string[] = []) {
@@ -131,6 +136,13 @@ export async function completeFixedDocument(number: number, adq: Adquisicion, cu
   const session = `ende-document-${createHash('sha256').update(`${company.id}:${adq.id}:${number}`).digest('hex').slice(0,32)}`;
   const hasNormativeFields=model.fields.some(f=>f.normative);
   let sources: FixedDraft["sources"] = [], answer = "", status: FixedDraft["normativeStatus"] = hasNormativeFields ? "unavailable" : "not_applicable", partialSearch = false;
+  // The user selected this exact V04 PDF. Keep audited literal excerpts available even if
+  // the workspace is temporarily offline; never present its adoption by Deoruro as verified.
+  const referenceKeys = new Set(model.fields.filter(f=>f.normative).map(f=>f.key));
+  if(number===1) for(const key of ['marcas','plazo','prevision'])referenceKeys.add(key);
+  const referenceSources = hasNormativeFields ? referenceV04.sources.filter(s=>referenceKeys.has(s.key)) : [];
+  sources = referenceSources.map((s,i)=>({id:`fuente-${i+1}`,title:`${referenceV04.sourceFile} — ${s.title}`,excerpt:s.excerpt,page:String(s.page),version:s.version}));
+  if(sources.length)status='sources_found';
   if(hasNormativeFields) try {
     const queries: Record<string,string> = {calidad:'Especificaciones técnicas características fundamentales capacidad calidad rendimiento requisitos normalizados',seleccion:'MÉTODOS DE SELECCIÓN Menor precio cumplimiento requisitos mínimos',vigencia:'validez vigencia propuesta oferta plazo presentación',categoria:'CATEGORÍAS Y SUS CUANTÍAS nivel materialidad',adjudicacion:'ADJUDICACIÓN POR ITEMS LOTES TRAMOS PAQUETES',aceptacion:'recepción bienes verificación parcial total actas disconformidad',pago:'forma de pago moneda documento contractual',multas:'APLICACIÓN DE MULTAS incumplimiento plazos documento contractual',garantias:'GARANTÍAS SEGÚN EL OBJETO bienes cumplimiento contrato'};
     if((current.selectionPlan||adq.selection_plan)?.method==='calidad_precio')queries.seleccion='Método Calidad y Precio requisitos mínimos adicionales ERA previsión de precio PvP ponderaciones';
@@ -138,7 +150,7 @@ export async function completeFixedDocument(number: number, adq: Adquisicion, cu
     const results = await Promise.allSettled(groups.map(topic=>AnythingLlmClient.searchWorkspaceSources(
       topic, company.workspace, 3)));
     partialSearch = results.some(r=>r.status==='rejected');
-    const seen = new Set<string>(); let characters = 0;
+    const seen = new Set(sources.map(s=>`${s.title}:${s.excerpt}`)); let characters = sources.reduce((sum,s)=>sum+s.excerpt.length,0);
     for (const result of results) {
       if (result.status !== 'fulfilled') continue;
       for (const source of result.value.sources) {
@@ -149,18 +161,20 @@ export async function completeFixedDocument(number: number, adq: Adquisicion, cu
       }
     }
     answer = "Fragmentos recuperados por temas. Evalúa su aplicabilidad y excepciones; no son una respuesta normativa validada.";
-    status = sources.length ? "sources_found" : results.every(r=>r.status==='rejected') ? "unavailable" : "no_sources";
+    status = sources.length ? "sources_found" : results.length && results.every(r=>r.status==='rejected') ? "unavailable" : "no_sources";
   } catch { /* Preserve the data; missing regulatory evidence remains visible. */ }
-  const brief = adq.asistente_compra?.confirmedAt ? adq.asistente_compra : null;
+  const brief = availablePurchaseBrief(adq);
   const evidence = brief && !context.trim() && !images.length
     ? { facts: brief.facts, missing: [], conflicts: brief.clarification ? [] : brief.conflicts }
     : await extractDocumentEvidence({expediente:adq,antecedentes:context,borrador:{fields:current.fields,items:current.items}},images,`${session}-extract`);
   const { borradores_ia: _prepared, asistente_compra: _brief, ...purchase } = adq;
   const raw = await callOpenCodeGo([
     { role: "system", content: fixedDocumentPrompt(company.name) },
-    { role: "user", content: [{ type: "text", text: JSON.stringify({ model: { number, fields: model.fields, columns: model.columns }, expediente: purchase, fichaConfirmada:brief, tdrCompartido:number!==1?{fields:adq.borradores_ia?.['1']?.draft.fields,items:adq.borradores_ia?.['1']?.draft.items}:undefined, evidence, current: { fields: current.fields, items: current.items }, context,
+    { role: "user", content: [{ type: "text", text: JSON.stringify({ model: { number, fields: model.fields, columns: model.columns }, expediente: purchase, fichaCompra:brief, fechaPreparacion:new Intl.DateTimeFormat('sv-SE',{timeZone:'America/La_Paz',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()), tdrCompartido:number!==1?{fields:adq.borradores_ia?.['1']?.draft.fields,items:adq.borradores_ia?.['1']?.draft.items,proposals:adq.borradores_ia?.['1']?.draft.proposals}:undefined, evidence, current: { fields: current.fields, items: current.items }, context,
       imageInstructions: "Las imágenes adjuntas son antecedentes de esta compra, no normas. Lee sus datos visibles. Si algo es ilegible o contradice los datos actuales, déjalo pendiente y explica la discrepancia. No copies firmas ni supongas aprobación.",
-      normativeAnswer: sources.length ? answer : "Sin fuentes recuperadas", sources }) }, ...images.map(url => ({ type: "image_url" as const, image_url: { url } }))] },
+      normativeAnswer: sources.length ? answer || 'Extractos literales del reglamento V04 seleccionado por el usuario.' : "Sin fuentes recuperadas",
+      selectedReference:hasNormativeFields?{title:referenceV04.documentTitle,version:referenceV04.version,date:referenceV04.date,applicability:referenceV04.applicability,limitations:referenceV04.limitations}:undefined,
+      suggestedConditions:defaultDocumentProposals(number,adq,current), sources }) }, ...images.map(url => ({ type: "image_url" as const, image_url: { url } }))] },
   ], 0.1, 16000, 85000, session, {strict:true,disableThinking:true});
   if (!raw) throw Error("OpenCode GO devolvió una respuesta vacía. Vuelve a intentar; el borrador se conserva.");
   const result = extractJsonFromText(raw);
@@ -176,58 +190,150 @@ export async function completeFixedDocument(number: number, adq: Adquisicion, cu
   const sourceIds: Record<string, string[]> = {};
   const sourceQuotes: Record<string,{sourceId:string;quote:string}[]> = {};
   const reviewWarnings: string[] = [...evidence.conflicts];
+  const referenceFor = (key:string) => {
+    const record = referenceSources.find(s=>s.key===key);
+    return record && sources.find(s=>s.title===`${referenceV04.sourceFile} — ${record.title}`);
+  };
+  const defaults = defaultDocumentProposals(number,adq,current);
+  const technicalEvidence = JSON.stringify({items:brief?.items || adq.items,facts:brief?.facts || evidence.facts,notes:brief?.notes,context,quality:adq.calidad_texto});
   const fields = Object.fromEntries(model.fields.map(f => {
     sourceIds[f.key] = Array.isArray(result.sourceIds?.[f.key]) ? result.sourceIds[f.key].filter((id: unknown) => typeof id === "string" && validIds.has(id)) : [];
-    const value = text(result.fields[f.key]).replace(/\s*\(\s*fuente-\d+(?:\s*[,;]\s*fuente-\d+)*\s*\)/gi, "");
+    let value = text(result.fields[f.key]).replace(/\s*\(\s*fuente-\d+(?:\s*[,;]\s*fuente-\d+)*\s*\)/gi, "");
+    const explicitCondition = current.confirmedFields?.includes(f.key) && current.fields[f.key] !== missingValue && (number!==2 || f.key!=='categoria' || amountCategory(current.fields[f.key])) ? current.fields[f.key] : '';
+    const fieldDecision = f.key==='categoria' ? number===2 ? amountCategory(decisions.categoria_s1) || amountCategory(decisions.categoria) : '' : decisions[f.key];
+    const proposedVal = f.key==='multas' ? defaults.multas?.value || '' : text(result.proposals?.[f.key]?.value) || defaults[f.key]?.value || '';
+    const isProposal = !!proposedVal && !fieldDecision && !explicitCondition;
     if(f.normative){
       sourceQuotes[f.key]=verifiedQuotes(value,sourceIds[f.key],result.sourceQuotes?.[f.key],sources);
       sourceIds[f.key]=Array.from(new Set(sourceQuotes[f.key].map(q=>q.sourceId)));
-      if(value && !/PENDIENTE/.test(value) && !sourceIds[f.key].length && !current.confirmedFields?.includes(f.key)) reviewWarnings.push(`${f.label}: el texto propuesto no tiene un extracto verificable suficiente; se dejó pendiente.`);
+      const unsupported = f.key==='calidad' && !explicitCondition && !current.editedFields?.includes(f.key)
+        ? unsupportedQualityClaims(value,technicalEvidence+' '+sourceQuotes[f.key].map(q=>q.quote).join(' ')) : [];
+      if(unsupported.length) {
+        value=generalReferenceClause(number,'calidad',adq);
+        const source=referenceFor('calidad');
+        sourceIds[f.key]=source?[source.id]:[];sourceQuotes[f.key]=source?[{sourceId:source.id,quote:source.excerpt}]:[];
+        reviewWarnings.push(`Calidad: se retiraron requisitos no aportados (${unsupported.slice(0,4).join(', ')}). Se conserva la cláusula general; adjunta la ficha técnica si deseas exigirlos.`);
+      } else if(value && !/PENDIENTE/.test(value) && !sourceIds[f.key].length && !explicitCondition && !isProposal && f.key!=='categoria') reviewWarnings.push(`${f.label}: se sustituyó el texto sin respaldo verificable por la cláusula general del documento de referencia.`);
     }
-    const proposedVal = text(result.proposals?.[f.key]?.value);
-    if(decisionKeys.includes(f.key) && proposedVal && !decisions[f.key]) proposals[f.key]={value:proposedVal.slice(0,4000),reason:text(result.proposals[f.key].reason).slice(0,1500)};
-    if(f.key==='categoria' && number === 2 && !/categor[ií]a\s+(?:I{1,3}|especial)\b/i.test(value)) return [f.key,missingValue];
+    if((decisionKeys.includes(f.key) || (f.key==='multas' && defaults.multas)) && isProposal) proposals[f.key]={value:proposedVal.slice(0,4000),reason:(text(result.proposals?.[f.key]?.reason) || defaults[f.key]?.reason || 'Condición comercial propuesta para revisar.').slice(0,1500)};
+    if(f.key==='categoria' && number === 2 && !explicitCondition && !fieldDecision) {
+      // Calculate only from a complete, positive reference amount; it is a draft classification,
+      // not proof of approval or of the company's separate petty-cash threshold.
+      const amount = adq.prevision_presupuesto;
+      const completePrices = adq.items.length && adq.items.every(i=>i.cantidad>0&&i.precioUnitarioEstimado>0);
+      const sum = adq.items.reduce((total,i)=>total+Math.round(i.cantidad*i.precioUnitarioEstimado*100),0)/100;
+      const source = referenceFor('categoria');
+      if(completePrices && amount>0 && Math.abs(sum-amount)<0.02 && source) {
+        const category = amount<=1500000?'Categoría I':amount<=5000000?'Categoría II':'Categoría III';
+        proposals.categoria={value:category,reason:'Clasificación propuesta según la previsión de precio y el artículo 32 del V04 seleccionado; verifica su adopción y el tratamiento de caja chica o fondo rotatorio cuando corresponda.'};
+        sourceIds[f.key]=[source.id];sourceQuotes[f.key]=[{sourceId:source.id,quote:source.excerpt}];
+        return [f.key,category];
+      }
+      if(!/categor[ií]a\s+(?:I{1,3}|especial)\b/i.test(value) || !sourceIds[f.key].length)return [f.key,missingValue];
+    }
     if(f.key==='categoria' && number === 1) {
       const cat = (value && !/PENDIENTE/.test(value)) ? value : adq.categoria_texto || (adq.categoria === "Bienes" ? "Bienes y Herramientas" : adq.categoria) || "Bienes y Herramientas";
       return [f.key, cat];
     }
-    if(f.key==='multas' && number === 1 && (!value || /PENDIENTE/.test(value) || !sourceIds[f.key]?.length)) {
-      const multaText = adq.multas_texto || (adq.multa_diaria_porcentaje ? `Ante el incumplimiento de los plazos y otras condiciones establecidas en la Orden de Compra y Especificaciones Técnicas, se aplicará la multa del ${adq.multa_diaria_porcentaje}% por cada día de retraso injustificado.` : '');
-      if (multaText) return [f.key, multaText];
+    const decisionVal = fieldDecision || explicitCondition || ((decisionKeys.includes(f.key)||(f.key==='multas'&&defaults.multas)) ? proposedVal : '');
+    if(decisionVal) {
+      if(isProposal){sourceIds[f.key]=[];sourceQuotes[f.key]=[];}
+      return [f.key,decisionVal];
     }
-    const decisionVal = decisionKeys.includes(f.key) ? (decisions[f.key] || proposedVal) : '';
-    return [f.key, decisionVal ? decisionVal : f.normative && !sourceIds[f.key].length ? missingValue : value || missingValue];
+    if(f.normative && !sourceIds[f.key].length) {
+      const fallback = generalReferenceClause(number,f.key,adq);
+      const source = referenceFor(f.key);
+      if(fallback && source) {
+        sourceIds[f.key]=[source.id];sourceQuotes[f.key]=[{sourceId:source.id,quote:source.excerpt}];
+        value=fallback;
+      } else return [f.key,missingValue];
+    }
+    return [f.key,value || missingValue];
   }));
   let items: Record<string,string>[] = model.columns.length ? result.items.map((r: Record<string, unknown>) => Object.fromEntries(model.columns.map(c => [c.key, c.key.endsWith('oferta') ? '' : text(r?.[c.key]) || missingValue]))) : [];
-  if (brief && [1,3].includes(number)) items = brief.items.map((item,i)=>Object.fromEntries(model.columns.map(c=>[c.key, ({numero:String(i+1),descripcion:item.descripcion,cantidad:item.cantidad,unidad:item.unidad,especificaciones:item.especificaciones,precio:item.precio,precio_oferta:'',total_oferta:''} as Record<string,string>)[c.key] || text(items[i]?.[c.key]) || (c.key.endsWith('oferta')?'':missingValue)])));
+  if (brief && [1,3].includes(number)) items = brief.items.map((item,i)=>Object.fromEntries(model.columns.map(c=>[c.key, ({numero:String(i+1),descripcion:item.descripcion,cantidad:item.cantidad,unidad:item.unidad,especificaciones:technicalBriefSpecification(item),precio:item.precio,precio_oferta:'',total_oferta:''} as Record<string,string>)[c.key] || text(items[i]?.[c.key]) || (c.key.endsWith('oferta')?'':missingValue)])));
   if(number===6 && adq.quote_evaluation?.quotes.length){
     const evaluation=technicalEvaluationData(adq);items=evaluation.items;
     for(const key of ['recepcion','evaluacion','conclusiones','recomendaciones'])fields[key]=evaluation.fields[key];
   }
   if(brief){
-    if(!brief.decisions) brief.decisions = {};
-    for(const key of decisionKeys) {
-      if(!brief.decisions[key] && fields[key] && fields[key] !== missingValue) {
-        brief.decisions[key] = fields[key];
-      }
-    }
-    for(const [key,value] of Object.entries({...brief.details,lugar:brief.location,plazo:brief.deliveryDays?`${brief.deliveryDays} días calendario`:''})) if(value && model.fields.some(f=>f.key===key&&!f.normative)) fields[key]=value;
+    const order = adq.categoria==='Servicios'?'Orden de Servicio':'Orden de Compra';
+    const deadline = brief.deliveryDays ? number===1 ? `El plazo ${brief.confirmedAt?'máximo de entrega':'de entrega propuesto'} es de ${brief.deliveryDays} días calendario, computables a partir de la fecha de recepción y suscripción de la ${order}. El plazo se establecerá en el documento contractual correspondiente.` : `${brief.deliveryDays} días calendario` : '';
+    for(const [key,value] of Object.entries({...brief.details,lugar:brief.location,plazo:deadline})) if(value && model.fields.some(f=>f.key===key&&!f.normative)) fields[key]=value;
   }
   // User-authored paragraphs remain editable and survive subsequent automatic completion.
   for(const key of current.editedFields || []) if(model.fields.some(f=>f.key===key)) {
     fields[key]=current.fields[key];sourceIds[key]=[];sourceQuotes[key]=[];
   }
-  const warnings: string[] = Array.isArray(result.warnings) ? result.warnings.filter((w: unknown) => typeof w === "string").slice(0, 30) : [];
+  const warnings: string[] = relevantWarnings(model,Array.isArray(result.warnings) ? result.warnings : []);
   warnings.unshift(...reviewWarnings);
   if (hasNormativeFields && !sources.length) warnings.unshift("No se recuperó fundamento normativo. Requiere revisión antes de su uso oficial.");
-  if (partialSearch && sources.length) warnings.unshift("Parte de las búsquedas no respondió. El fundamento recuperado puede estar incompleto.");
-  if(sources.length) warnings.push("Las fuentes recuperadas son propuestas de fundamento; revisa su aplicabilidad y vigencia antes de firmar.");
+  if (partialSearch && sources.length) warnings.unshift("La biblioteca respondió parcialmente; se conservaron los extractos del reglamento V04 seleccionado.");
+  if(hasNormativeFields)warnings.push('El reglamento V04 seleccionado pertenece a ENDE Servicios y Construcciones. Verifica su adopción por ENDE DEORURO antes del uso oficial.');
   const confirmedFields = Array.from(new Set([
     ...(current.confirmedFields || []),
-    ...(fields.categoria && fields.categoria !== missingValue ? ['categoria'] : []),
-    ...(fields.multas && fields.multas !== missingValue ? ['multas'] : []),
-    ...(fields.vigencia && fields.vigencia !== missingValue ? ['vigencia'] : []),
+    ...(number===1 && fields.categoria && fields.categoria !== missingValue ? ['categoria'] : []),
   ]));
   const evaluationRevision=number===6&&!current.editedItems&&!current.editedFields?.some(k=>['recepcion','evaluacion','conclusiones','recomendaciones'].includes(k))?adq.quote_evaluation?.updatedAt:current.evaluationRevision;
-  return normalizeFixedDraft(model, { companyId: company.id, modelVersion: model.version, fields, items: current.editedItems ? current.items : items, editedItems: current.editedItems, sources, sourceIds, sourceQuotes, proposals, warnings, editedFields:current.editedFields || [], confirmedFields, selectionPlan:current.selectionPlan, evaluationRevision, consultedAt: new Date().toISOString(), normativeStatus: status });
+  return normalizeFixedDraft(model, { companyId: company.id, modelVersion: model.version, fields, items: current.editedItems ? current.items : items, editedItems: current.editedItems, sources, sourceIds, sourceQuotes, proposals, warnings:Array.from(new Set(warnings)), editedFields:current.editedFields || [], confirmedFields, selectionPlan:current.selectionPlan, evaluationRevision, consultedAt: new Date().toISOString(), normativeStatus: status });
+}
+
+/** These are draft purchasing choices, not legal requirements or decisions confirmed by a user. */
+function defaultDocumentProposals(number:number,adq:Adquisicion,current:FixedDraft):NonNullable<FixedDraft['proposals']> {
+  if(![1,2].includes(number))return {};
+  const all:NonNullable<FixedDraft['proposals']>={
+    seleccion:{value:number===2?'Menor precio':'Menor precio. Se seleccionará la propuesta que ofrezca el menor precio entre aquellas que cumplan los requisitos mínimos establecidos en el presente documento.',reason:'Método propuesto para una comparación objetiva de los requisitos mínimos y el precio; el Área Solicitante puede elegir otro método.'},
+    vigencia:{value:'La propuesta tendrá una vigencia de 30 días calendario computables a partir de la fecha de presentación.',reason:'Plazo comercial propuesto como base editable; el reglamento V04 permite definir el plazo y no fija treinta días.'},
+    adjudicacion:{value:'La adjudicación se realizará por ítem, evaluándose y adjudicándose separadamente cada ítem requerido en el presente documento.',reason:'Unidad propuesta para mantener separados los bienes solicitados; puede cambiarse por un lote o paquete definido antes de la convocatoria.'},
+    pago:{value:adq.categoria==='Servicios'?'El pago se realizará en Bolivianos, previa conformidad de la ejecución del servicio y presentación de la factura correspondiente, según las condiciones establecidas en el documento contractual.':'El pago se realizará en Bolivianos, previa entrega y recepción a conformidad de los bienes y presentación de la factura correspondiente, según las condiciones establecidas en el documento contractual.',reason:'Condición comercial propuesta para revisar; la forma de pago definitiva debe quedar establecida en el documento contractual.'},
+  };
+  if(number===1 && Number.isFinite(adq.multa_diaria_porcentaje) && adq.multa_diaria_porcentaje>0 && !adq.multas_texto)all.multas={
+    value:`En caso de retraso injustificado, se propone una multa del ${adq.multa_diaria_porcentaje}% del monto total del contrato por cada día de retraso, sujeta a aprobación y especificación en el documento contractual.`,
+    reason:'Porcentaje ya registrado en este expediente; se conserva como propuesta para revisar. El reglamento V04 no fija esta tasa.',
+  };
+  return Object.fromEntries(Object.entries(all).filter(([key])=>key in current.fields&&!current.confirmedFields?.includes(key)&&!adq.asistente_compra?.decisions?.[key]&&!current.editedFields?.includes(key)));
+}
+
+function generalReferenceClause(number:number,key:string,adq:Adquisicion):string {
+  if(number===1 && key==='calidad')return adq.categoria==='Servicios'
+    ? 'El servicio deberá cumplir el alcance y las características técnicas establecidos en el presente documento. El proveedor presentará la documentación técnica que permita verificar los materiales, equipos y resultados comprometidos, según corresponda a los requisitos solicitados.'
+    : 'Los bienes deberán cumplir las características técnicas, cantidades y requisitos funcionales establecidos en el presente documento. La documentación técnica del proveedor deberá permitir verificar las características ofrecidas y su correspondencia con las especificaciones requeridas.';
+  if(number===1 && key==='aceptacion')return 'El Área Solicitante y los responsables de recepción que correspondan verificarán el cumplimiento de las cantidades, características técnicas y demás condiciones establecidas. La conformidad se documentará mediante el formulario, acta o informe que corresponda al objeto y categoría de la adquisición. En caso de disconformidad, se elaborará el informe correspondiente para su atención.';
+  if(number===1 && key==='multas')return 'Ante el incumplimiento de los plazos u otras condiciones establecidas para la provisión, se aplicarán las multas debidamente especificadas en el documento contractual. La tasa, base de cálculo y condiciones de aplicación deberán establecerse en dicho documento.';
+  if(number===2 && key==='garantias')return 'El Área Solicitante propondrá las garantías que correspondan según el objeto y las condiciones de esta adquisición, para su definición en el documento contractual conforme al reglamento de referencia.';
+  return '';
+}
+
+function technicalBriefSpecification(item:{descripcion:string;especificaciones:string}):string {
+  const specification = item.especificaciones.replace(/;\s*(?:entrega inmediata|(?:disponibilidad de )?stock)\b[^\n]*/gi,'').trim();
+  // A SKU is an identifier, not a characteristic. Use the actual description supplied by the
+  // source as the minimum wording instead of inventing a manufacturer's technical datasheet.
+  const identifierOnly = !specification || /^(?:(?:c[óo]digo|sku|ref(?:erencia)?)[\s:.-]+[^\n;]+[\s;]*)+$/i.test(specification);
+  return identifierOnly && item.descripcion ? [item.descripcion,specification].filter(Boolean).join('\n') : specification;
+}
+
+function unsupportedQualityClaims(value:string,evidence:string):string[] {
+  const normalized=(s:string)=>s.normalize('NFKC').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'').toLocaleLowerCase();
+  const known=normalized(evidence),unsupported:string[]=[];
+  const patterns=[/\b(?:ANSI(?:\s*\/\s*ISEA)?|ASTM|ISO|IEC|UNE|EN)\s*(?:[:\/-]\s*)?[A-Z]{0,4}\s*\d+(?:[.\/-]\d+)*/gi,/\b(?:ANSI|ISEA|ASTM|OSHA|ISO|IEC|UNE|CE)\b/gi,/\bclase\s*(?:[EGC]|I{1,3}|[0-4]{1,2})\b/gi,/\bcertific(?:ad[oa]s?|aci[oó]n(?:es)?)\b/gi];
+  for(const pattern of patterns)for(const claim of value.match(pattern)||[]) {
+    const key=normalized(claim);
+    const certification=/^certific/i.test(claim);
+    if(!(certification ? /certific(?:ad[oa]s?|acion(?:es)?)/i.test(known) : known.includes(key)))unsupported.push(claim);
+  }
+  const voltages=(text:string)=>Array.from(text.matchAll(/\b(\d+(?:[\s.,]\d+)*?)\s*(kV|V(?:oltios)?)\b/gi),match=>{
+    const token=match[1].replace(/\s/g,'');
+    const numeric=/^\d{1,3}(?:[.,]\d{3})+$/.test(token)?Number(token.replace(/[.,]/g,'')):Number(token.replace(',','.'));
+    return {claim:match[0],value:numeric*(/^kv$/i.test(match[2])?1000:1)};
+  });
+  const knownVoltages=voltages(evidence).map(v=>v.value).filter(Number.isFinite);
+  for(const claim of voltages(value))if(!Number.isFinite(claim.value)||!knownVoltages.includes(claim.value))unsupported.push(claim.claim);
+  return Array.from(new Map(unsupported.map(claim=>[normalized(claim),claim])).values());
+}
+
+function relevantWarnings(model:FixedModel,input:unknown[]):string[] {
+  // Avoid turning the assistant into a checklist of every optional field in every folder.
+  const ownKeys = new Set(model.fields.map(f=>f.key));
+  const topics:[RegExp,string[]][]=[[/almac[eé]n|stock|existencias/i,['almacen']],[/presupuest.*aproba|aproba.*presupuest|partida presupuest/i,['con_presupuesto']],[/correo|email|fecha l[ií]mite/i,['correo','fecha_limite']],[/centro de costo/i,['centro_costo']],[/garant[ií]as/i,['garantias']],[/m[eé]todo de selecci[oó]n|vigencia de la propuesta|forma de adjudicaci[oó]n|forma de pago|multas/i,['seleccion','vigencia','adjudicacion','pago','multas']]];
+  return input.filter((warning):warning is string=>typeof warning==='string').filter(w=>!topics.some(([pattern,keys])=>pattern.test(w)&&!keys.some(k=>ownKeys.has(k)))).map(w=>w.trim()).filter(Boolean).filter((w,i,all)=>all.findIndex(other=>other.toLocaleLowerCase()===w.toLocaleLowerCase())===i).slice(0,6);
 }

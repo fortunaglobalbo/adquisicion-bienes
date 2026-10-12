@@ -98,7 +98,7 @@ export const VisualTemplateEditor: React.FC<VisualTemplateEditorProps> = ({
     savedData.tituloProceso || (plantilla.fk_carpeta === 1 ? "ADQUISICIÓN DE HERRAMIENTA PARA CUADRILLAS" : plantilla.nombre.toUpperCase())
   );
   const [modalidad, setModalidad] = useState(
-    savedData.modalidad || "Modalidad: Menor Precio (Art. 31 Reglamento SBC) • Partida: 39500"
+    savedData.modalidad || "Modalidad: Menor precio • Partida: 39500"
   );
 
   // Textos del Índice y Pies de página
@@ -188,7 +188,7 @@ export const VisualTemplateEditor: React.FC<VisualTemplateEditorProps> = ({
               pagina_estimada: 5,
               showPrompt: false,
               prompt_ia: "",
-              contenido_default: "Menor Precio (Art. 31 del Reglamento SBC).",
+              contenido_default: "Menor precio.",
             },
             {
               id: "sec-7",
@@ -233,7 +233,7 @@ export const VisualTemplateEditor: React.FC<VisualTemplateEditorProps> = ({
               pagina_estimada: 7,
               showPrompt: false,
               prompt_ia: "",
-              contenido_default: "Por ítem requerido, formalizada mediante Orden de Compra (Art. 31 del Reglamento Específico del Sistema de Administración de Bienes y Servicios).",
+              contenido_default: "La evaluación y adjudicación se realizarán conforme a la modalidad por ítem, lote, tramo o paquete definida previamente para este proceso.",
             },
             {
               id: "sec-12",

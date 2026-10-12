@@ -859,7 +859,7 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
           }),
           ...formatSectionParagraphs(
             adquisicion.metodo_seleccion_texto || adquisicion.metodo_seleccion || adquisicion.puntos_14_texto?.[6],
-            "Menor Precio (Art. 31 del Reglamento SBC)."
+            "Menor precio."
           ),
 
           new Paragraph({
@@ -904,7 +904,7 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
           }),
           ...formatSectionParagraphs(
             adquisicion.forma_adjudicacion || adquisicion.puntos_14_texto?.[11],
-            "Por ítem requerido, formalizada mediante Orden de Compra (Art. 31 SBC)."
+            "La evaluación y adjudicación se realizarán conforme a la modalidad por ítem, lote, tramo o paquete definida previamente para este proceso."
           ),
 
           new Paragraph({

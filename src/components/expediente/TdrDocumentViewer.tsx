@@ -127,12 +127,12 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
     if (num === 2) return docData.justificacion_texto || docData.puntos_14_texto?.[2] || "La presente contratación tiene el objetivo fundamental de garantizar la continuidad operativa, el cumplimiento normativo institucional y la mitigación de riesgos de accidentes laborales.";
     if (num === 4) return docData.calidad_texto || docData.puntos_14_texto?.[4] || "Los bienes deberán ser nuevos, de primer uso y fabricados bajo normas de calidad aplicables con garantía técnica mínima.";
     if (num === 5) return docData.ambito_aplicacion || docData.puntos_14_texto?.[5] || "Personal institucional y áreas operativas de la Distribuidora de Electricidad ENDE DEORURO S.A.";
-    if (num === 6) return docData.metodo_seleccion_texto || docData.puntos_14_texto?.[6] || "Menor Precio (Art. 31 del Reglamento SBC).";
+    if (num === 6) return docData.metodo_seleccion_texto || docData.puntos_14_texto?.[6] || "Menor precio.";
     if (num === 7) return docData.vigencia_propuesta_texto || docData.puntos_14_texto?.[7] || "Tendrá una validez mínima de 30 días calendario computables a partir de la presentación de la propuesta.";
     if (num === 8) return docData.categoria_texto || docData.puntos_14_texto?.[8] || "Bienes, Herramientas y Suministros Oficiales.";
     if (num === 9) return docData.lugar_entrega || docData.puntos_14_texto?.[9] || "Almacenes / Instalaciones de ENDE DEORURO S.A., Oruro - Bolivia.";
     if (num === 10) return docData.tiempo_entrega_texto || docData.puntos_14_texto?.[10] || "Máximo 30 días calendario computables a partir del día siguiente hábil de la recepción de la Orden de Compra.";
-    if (num === 11) return docData.forma_adjudicacion || docData.puntos_14_texto?.[11] || "Por Ítem requerido, formalizada por Orden de Compra (Art. 31 SBC).";
+    if (num === 11) return docData.forma_adjudicacion || docData.puntos_14_texto?.[11] || "La evaluación y adjudicación se realizarán conforme a la modalidad por ítem, lote, tramo o paquete definida previamente para este proceso.";
     if (num === 12) return docData.aceptacion_lote || docData.puntos_14_texto?.[12] || "El personal técnico de ENDE DEORURO realizará una evaluación técnica de conformidad el día de la entrega.";
     if (num === 13) return docData.forma_pago_texto || docData.puntos_14_texto?.[13] || "El pago se realizará contra entrega satisfactoria del producto o servicio, conformidad emitida por ENDE DEORURO S.A. y factura oficial.";
     if (num === 14) return docData.multas_texto || docData.puntos_14_texto?.[14] || "Ante el incumplimiento de los plazos establecidos, se aplicará la multa del 0.25% por cada día de retraso injustificado.";
@@ -439,12 +439,12 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
     { num: 3, titulo: "ESPECIFICACION TECNICA", contenido: "Detalle técnico y especificaciones de los requerimientos:" },
     { num: 4, titulo: "CALIDAD", contenido: getDocPointContent(4) || (isSaludDomain ? "El proponente o laboratorio debe cumplir con los estándares de calidad y credenciales sanitarias vigentes ante las autoridades competentes." : "Los bienes deberán ser nuevos, de primer uso y fabricados bajo normas de calidad aplicables, con garantía oficial.") },
     { num: 5, titulo: "ÁMBITO DE APLICACIÓN", contenido: getDocPointContent(5) || "Personal institucional y áreas operativas/administrativas de la Distribuidora de Electricidad ENDE DEORURO S.A." },
-    { num: 6, titulo: "MÉTODO DE SELECCIÓN", contenido: getDocPointContent(6) || "Menor Precio (Art. 31 del Reglamento SBC)." },
+    { num: 6, titulo: "MÉTODO DE SELECCIÓN", contenido: getDocPointContent(6) || "Menor precio." },
     { num: 7, titulo: "VIGENCIA DE LA PROPUESTA", contenido: getDocPointContent(7) || "Tendrá una validez mínima de 30 días calendario computables a partir de la fecha de presentación de la propuesta." },
     { num: 8, titulo: "CATEGORÍA", contenido: getDocPointContent(8) || (isSaludDomain ? "Salud Ocupacional y Medicina del Trabajo." : "Bienes y Suministros Oficiales.") },
     { num: 9, titulo: "LUGAR DE ENTREGA", contenido: getDocPointContent(9) || "Instalaciones / Almacén de ENDE DEORURO S.A., Oruro - Bolivia." },
     { num: 10, titulo: "TIEMPO DE ENTREGA", contenido: getDocPointContent(10) || `Máximo ${docData.plazo_entrega_dias || 30} días calendario computables a partir del día siguiente hábil de la recepción de la Orden de Compra.` },
-    { num: 11, titulo: "FORMA DE ADJUDICACIÓN", contenido: getDocPointContent(11) || "Por Ítem requerido, formalizada por Orden de Compra (Art. 31 SBC)." },
+    { num: 11, titulo: "FORMA DE ADJUDICACIÓN", contenido: getDocPointContent(11) || "La evaluación y adjudicación se realizarán conforme a la modalidad por ítem, lote, tramo o paquete definida previamente para este proceso." },
     { num: 12, titulo: "PARA LA ACEPTACIÓN DEL LOTE / SERVICIO", contenido: getDocPointContent(12) || "El personal técnico de ENDE DEORURO realizará una evaluación técnica de conformidad el día de la entrega." },
     { num: 13, titulo: "FORMA DE PAGO", contenido: getDocPointContent(13) || "El pago se realizará contra entrega satisfactoria del producto o servicio, conformidad emitida por ENDE DEORURO S.A. y entrega de la siguiente documentación: Nota de Entrega / Conformidad, Solicitud de Pago y Factura oficial." },
     { num: 14, titulo: "APLICACIÓN DE MULTAS", contenido: getDocPointContent(14) || `Ante el incumplimiento de los plazos y otras condiciones establecidas en la Orden de Compra y Especificaciones Técnicas, se aplicará la multa del ${docData.multa_diaria_porcentaje || 0.25}% por cada día de retraso injustificado.` },

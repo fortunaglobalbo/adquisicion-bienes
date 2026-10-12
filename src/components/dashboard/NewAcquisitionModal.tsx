@@ -4,6 +4,8 @@ import React, { useState, useEffect } from "react";
 import { CheckCircle } from "lucide-react";
 import { Modal } from "../ui/Modal";
 import { Adquisicion, CategoriaAdquisicion } from "@/types";
+import { DataStore } from '@/lib/store/dataStore';
+import { officialPeople } from '@/lib/docx/officialPeople';
 
 interface NewAcquisitionModalProps {
   isOpen: boolean;
@@ -22,10 +24,10 @@ export const NewAcquisitionModal: React.FC<NewAcquisitionModalProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [titulo, setTitulo] = useState("");
   const [categoria, setCategoria] = useState<CategoriaAdquisicion>("Bienes");
-  const [modalidad, setModalidad] = useState("Menor Precio (Art. 31 Reglamento SBC)");
-  const [unidad, setUnidad] = useState("Departamento Técnico de Mantenimiento");
+  const modalidad = "Menor precio";
+  const [unidad, setUnidad] = useState("");
   const [responsable, setResponsable] = useState("[PENDIENTE DE COMPLETAR Y VERIFICAR]");
-  const [plazoDias, setPlazoDias] = useState<number>(30);
+  const [plazoDias, setPlazoDias] = useState<number>(0);
   const [lugarEntrega, setLugarEntrega] = useState("Almacenes ENDE DEORURO S.A., Oruro");
   const [presupuestoEstimadoManual, setPresupuestoEstimadoManual] = useState<number>(0);
 
@@ -33,6 +35,10 @@ export const NewAcquisitionModal: React.FC<NewAcquisitionModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setCodigo(nextCodigo);
+      const template=DataStore.getPlantillas().find(p=>p.fk_carpeta===2);
+      const people=officialPeople(2,template?.datos_completos?.officialPeopleByCompany?.ende?.fields);
+      if(people.area)setUnidad(people.area);
+      if(people.solicitante)setResponsable(people.solicitante);
     }
   }, [isOpen, nextCodigo]);
 
@@ -57,8 +63,8 @@ export const NewAcquisitionModal: React.FC<NewAcquisitionModalProps> = ({
       unidad_solicitante: unidad,
       responsable_proceso: responsable,
       creado_por: "admin@ende-deoruro.bo",
-      plazo_entrega_dias: Number(plazoDias) || 30,
-      multa_diaria_porcentaje: 0.25,
+      plazo_entrega_dias: Number(plazoDias) || 0,
+      multa_diaria_porcentaje: 0,
       lugar_entrega: lugarEntrega,
       items: [],
     };
@@ -75,7 +81,7 @@ export const NewAcquisitionModal: React.FC<NewAcquisitionModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title="Nuevo Expediente de Adquisición"
-      subtitle="Distribuidora de Electricidad ENDE Deoruro S.A. - Creación de Proceso"
+      subtitle="Ponle un nombre a la compra. Después podrás adjuntar la cotización o una foto para preparar sus documentos."
       maxWidth="2xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -109,10 +115,10 @@ export const NewAcquisitionModal: React.FC<NewAcquisitionModalProps> = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
           <div>
             <label className="block text-xs font-mono font-bold text-on-surface mb-1">
-              Categoría
+              ¿Qué vas a contratar?
             </label>
             <select
               value={categoria}
@@ -126,19 +132,24 @@ export const NewAcquisitionModal: React.FC<NewAcquisitionModalProps> = ({
             </select>
           </div>
 
+        </div>
+
+        <details className="space-y-4 rounded-lg border border-outline-variant p-3">
+          <summary className="cursor-pointer font-semibold text-sm">Área, responsable y otros datos (opcional)</summary>
+          <p className="text-sm text-on-surface-variant">Se reutilizan los datos oficiales guardados. Puedes corregirlos aquí; la IA leerá los ítems y los precios del archivo que adjuntes.</p>
           <div>
             <label className="block text-xs font-mono font-bold text-on-surface mb-1">
-              Plazo de Entrega (Días)
+              Plazo de entrega, si ya lo conoces (días calendario)
             </label>
             <input
               type="number"
-              value={plazoDias}
+              value={plazoDias || ""}
               onChange={(e) => setPlazoDias(Number(e.target.value))}
-              max={180}
+              min={1}
+              placeholder="Se puede leer de la cotización"
               className="w-full px-3 py-2 border border-outline-variant rounded text-sm bg-surface focus:border-primary font-mono"
             />
           </div>
-        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -193,6 +204,8 @@ export const NewAcquisitionModal: React.FC<NewAcquisitionModalProps> = ({
           </div>
         </div>
 
+        </details>
+
         {/* Buttons */}
         <div className="flex justify-end gap-3 pt-3 border-t border-outline-variant">
           <button
@@ -208,7 +221,7 @@ export const NewAcquisitionModal: React.FC<NewAcquisitionModalProps> = ({
             className="flex items-center gap-2 px-5 py-2 bg-primary text-on-primary rounded text-xs font-mono font-bold hover:bg-primary-container transition-colors shadow-institutional"
           >
             <CheckCircle className="w-4 h-4" />
-            <span>{submitting ? "Creando expediente..." : "Crear Expediente e Instanciar 8 Carpetas"}</span>
+            <span>{submitting ? "Creando expediente..." : "Crear expediente y continuar"}</span>
           </button>
         </div>
       </form>

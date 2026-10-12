@@ -5,6 +5,10 @@ export interface BriefItem { descripcion: string; cantidad: string; unidad: stri
 export interface PurchaseBrief {
   revision: string;
   confirmedAt: string | null;
+  /** An automatically prepared brief is usable as a draft, but is not a user confirmation. */
+  preparedAt?: string | null;
+  reviewMode?: 'automatic' | 'reviewed';
+  suggestions?: { field: 'purpose' | 'location' | 'deliveryDays'; value: string; reason: string }[];
   notes: string;
   purpose: string;
   location: string;
@@ -22,6 +26,10 @@ export const briefDetailLabels: Record<string,string> = {
   proveedores: 'Posibles proveedores', destinatario: 'Empresa a la que se pedirá cotización', correo: 'Correo de la empresa',
   fecha_limite: 'Fecha límite para recibir cotizaciones', responsable_recepcion: 'Responsable de recepción',
 };
+export function availablePurchaseBrief(adq: Adquisicion): PurchaseBrief | null {
+  const brief = adq.asistente_compra;
+  return brief && (brief.confirmedAt || brief.preparedAt) ? brief : null;
+}
 export function initialBrief(adq: Adquisicion): PurchaseBrief {
   return adq.asistente_compra || { revision: '', confirmedAt: null, notes: '', purpose: adq.justificacion_texto || '',
     location: adq.lugar_entrega || '', deliveryDays: adq.plazo_entrega_dias > 0 ? String(adq.plazo_entrega_dias) : '',

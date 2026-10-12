@@ -25,7 +25,7 @@ async function main(){
  adq={...adq,...briefUpdates(adq,brief)};
  assert.equal(adq.prevision_presupuesto,350);
  const dir='test-results/fixed-models/assistant'+(live?'-live':'');fs.mkdirSync(dir,{recursive:true});
- for(const number of [1,2,3,4]){
+ for(const number of [1,2,3,4,5]){
    const current=seedFixedDraft(number,adq);
    if(!live && number===1){current.editedItems=true;current.items[0].especificaciones='Especificación corregida manualmente';}
    if(!live){draftReply={fields:current.fields,sourceIds:{},warnings:[]};if(number===4){current.fields.cuerpo='Texto corregido por el usuario';current.editedFields=['cuerpo'];}}
@@ -39,7 +39,14 @@ async function main(){
    adq={...adq,borradores_ia:{...adq.borradores_ia,[number]:{draft,briefRevision:brief.revision,updatedAt:new Date().toISOString()}}};
    console.log(`PASS carpeta ${number}: Word generado, ${draft.items.length} ítems, ${draft.sources.length} fuentes, ${Object.values(draft.fields).filter(v=>/PENDIENTE/.test(v)).length} campos por confirmar`);
  }
- if(!live)assert.equal(extractCalls,0,'No debe repetir la lectura de los mismos antecedentes en cada carpeta');
- console.log('PASS ficha común, cantidades coherentes, totales, conservación de correcciones y generación de las cuatro carpetas');
+ if(!live){
+  assert.equal(extractCalls,0,'No debe repetir la lectura de los mismos antecedentes en cada carpeta');
+  const automatic={...adq,asistente_compra:{...brief,confirmedAt:null,preparedAt:new Date().toISOString(),reviewMode:'automatic',decisions:{}}};
+  const automaticSeed=seedFixedDraft(1,automatic);draftReply={fields:automaticSeed.fields,warnings:[]};
+  const automaticDraft=await completeFixedDocument(1,automatic,automaticSeed,'');assert.equal(automaticDraft.items.length,1);assert.match(automaticDraft.fields.plazo,/entrega propuesto.*10 días calendario/);assert.equal(extractCalls,0);assert.deepEqual(automatic.asistente_compra.decisions,{});assert.equal(automatic.asistente_compra.confirmedAt,null);
+  const identifiers={...automatic,asistente_compra:{...automatic.asistente_compra,items:[{descripcion:'Casco rojo con ajuste Ratchet Fas Trac III',cantidad:'30',unidad:'Pza',especificaciones:'Código 218915; entrega inmediata 20.00',precio:'227.76'}]}};
+  const identified=await completeFixedDocument(1,identifiers,seedFixedDraft(1,identifiers),'');assert.match(identified.items[0].especificaciones,/Casco rojo con ajuste Ratchet Fas Trac III/);assert.match(identified.items[0].especificaciones,/Código 218915/);assert.ok(!identified.items[0].especificaciones.includes('entrega inmediata'));
+ }
+ console.log('PASS ficha común automática o revisada, cantidades coherentes, totales, conservación de correcciones, propiedades visibles y generación de cinco carpetas');
 }
 main().catch(e=>{console.error(e.message);process.exitCode=1;});

@@ -47,7 +47,7 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
   const mounted = useRef(true);
   const requestVersion = useRef(0);
   const pdfUrl = useRef<string | null>(null);
-  const pendingNorms = model.fields.filter(f=>f.normative && !draft?.confirmedFields?.includes(f.key) && !adquisicion.asistente_compra?.decisions?.[f.key] && (!draft?.sourceIds[f.key]?.length || /PENDIENTE/.test(draft?.fields[f.key] || ''))).map(f=>f.label);
+  const pendingNorms = model.fields.filter(f=>f.normative && !draft?.confirmedFields?.includes(f.key) && !adquisicion.asistente_compra?.decisions?.[model.number===2&&f.key==='categoria'?'categoria_s1':f.key] && (!draft?.sourceIds[f.key]?.length || /PENDIENTE/.test(draft?.fields[f.key] || ''))).map(f=>f.label);
   const evaluationChanged=model.number===6&&!!draft&&!!adquisicion.quote_evaluation&&draft.evaluationRevision!==adquisicion.quote_evaluation.updatedAt;
   const choiceOptions:Record<string,string[]>=model.number===2?{almacen:['Con saldo','Sin saldo'],publicar_precio:['Sí','No'],con_presupuesto:['Sí','No']}:{};
   async function request(kind: string) {
@@ -118,7 +118,7 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
           if (savedDraft.fields.antecedentes && !/PENDIENTE/.test(savedDraft.fields.antecedentes)) updates.antecedentes_texto = savedDraft.fields.antecedentes;
           if (validItems) updates.items = savedDraft.items.map((r,i)=>{ const previous = adquisicion.items.find(item=>item.descripcion===r.descripcion && item.unidad===r.unidad); const cantidad=Number(r.cantidad.replace(',','.')); return {id:previous?.id || crypto.randomUUID(),item:i+1,descripcion:r.descripcion,unidad:r.unidad,cantidad,precioUnitarioEstimado:previous?.precioUnitarioEstimado || 0,precioTotalEstimado:Math.round(cantidad*(previous?.precioUnitarioEstimado || 0)*100)/100,especificacionMinima:r.especificaciones}; });
           if (Object.keys(updates).length) await DataStore.updateAdquisicion(adquisicion.id, updates);
-          if (adquisicion.asistente_compra?.confirmedAt && updates.items) {
+          if ((adquisicion.asistente_compra?.confirmedAt || adquisicion.asistente_compra?.preparedAt) && updates.items) {
             const previous=adquisicion.asistente_compra;
             const next={...previous,items:updates.items.map(i=>({descripcion:i.descripcion,cantidad:String(i.cantidad),unidad:i.unidad,especificaciones:i.especificacionMinima||'',precio:i.precioUnitarioEstimado>0?String(i.precioUnitarioEstimado):''})),
               purpose:savedDraft.editedFields?.includes('justificacion')?savedDraft.fields.justificacion:previous.purpose,
@@ -156,60 +156,44 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
     finally { setBusy(false); }
   }
 
-  // Integrar automáticamente las condiciones sugeridas por la IA directo al documento
+  // Show recommended clauses in older drafts too, without treating them as user decisions.
   useEffect(() => {
     if (draft?.proposals && Object.keys(draft.proposals).length > 0) {
-      const pendingKeys = Object.keys(draft.proposals).filter(k => draft.proposals![k]?.value && (!draft.fields[k] || draft.fields[k] === '[PENDIENTE]'));
+      const pendingKeys = Object.keys(draft.proposals).filter(k => draft.proposals![k]?.value && !draft.editedFields?.includes(k) && (!draft.fields[k] || draft.fields[k] === '[PENDIENTE]'));
       if (pendingKeys.length > 0) {
         const mergedFields = { ...draft.fields };
-        const newDecisions: Record<string, string> = {};
         for (const k of pendingKeys) {
           mergedFields[k] = draft.proposals![k].value;
-          newDecisions[k] = draft.proposals![k].value;
         }
-        setDraft(d => d ? { ...d, fields: mergedFields, proposals: {} } : null);
-        setDirty(true);
-        const current = DataStore.getAdquisicionById(adquisicion.id) || adquisicion;
-        const brief = initialBrief(current);
-        void DataStore.updateAdquisicion(adquisicion.id, {
-          asistente_compra: { ...brief, decisions: { ...brief.decisions, ...newDecisions }, revision: crypto.randomUUID() }
-        });
+        setDraft(d => d ? { ...d, fields: mergedFields } : null);
+        setDirty(true);setStale(true);
       }
     }
   }, [draft?.proposals]);
 
-  // Asegurar que 8. CATEGORÍA y 14. APLICACIÓN DE MULTAS (y vigencia) no queden vacíos si el expediente tiene datos
-  useEffect(() => {
-    if (draft && model.number === 1) {
-      let changed = false;
-      const fields = { ...draft.fields };
-      if (!fields.categoria || fields.categoria === '[PENDIENTE]') {
-        fields.categoria = adquisicion.categoria_texto || (adquisicion.categoria === 'Bienes' ? 'Bienes y Herramientas' : adquisicion.categoria) || 'Bienes y Herramientas';
-        changed = true;
-      }
-      if (!fields.multas || fields.multas === '[PENDIENTE]') {
-        fields.multas = adquisicion.multas_texto || (adquisicion.multa_diaria_porcentaje ? `Ante el incumplimiento de los plazos y otras condiciones establecidas en la Orden de Compra y Especificaciones Técnicas, se aplicará la multa del ${adquisicion.multa_diaria_porcentaje}% por cada día de retraso injustificado.` : 'Ante el incumplimiento de los plazos y otras condiciones establecidas en la Orden de Compra y Especificaciones Técnicas, se aplicará la multa del 0.25% por cada día de retraso injustificado.');
-        changed = true;
-      }
-      if (!fields.vigencia || fields.vigencia === '[PENDIENTE]') {
-        fields.vigencia = adquisicion.vigencia_propuesta_texto || 'Mínimo 30 días calendario computables a partir de la apertura de propuestas.';
-        changed = true;
-      }
-      if (changed) {
-        const confirmed = Array.from(new Set([...(draft.confirmedFields || []), 'categoria', 'multas', 'vigencia']));
-        setDraft(d => d ? { ...d, fields, confirmedFields: confirmed } : null);
-        setDirty(true);
-      }
-    }
-  }, [draft?.fields?.categoria, draft?.fields?.multas, draft?.fields?.vigencia, adquisicion]);
+  const suggestedKeys=Object.keys(draft?.proposals||{}).filter(key=>draft?.proposals?.[key]?.value===draft?.fields[key]&&!draft?.confirmedFields?.includes(key));
+  async function confirmSuggestions() {
+    if(!draft)return;
+    setError('');
+    try {
+      const decisions=Object.fromEntries(suggestedKeys.map(key=>[model.number===2&&key==='categoria'?'categoria_s1':key,draft.fields[key]]));
+      const current=DataStore.getAdquisicionById(adquisicion.id)||adquisicion;
+      const brief=initialBrief(current);
+      const result=await DataStore.updateAdquisicion(adquisicion.id,{asistente_compra:{...brief,decisions:{...brief.decisions,...decisions},revision:crypto.randomUUID()}});
+      if(!result.success)throw Error(result.error);
+      setDraft({...draft,confirmedFields:Array.from(new Set([...(draft.confirmedFields||[]),...suggestedKeys]))});
+      setDirty(true);setMessage('Condiciones elegidas para esta compra. Guarda los cambios del documento.');
+    }catch(e){setError(e instanceof Error?e.message:'No se pudieron conservar las condiciones.');}
+  }
 
   return <section className="space-y-4 text-base">
     <div><h2 className="text-xl font-bold text-primary">{model.title}</h2><p className="mt-1 text-sm text-slate-600">Modelo institucional fijo · Word editable · {dirty ? "Cambios sin guardar en el expediente" : "Documento para revisión"}</p></div>
     {purchaseChanged && <p role="status" className="rounded-lg bg-amber-50 p-3 text-sm">El TDR o los datos de la compra cambiaron desde esta versión. Revisa el objeto y los ítems en «Editar documento» antes de utilizar este documento.</p>}
     <fieldset disabled={busy || assistantBusy} className="space-y-4 min-w-0">
+      {!!suggestedKeys.length&&<details className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm"><summary className="cursor-pointer font-semibold">Condiciones sugeridas ya incluidas en el documento</summary><p className="mt-2">Puedes usarlas o cambiarlas en «Editar documento». Son propuestas para esta compra.</p><div className="my-3 space-y-3">{suggestedKeys.map(key=><div key={key}><strong>{model.fields.find(f=>f.key===key)?.label||key}</strong><p className="whitespace-pre-wrap">{draft!.fields[key]}</p><p className="text-slate-600">{draft!.proposals![key].reason}</p></div>)}</div><button className={action} onClick={confirmSuggestions}>Usar estas condiciones para esta compra</button></details>}
       {model.number===2&&<p className="text-sm text-slate-600">El número se propone desde el código del expediente. Cargo, área y responsable de recepción se completan con los datos oficiales disponibles. Todo se puede editar.</p>}
       {model.number===6&&<div className="rounded-lg border border-blue-200 bg-blue-50 p-3 space-y-2 text-sm"><p>Informe técnico de evaluación basado en el modelo aportado. Puedes editar libremente los párrafos y el cuadro de proveedores.</p>{evaluationChanged&&<p className="font-semibold">Las cotizaciones cambiaron desde esta versión del informe.</p>}{adquisicion.quote_evaluation?.quotes.length?<button className={action} onClick={()=>refresh('refresh-evaluation')}>Actualizar cuadro y conclusiones desde cotizaciones</button>:<p>Guarda la comparación en la carpeta 4 para incorporar sus proveedores, precios y resultados automáticamente.</p>}</div>}
-      {model.number>4&&adquisicion.asistente_compra?.confirmedAt&&<button className={action} onClick={()=>refresh('complete')}><Sparkles size={16}/>Redactar con los datos de esta compra</button>}
+      {model.number>4&&(adquisicion.asistente_compra?.confirmedAt||adquisicion.asistente_compra?.preparedAt)&&<button className={action} onClick={()=>refresh('complete')}><Sparkles size={16}/>Redactar con los datos de esta compra</button>}
       <div className="flex flex-wrap gap-2">
         <button className={action} onClick={() => setEdit(v => !v)}>
           <RefreshCw size={16} />{edit ? "Cerrar edición" : "Editar documento"}
@@ -227,7 +211,7 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
       {aiEdit && <div className="rounded-xl border border-slate-300 p-4 space-y-4 bg-slate-50">
         {clarification && <div role="status" className="rounded-lg border border-blue-200 bg-blue-50 p-3"><p className="font-semibold">{clarification}</p><p className="text-sm mt-1">Responde abajo; conservaré tu petición anterior. El documento sigue igual.</p></div>}
         <label className="block space-y-2"><span className="font-semibold">Describe lo que necesitas o los datos que cambian</span><textarea className={control} rows={4} value={context} onChange={e => {setContext(e.target.value);setDirty(true);}} placeholder="Ejemplo: cambia la entrega a 45 días, pon a María Pérez como responsable y cambia la cantidad del ítem 2 a 20 pares." /></label>
-        <label className="block space-y-2"><span>Antecedentes de esta compra (opcional)</span><input className={control} type="file" multiple accept=".pdf,.docx,.txt,.jpg,.jpeg,.png,.webp" onChange={e => setFiles(Array.from(e.target.files || []))} /><span className="text-sm text-slate-600">Hasta tres archivos, 3 MB en total. PDF con texto, Word, TXT o fotos JPG, PNG y WebP. La IA lee las fotos con visión. No se incorporan a la biblioteca normativa.</span></label>
+        <label className="block space-y-2"><span>Antecedentes de esta compra (opcional)</span><input className={control} type="file" multiple accept=".pdf,.docx,.txt,.jpg,.jpeg,.png,.webp" onChange={e => setFiles(Array.from(e.target.files || []))} /><span className="text-sm text-slate-600">Hasta tres archivos, 3 MB en total. PDF con texto o escaneado, Word, TXT o fotos JPG, PNG y WebP. La IA lee las imágenes con visión. No se incorporan a la biblioteca normativa.</span></label>
         <button className={action} onClick={() => refresh(context.trim() || pendingInstruction ? "revise" : "complete")}><Sparkles size={16} />{clarification ? "Responder al asistente" : "Aplicar cambios con IA"}</button>
       </div>}
       {edit && draft && <div className="rounded-xl border border-slate-300 p-4 space-y-4 bg-slate-50">
@@ -242,7 +226,7 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
         <div className="flex flex-wrap gap-2"><button className={action} onClick={()=>download(true)}><Save size={16}/>Guardar cambios</button><button className={action} onClick={()=>refresh()}><RefreshCw size={16}/>Actualizar vista</button></div>
       </div>}
       {stale && <div className="flex flex-wrap items-center gap-3 bg-amber-50 p-3"><span className="text-sm">La vista aún no incluye los últimos cambios.</span><button className={action} onClick={() => refresh()}><RefreshCw size={16} />Actualizar vista</button></div>}
-      {!!draft?.warnings.length && <div className="rounded-lg bg-amber-50 p-3 text-sm"><p>{pendingNorms.length ? `Falta confirmar: ${pendingNorms.join(', ')}. Los datos disponibles se muestran en el documento.` : draft.sources.length ? 'El borrador incluye fuentes normativas propuestas. Comprueba su aplicación antes de firmar.' : draft.warnings[0]}</p></div>}
+      {!!draft?.warnings.length && <div className="rounded-lg bg-amber-50 p-3 text-sm"><p>{suggestedKeys.length?'El borrador está redactado con condiciones sugeridas editables. Revisa los detalles antes de firmar.':pendingNorms.length ? `Por revisar: ${pendingNorms.join(', ')}. Los datos disponibles se muestran en el documento.` : draft.sources.length ? 'El borrador incluye fuentes normativas propuestas. Comprueba su aplicación antes de firmar.' : draft.warnings[0]}</p></div>}
       {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-red-800">{error}</p>}
       {message && <p role="status" className="text-sm text-primary">{message}</p>}
       {undoDraft && <button className={action} onClick={()=>{setDraft(undoDraft);setUndoDraft(null);setDirty(true);setStale(true);setMessage('Último cambio deshecho. Actualiza la vista o guarda el documento.');}}>Deshacer último cambio del asistente</button>}

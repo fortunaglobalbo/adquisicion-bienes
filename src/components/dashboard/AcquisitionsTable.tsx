@@ -9,6 +9,7 @@ import { formatCurrencyBs } from "@/lib/docx/formatters";
 import { Modal } from "../ui/Modal";
 import { EstadoEditable } from '../ui/EstadoEditable';
 import { estadoAdquisicion } from '@/lib/adquisicionEstado';
+import { adquisicionesRecientes } from '@/lib/adquisicionOrder';
 
 interface AcquisitionsTableProps {
   adquisiciones: Adquisicion[];
@@ -29,7 +30,7 @@ export const AcquisitionsTable: React.FC<AcquisitionsTableProps> = ({
   const [deletingItem, setDeletingItem] = useState<Adquisicion | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const safeList = Array.isArray(adquisiciones) ? adquisiciones : [];
+  const safeList = adquisicionesRecientes(Array.isArray(adquisiciones) ? adquisiciones : []);
   const estados=Array.from(new Set([...safeList.filter(Boolean).map(estadoAdquisicion),estadoFilter])).filter(Boolean).sort((a,b)=>a.localeCompare(b,'es'));
 
   const filtered = safeList.filter((item) => {

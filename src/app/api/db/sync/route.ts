@@ -18,7 +18,9 @@ export async function GET() {
   try {
     const db = database();
     const tables = ["adquisiciones", "plantillas", "carpetas", "documentos", "logs_proceso"];
-    const results = await Promise.all(tables.map(table => db.from(table).select("*").limit(10000)));
+    const results = await Promise.all(tables.map(table => table === 'adquisiciones'
+      ? db.from(table).select('*').order('fecha_creacion', { ascending: false }).limit(10000)
+      : db.from(table).select('*').limit(10000)));
     results.forEach(result => check(result.error));
     const [adquisiciones, plantillas, carpetas, documents, logs] = results.map(r => r.data || []);
     const states = documents.filter(d => d.metadata?.kind === stateKind).map(d => d.metadata);

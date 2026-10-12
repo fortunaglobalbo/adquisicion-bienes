@@ -74,7 +74,7 @@ export interface Adquisicion {
   codigo: string; // ej. ENDE-D-2024-001
   titulo_proceso: string;
   categoria: CategoriaAdquisicion;
-  modalidad: string; // 'Menor Precio (Art. 31)' o 'SBC'
+  modalidad: string; // 'Menor precio' o 'SBC'
   partida_presupuestaria: string;
   estado: EstadoAdquisicion;
   tipo_tabla_tdr?: TipoTablaTDR;

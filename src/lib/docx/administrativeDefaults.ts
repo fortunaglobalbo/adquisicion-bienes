@@ -1,5 +1,6 @@
 import type { Adquisicion } from '@/types';
 import type { FixedDraft } from './fixedModels';
+import { availablePurchaseBrief } from './purchaseBrief';
 
 export const hasAdministrativeValue = (value: unknown): value is string =>
   typeof value === 'string' && !!value.trim() && !/PENDIENTE|_{3,}/i.test(value);
@@ -14,7 +15,7 @@ export function requestNumber(adq: Adquisicion): string {
 
 export function administrativeDefaults(adq: Adquisicion): Record<string, string> {
   const people = adq.responsables_oficiales?.['2'] || {};
-  const details = adq.asistente_compra?.confirmedAt ? adq.asistente_compra.details : {};
+  const details = availablePurchaseBrief(adq)?.details || {};
   const previous = adq.borradores_ia?.['2']?.draft.fields || {};
   const first = (...values: unknown[]) => values.find(hasAdministrativeValue)?.trim() || '';
   const solicitante = first(previous.solicitante, people.solicitante, adq.responsable_proceso);

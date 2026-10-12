@@ -78,7 +78,7 @@ export class CuadernoNormativoEngine {
       3: `Se requiere la provisión de ${items.length} ítem(s) detallados en el cuadro de especificaciones técnicas con cumplimiento de certificaciones vigentes.`,
       4: "El proponente adjudicado deberá presentar certificado emitido por el fabricante que garantice que todos los ítems son nuevos, sin uso y cumplen con estándares internacionales de calidad y seguridad eléctrica.",
       5: "Subestaciones, cuadrillas operativas y redes de distribución de ENDE DEORURO S.A.",
-      6: "Por ítem requerido al Menor Precio evaluado, conforme al Artículo 31 del Reglamento SBC.",
+      6: "Menor precio. Se seleccionará la propuesta de menor precio entre las que cumplan los requisitos mínimos establecidos para este proceso.",
       7: "Validez de la propuesta mínima de 30 (treinta) días calendario computables a partir de la fecha de presentación de ofertas.",
       8: "Bienes y Suministros Eléctricos.",
       9: "Almacenes Centrales de ENDE DEORURO S.A., ubicados en la ciudad de Oruro.",
@@ -101,7 +101,7 @@ export class CuadernoNormativoEngine {
       multa_porcentaje: 0.25,
       garantia_meses: 12,
       forma_pago: "Contra entrega satisfactoria, conformidad técnica y factura.",
-      metodo_seleccion: "Menor Precio (Art. 31 SBC)",
+      metodo_seleccion: "Menor precio",
       firmas_oficiales: {
         elaborado_por: adquisicionBase?.elaborado_por || "Ing. Tatiana Torres Andrade - Supervisor de Seguridad Industrial",
         elaborado_cargo: adquisicionBase?.elaborado_cargo || "Supervisor de Seguridad Industrial",
