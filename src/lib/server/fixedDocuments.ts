@@ -15,7 +15,7 @@ import { applySelection, assertPlan } from '../procurement/selection';
 import { addSelectionTables } from './selectionWord';
 import { administrativeDefaults, fillAdministrativeBlanks } from '../docx/administrativeDefaults';
 import { technicalEvaluationData } from './technicalEvaluation';
-import { availablePurchaseBrief } from '../docx/purchaseBrief';
+import { availablePurchaseBrief, obsoletePurchaseMentions, suggestedCurrentPurpose, isProtectiveEquipment, PurchaseBrief } from '../docx/purchaseBrief';
 import referenceV04 from '../../../templates/ende/normative-v04.json';
 import { keepTdrHeadingsWithBody } from './wordPagination';
 
@@ -163,14 +163,30 @@ export async function completeFixedDocument(number: number, adq: Adquisicion, cu
     answer = "Fragmentos recuperados por temas. Evalúa su aplicabilidad y excepciones; no son una respuesta normativa validada.";
     status = sources.length ? "sources_found" : results.length && results.every(r=>r.status==='rejected') ? "unavailable" : "no_sources";
   } catch { /* Preserve the data; missing regulatory evidence remains visible. */ }
-  const brief = availablePurchaseBrief(adq);
+  const availableBrief = availablePurchaseBrief(adq);
+  const previousProducts = [...current.items.map(i=>({descripcion:i.descripcion || ''})),...(adq.items || []),{descripcion:adq.titulo_proceso}];
+  const staleMention = (value:string) => !!availableBrief && obsoletePurchaseMentions(value,previousProducts,availableBrief.items).length>0;
+  // A previously prepared automatic purpose may already contain the old title. Correct the
+  // writing context without changing the saved acquisition or a user's document edits.
+  const brief = availableBrief && staleMention(availableBrief.purpose)
+    ? {...availableBrief,purpose:suggestedCurrentPurpose(availableBrief.items,adq.unidad_solicitante),scopeChanged:true}
+    : availableBrief;
+  const narrative = brief ? currentPurchaseNarrative(company.name,adq,brief,number) : null;
+  const contextFields = Object.fromEntries(Object.entries(current.fields).map(([key,value])=>[key,
+    !current.editedFields?.includes(key) && (staleMention(value) || (number===1&&['antecedentes','justificacion'].includes(key))) ? missingValue : value]));
+  const { borradores_ia: _prepared, asistente_compra: _brief, ...storedPurchase } = adq;
+  const purchase = brief ? {...storedPurchase,
+    titulo_proceso:staleMention(adq.titulo_proceso)?narrative!.objeto:adq.titulo_proceso,
+    antecedentes_texto:'',justificacion_texto:brief.purpose,
+    items:brief.items} : storedPurchase;
   const evidence = brief && !context.trim() && !images.length
     ? { facts: brief.facts, missing: [], conflicts: brief.clarification ? [] : brief.conflicts }
-    : await extractDocumentEvidence({expediente:adq,antecedentes:context,borrador:{fields:current.fields,items:current.items}},images,`${session}-extract`);
-  const { borradores_ia: _prepared, asistente_compra: _brief, ...purchase } = adq;
+    : await extractDocumentEvidence({expediente:purchase,antecedentes:context,borrador:{fields:contextFields,items:brief?.items || current.items}},images,`${session}-extract`);
+  const sharedTdr=adq.borradores_ia?.['1']?.draft;
+  const sharedFields=sharedTdr?Object.fromEntries(Object.entries(sharedTdr.fields).map(([key,value])=>[key,!sharedTdr.editedFields?.includes(key)&&staleMention(value)?missingValue:value])):undefined;
   const raw = await callOpenCodeGo([
     { role: "system", content: fixedDocumentPrompt(company.name) },
-    { role: "user", content: [{ type: "text", text: JSON.stringify({ model: { number, fields: model.fields, columns: model.columns }, expediente: purchase, fichaCompra:brief, fechaPreparacion:new Intl.DateTimeFormat('sv-SE',{timeZone:'America/La_Paz',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()), tdrCompartido:number!==1?{fields:adq.borradores_ia?.['1']?.draft.fields,items:adq.borradores_ia?.['1']?.draft.items,proposals:adq.borradores_ia?.['1']?.draft.proposals}:undefined, evidence, current: { fields: current.fields, items: current.items }, context,
+    { role: "user", content: [{ type: "text", text: JSON.stringify({ model: { number, fields: model.fields, columns: model.columns }, expediente: purchase, fichaCompra:brief, fechaPreparacion:new Intl.DateTimeFormat('sv-SE',{timeZone:'America/La_Paz',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()), tdrCompartido:number!==1?{fields:sharedFields,items:brief?.items || sharedTdr?.items,proposals:sharedTdr?.proposals}:undefined, evidence, current: { fields: contextFields, items:current.editedItems?current.items:brief?.items || current.items }, context,
       imageInstructions: "Las imágenes adjuntas son antecedentes de esta compra, no normas. Lee sus datos visibles. Si algo es ilegible o contradice los datos actuales, déjalo pendiente y explica la discrepancia. No copies firmas ni supongas aprobación.",
       normativeAnswer: sources.length ? answer || 'Extractos literales del reglamento V04 seleccionado por el usuario.' : "Sin fuentes recuperadas",
       selectedReference:hasNormativeFields?{title:referenceV04.documentTitle,version:referenceV04.version,date:referenceV04.date,applicability:referenceV04.applicability,limitations:referenceV04.limitations}:undefined,
@@ -261,10 +277,29 @@ export async function completeFixedDocument(number: number, adq: Adquisicion, cu
     const deadline = brief.deliveryDays ? number===1 ? `El plazo ${brief.confirmedAt?'máximo de entrega':'de entrega propuesto'} es de ${brief.deliveryDays} días calendario, computables a partir de la fecha de recepción y suscripción de la ${order}. El plazo se establecerá en el documento contractual correspondiente.` : `${brief.deliveryDays} días calendario` : '';
     for(const [key,value] of Object.entries({...brief.details,lugar:brief.location,plazo:deadline})) if(value && model.fields.some(f=>f.key===key&&!f.normative)) fields[key]=value;
   }
+  if(brief && narrative)for(const key of ['objeto','antecedentes','justificacion','resumen','especificacion','ambito','asunto','cuerpo']) {
+    if(!(key in fields) || current.editedFields?.includes(key))continue;
+    if(staleMention(fields[key])) {
+      fields[key]=narrative[key] || brief.purpose;
+      reviewWarnings.push('Se actualizó la redacción automática para que corresponda a los bienes actuales de esta compra.');
+    }
+    // The quotation remains in brief.facts for prices and commercial correspondence, not
+    // as a substitute for the institutional background of the technical specifications.
+    if(number===1&&key==='antecedentes'&&/cotizaci[oó]n|\b(?:Bs\.?|BOB)\s*[\d]|impuestos de ley incluidos/i.test(fields[key])) fields[key]=narrative.antecedentes;
+    if(['antecedentes','justificacion'].includes(key)) {
+      const unsupported=[...unsupportedQualityClaims(fields[key],technicalEvidence),...unsupportedLegalMentions(fields[key],sources.map(source=>source.excerpt).join(' '))];
+      if(unsupported.length) {
+        fields[key]=narrative[key];
+        reviewWarnings.push(`${model.fields.find(f=>f.key===key)!.label}: se retiraron afirmaciones normativas o técnicas no respaldadas (${unsupported.slice(0,3).join(', ')}); se conserva la redacción institucional de la necesidad.`);
+      }
+    }
+  }
   // User-authored paragraphs remain editable and survive subsequent automatic completion.
   for(const key of current.editedFields || []) if(model.fields.some(f=>f.key===key)) {
     fields[key]=current.fields[key];sourceIds[key]=[];sourceQuotes[key]=[];
+    if(staleMention(current.fields[key])) reviewWarnings.push(`${model.fields.find(f=>f.key===key)!.label}: se conservó tu corrección manual; menciona bienes distintos de los ítems actuales. Puedes corregirla directamente en el documento.`);
   }
+  if(brief && [1,3].includes(number) && current.editedItems && purchaseItemsDiffer(current.items,brief.items)) reviewWarnings.push('Se conservó la tabla modificada manualmente. Revisa su correspondencia con los ítems del archivo actual.');
   const warnings: string[] = relevantWarnings(model,Array.isArray(result.warnings) ? result.warnings : []);
   warnings.unshift(...reviewWarnings);
   if (hasNormativeFields && !sources.length) warnings.unshift("No se recuperó fundamento normativo. Requiere revisión antes de su uso oficial.");
@@ -276,6 +311,37 @@ export async function completeFixedDocument(number: number, adq: Adquisicion, cu
   ]));
   const evaluationRevision=number===6&&!current.editedItems&&!current.editedFields?.some(k=>['recepcion','evaluacion','conclusiones','recomendaciones'].includes(k))?adq.quote_evaluation?.updatedAt:current.evaluationRevision;
   return normalizeFixedDraft(model, { companyId: company.id, modelVersion: model.version, fields, items: current.editedItems ? current.items : items, editedItems: current.editedItems, sources, sourceIds, sourceQuotes, proposals, warnings:Array.from(new Set(warnings)), editedFields:current.editedFields || [], confirmedFields, selectionPlan:current.selectionPlan, evaluationRevision, consultedAt: new Date().toISOString(), normativeStatus: status });
+}
+
+function purchaseItemsDiffer(previous:Record<string,string>[],current:PurchaseBrief['items']):boolean {
+  const rows=(items:{descripcion:string;cantidad:string;unidad:string}[])=>items.map(i=>[i.descripcion.trim().toLowerCase(),i.cantidad.trim(),i.unidad.trim().toLowerCase()]);
+  return JSON.stringify(rows(previous.map(i=>({descripcion:i.descripcion||'',cantidad:i.cantidad||'',unidad:i.unidad||''}))))!==JSON.stringify(rows(current));
+}
+
+/** Conservative wording used only to repair a quotation summary or a superseded product. */
+function currentPurchaseNarrative(company:string,adq:Adquisicion,brief:PurchaseBrief,number:number):Record<string,string> {
+  const epp=isProtectiveEquipment(brief.items);
+  const descriptions=brief.items.map(i=>i.descripcion).join(' ');
+  const protection=[
+    /casco|barbiquejo/i.test(descriptions)?'la cabeza':'',
+    /guante/i.test(descriptions)?'las manos':'',
+    /lente|gafa/i.test(descriptions)?'los ojos':'',
+    /botin|bota/i.test(descriptions)?'los pies':'',
+  ].filter(Boolean);
+  const height=/arn[eé]s|amortiguador/i.test(descriptions);
+  const protectionText=protection.length?`elementos de protección para ${protection.join(', ')}${height?' y componentes para trabajos en altura':''}`:height?'componentes de protección para trabajos en altura':'los elementos de protección requeridos';
+  const objeto=epp?'Adquisición de equipos de protección personal para el personal de '+company:adq.categoria==='Servicios'?'Contratación de los servicios detallados en el presente documento':'Adquisición de los bienes detallados en el presente documento';
+  const antecedentes=epp
+    ? `${company}, como empresa del sector eléctrico, requiere equipos de protección personal adecuados para las labores de operación y mantenimiento de sus redes de distribución. Según la tarea asignada, estas actividades demandan medidas de prevención frente a riesgos mecánicos${/lente|gafa/i.test(descriptions)?', proyección de partículas':''}${height?' y caídas durante trabajos en altura':''}. En este contexto, se plantea la dotación de ${protectionText}, conforme a las cantidades y características establecidas en el presente documento.`
+    : `${company} requiere atender las necesidades operativas de ${adq.unidad_solicitante || 'la unidad solicitante'} mediante la provisión de los bienes o servicios descritos en este documento. La compra se orienta a la siguiente finalidad: ${brief.purpose.replace(/[.\s]+$/,'')}. Las cantidades, unidades y características aportadas se detallan en las especificaciones, para permitir una comparación de las propuestas y una posterior verificación de su cumplimiento.`;
+  const justificacion=epp
+    ? `La adquisición tiene por finalidad disponer de equipos de protección personal que contribuyan al desarrollo seguro de las labores del personal de ${company}. La dotación de ${protectionText} atiende las necesidades de prevención asociadas a las tareas que correspondan. Se requieren las cantidades y características detalladas en la tabla de especificaciones; la selección y utilización de cada producto deberán corresponder a la tarea y al riesgo identificado, previa verificación de su documentación técnica.`
+    : `La adquisición permitirá ${brief.purpose.charAt(0).toLowerCase()+brief.purpose.slice(1).replace(/[.\s]+$/,'')}. Contar con los bienes o servicios en las cantidades y condiciones descritas contribuirá a atender las necesidades de ${adq.unidad_solicitante || 'la unidad solicitante'}, con requisitos concretos para comparar las propuestas y verificar su cumplimiento.`;
+  return {objeto,antecedentes,justificacion:number===2?`${brief.purpose.replace(/[.\s]+$/,'')}. Se requieren las cantidades y características detalladas en las especificaciones técnicas para atender esta necesidad.`:justificacion,
+    resumen:`Se requiere la provisión de ${brief.items.length} ítems${epp?' de equipos de protección personal':''}, en las cantidades, unidades y características detalladas en la tabla de especificaciones técnicas.`,
+    especificacion:'A continuación se describen los bienes requeridos, sus cantidades, unidades de medida y características técnicas mínimas, conforme a la información aportada para esta adquisición.',
+    ambito:'El presente documento corresponde a los ítems detallados en la tabla de especificaciones, desde la solicitud de propuestas hasta la verificación de su entrega a conformidad.',
+    asunto:`Solicitud de cotización — ${objeto}`,cuerpo:`Señores proveedores:\n\nSolicitamos remitir su cotización para los ítems descritos en las especificaciones técnicas adjuntas, indicando precio unitario y total, impuestos, plazo y lugar de entrega, condiciones de pago y vigencia de la oferta. La propuesta deberá permitir verificar las características de cada producto ofrecido.\n\nAtentamente.`};
 }
 
 /** These are draft purchasing choices, not legal requirements or decisions confirmed by a user. */
@@ -329,6 +395,12 @@ function unsupportedQualityClaims(value:string,evidence:string):string[] {
   const knownVoltages=voltages(evidence).map(v=>v.value).filter(Number.isFinite);
   for(const claim of voltages(value))if(!Number.isFinite(claim.value)||!knownVoltages.includes(claim.value))unsupported.push(claim.claim);
   return Array.from(new Map(unsupported.map(claim=>[normalized(claim),claim])).values());
+}
+
+function unsupportedLegalMentions(value:string,evidence:string):string[] {
+  const compact=(input:string)=>input.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/gi,'').toLowerCase();
+  const known=compact(evidence);
+  return Array.from(new Set(value.match(/\b(?:D\.?\s*L\.?|Decreto\s+(?:Ley|Supremo)|Ley)\s*(?:N(?:ro|[.º°o])?\s*\.?\s*)?\d{2,}/gi)||[])).filter(reference=>!known.includes(compact(reference)));
 }
 
 function relevantWarnings(model:FixedModel,input:unknown[]):string[] {

@@ -12,6 +12,7 @@ import { reviseFixedDocument, RevisionClarification } from "@/lib/server/reviseF
 import { fillAdministrativeBlanks } from '@/lib/docx/administrativeDefaults';
 import { updateTechnicalEvaluation, fillEvaluationReferences } from '@/lib/server/technicalEvaluation';
 import { evaluationPreview } from '@/lib/server/evaluationPreview';
+import { editableDocumentPreview } from '@/lib/server/editableDocumentPreview';
 
 export const runtime = "nodejs";
 export const maxDuration = 180;
@@ -104,7 +105,8 @@ export async function POST(req: NextRequest) {
     }
     const mammoth = await import("mammoth");
     const html = number===2 ? await wordFormPreview(output.buffer) : number===6 ? await evaluationPreview(output.buffer) : (await mammoth.convertToHtml({ buffer: output.buffer })).value;
-    return NextResponse.json({ draft: output.draft, html, pdf, previewWarning, revised, revisionSummary, modelVersion: model.version }, { headers: { "Cache-Control": "no-store" } });
+    const editableHtml=await editableDocumentPreview(output.buffer,output.draft,model,html);
+    return NextResponse.json({ draft: output.draft, html, editableHtml, pdf, previewWarning, revised, revisionSummary, modelVersion: model.version }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     console.error("[fixed-documents]", e instanceof Error ? e.stack : "Error al preparar documento");
     return NextResponse.json({ error: e instanceof Error ? e.message : "No se pudo preparar el documento." }, { status: 400 });

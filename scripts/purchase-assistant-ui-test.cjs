@@ -10,6 +10,8 @@ const load=Module._load;Module._load=function(name,...args){
 };
 const {seedFixedDraft,renderFixedWord}=require('../src/lib/server/fixedDocuments.ts');
 const {wordFormPreview}=require('../src/lib/server/wordFormPreview.ts');
+const {editableDocumentPreview}=require('../src/lib/server/editableDocumentPreview.ts');
+const {fixedModel}=require('../src/lib/docx/fixedModels.ts');
 const mammoth=require('mammoth');
 const url=process.env.ASSISTANT_UI_URL||'http://127.0.0.1:3000';
 const output='test-results/assistant-ui';fs.mkdirSync(output,{recursive:true});
@@ -18,6 +20,7 @@ function fixture(id){const adquisicion={id,codigo:'PRUEBA-UI',titulo_proceso:'Ad
 function requestPayload(request){const body=request.postData()||'';const match=body.match(/name="request"\r?\n(?:Content-Type:[^\r\n]+\r?\n)?\r?\n([\s\S]*?)\r?\n--/);assert.ok(match,'Se espera la petición JSON en el formulario');return JSON.parse(match[1]);}
 async function setup(browser,id,{quantity='10',conflicts=[],failure=0}={}){
  const context=await browser.newContext({viewport:{width:1440,height:1000}}),page=await context.newPage();
+ page.setDefaultTimeout(60000);
  let snapshot=fixture(id),templates=[],revision='initial';const errors=[],calls=[],reads=[];let failNumber=failure;
  page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/api/**',route=>route.fulfill({status:403,json:{error:'Servicio bloqueado en la prueba aislada'}}));
@@ -39,7 +42,8 @@ async function setup(browser,id,{quantity='10',conflicts=[],failure=0}={}){
   }
   if(body.action==='revise'){assert.match(body.context,/45/);draft={...draft,fields:{...draft.fields,plazo:'45 días calendario'},editedFields:[...(draft.editedFields||[]),'plazo']};}
   const rendered=await renderFixedWord(body.number,draft);const html=body.number===2?await wordFormPreview(rendered.buffer):(await mammoth.convertToHtml({buffer:rendered.buffer})).value;
-  await route.fulfill({json:{draft:rendered.draft,html,pdf:null,previewWarning:'',...(body.action==='revise'?{revised:true,revisionSummary:['Plazo actualizado a 45 días']}:{}),...(body.action==='export'?{docx:rendered.buffer.toString('base64')}: {})}});
+  const editableHtml=await editableDocumentPreview(rendered.buffer,rendered.draft,fixedModel(body.number),html);
+  await route.fulfill({json:{draft:rendered.draft,html,editableHtml,pdf:null,previewWarning:'',...(body.action==='revise'?{revised:true,revisionSummary:['Plazo actualizado a 45 días']}:{}),...(body.action==='export'?{docx:rendered.buffer.toString('base64')}: {})}});
  });
  await page.goto(`${url}/expediente/${id}`);
  return {page,context,errors,calls,reads,get snapshot(){return snapshot;},get templates(){return templates;}};
@@ -60,11 +64,68 @@ async function main(){
   await page.getByRole('button',{name:'Editar estos datos',exact:true}).click();await page.getByRole('textbox',{name:'¿Para qué se necesita?',exact:true}).fill('Impresión para el archivo institucional');await page.getByRole('button',{name:'Preparar documentos con estos datos',exact:true}).click();await page.getByText('TDR y solicitudes preparados.',{exact:false}).waitFor({timeout:20000});
   assert.equal(automatic.snapshot.adquisicion.asistente_compra.purpose,'Impresión para el archivo institucional');assert.equal(automatic.snapshot.adquisicion.asistente_compra.suggestions.length,0);
   await page.getByRole('button',{name:'Completar o corregir con IA',exact:true}).click();await page.getByText('Describe lo que necesitas o los datos que cambian',{exact:true}).locator('..').getByRole('textbox').fill('cambiar plazo a 45 dias por favor');await page.getByRole('button',{name:'Aplicar cambios con IA',exact:true}).click();await page.getByText('Cambios aplicados:',{exact:false}).waitFor({timeout:20000});await page.frameLocator('iframe[title="Vista de contenido del Word"]').getByText('45 días calendario',{exact:false}).first().waitFor();
-  await page.getByRole('button').filter({hasText:'Solicitud S1'}).first().click();await page.getByRole('heading',{name:'Solicitud de adquisición S1-N014',exact:true}).waitFor();const frame=page.frameLocator('iframe[title="Vista de contenido del Word"]');await frame.getByRole('table',{name:'Formulario S1 en Word'}).waitFor({timeout:20000});await page.getByRole('button',{name:'Editar documento',exact:true}).click();await page.getByText('Nombre del solicitante',{exact:true}).filter({has:page.locator('xpath=self::span')}).locator('..').getByRole('textbox').fill('Solicitante corregido');await page.getByRole('button',{name:'Actualizar vista',exact:true}).first().click();await frame.getByText('Solicitante corregido',{exact:true}).waitFor({timeout:20000});await page.getByRole('checkbox',{name:'Usar estos responsables como datos oficiales en próximos expedientes'}).check();await page.getByRole('button',{name:'Guardar cambios',exact:true}).first().click();await page.getByRole('button',{name:'Editar documento',exact:true}).waitFor({timeout:20000});
-  assert.equal(automatic.snapshot.adquisicion.borradores_ia[2].draft.fields.solicitante,'Solicitante corregido');assert.equal(automatic.templates[0].contenido_plantilla.officialPeopleByCompany.ende.fields.solicitante,'Solicitante corregido');await page.reload();await page.getByRole('button').filter({hasText:'Solicitud S1'}).first().click();await frame.getByText('Solicitante corregido',{exact:true}).waitFor({timeout:20000});const download=page.waitForEvent('download');await page.getByRole('button',{name:'Descargar Word',exact:true}).click();await(await download).saveAs(`${output}/S1-descargado.docx`);assert.deepEqual(automatic.errors,[]);await automatic.context.close();
+  // Edit the actual Word-shaped document, including its item cells. There is no
+  // parallel textarea form: values must survive saving, reopening and DOCX export.
+  await page.getByRole('button',{name:'Editar documento',exact:true}).click();
+  const tdr=page.getByLabel('Documento editable: Especificaciones técnicas',{exact:true});
+  const editedBackground='ENDE DEORURO S.A. desarrolla labores de operación y mantenimiento. Esta redacción fue corregida directamente en el documento institucional.';
+  const editedDescription='Papel tamaño carta para archivo institucional';
+  const editedSpecification='75 g/m²; paquete cerrado de 500 hojas. Texto corregido en la celda del documento.';
+  await tdr.getByRole('textbox',{name:'Antecedentes',exact:true}).fill(editedBackground);
+  await tdr.getByRole('textbox',{name:'DESCRIPCIÓN DEL BIEN, ítem 1',exact:true}).fill(editedDescription);
+  await tdr.getByRole('textbox',{name:'CANTIDAD, ítem 1',exact:true}).fill('12');
+  await tdr.getByRole('textbox',{name:'CARACTERÍSTICAS TÉCNICAS REQUERIDAS, ítem 1',exact:true}).fill(editedSpecification);
+  await page.getByRole('button',{name:'Añadir ítem',exact:true}).click();
+  await tdr.getByRole('textbox',{name:'DESCRIPCIÓN DEL BIEN, ítem 2',exact:true}).fill('Ítem temporal que se quitará');
+  await page.getByRole('button',{name:'Quitar ítem 2',exact:true}).click();
+  await tdr.getByRole('textbox',{name:'DESCRIPCIÓN DEL BIEN, ítem 2',exact:true}).waitFor({state:'detached'});
+  await tdr.getByRole('textbox',{name:'DESCRIPCIÓN DEL BIEN, ítem 1',exact:true}).waitFor();
+  assert.equal(await tdr.getByRole('textbox',{name:'DESCRIPCIÓN DEL BIEN, ítem 2',exact:true}).count(),0);
+  assert.equal(await tdr.getByRole('textbox',{name:'Antecedentes',exact:true}).textContent(),editedBackground);
+  await tdr.scrollIntoViewIfNeeded();await page.screenshot({path:`${output}/tdr-edicion-en-documento.png`,fullPage:true});
+  await page.getByRole('button',{name:'Guardar cambios',exact:true}).click();
+  await page.getByRole('button',{name:'Editar documento',exact:true}).waitFor({timeout:20000});
+  assert.equal(automatic.snapshot.adquisicion.borradores_ia[1].draft.fields.antecedentes,editedBackground);
+  assert.equal(automatic.snapshot.adquisicion.borradores_ia[1].draft.items.length,1);
+  assert.equal(automatic.snapshot.adquisicion.borradores_ia[1].draft.items[0].descripcion,editedDescription);
+  assert.equal(automatic.snapshot.adquisicion.borradores_ia[1].draft.items[0].cantidad,'12');
+  await page.reload();await page.getByRole('button',{name:'Editar documento',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Editar documento',exact:true}).click();
+  await tdr.getByRole('textbox',{name:'Antecedentes',exact:true}).waitFor();
+  assert.equal(await tdr.getByRole('textbox',{name:'Antecedentes',exact:true}).textContent(),editedBackground);
+  assert.equal(await tdr.getByRole('textbox',{name:'CARACTERÍSTICAS TÉCNICAS REQUERIDAS, ítem 1',exact:true}).textContent(),editedSpecification);
+  const tdrDownload=page.waitForEvent('download');await page.getByRole('button',{name:'Descargar Word',exact:true}).click();await(await tdrDownload).saveAs(`${output}/TDR-editado-en-documento.docx`);
+  const tdrWord=(await mammoth.extractRawText({path:`${output}/TDR-editado-en-documento.docx`})).value;
+  assert.ok(tdrWord.includes(editedBackground));assert.ok(tdrWord.includes(editedDescription));assert.ok(tdrWord.includes(editedSpecification));assert.doesNotMatch(tdrWord,/Ítem temporal que se quitará/);
+  await page.getByRole('button').filter({hasText:'Solicitud S1'}).first().click();
+  await page.getByRole('heading',{name:'Solicitud de adquisición S1-N014',exact:true}).waitFor();
+  const frame=page.frameLocator('iframe[title="Vista de contenido del Word"]');await frame.getByRole('table',{name:'Formulario S1 en Word'}).waitFor({timeout:20000});
+  await page.getByRole('button',{name:'Editar documento',exact:true}).click();
+  const s1=page.getByLabel('Documento editable: Solicitud de adquisición S1-N014',{exact:true});
+  await s1.getByRole('textbox',{name:'Nombre del solicitante',exact:true}).fill('Solicitante corregido');
+  await s1.getByRole('radio',{name:'Verificación de existencia en almacén: Sin saldo',exact:true}).click();
+  await s1.getByRole('radio',{name:'Publicar precio: Sí',exact:true}).click();
+  await s1.getByRole('radio',{name:'Con presupuesto: Sí',exact:true}).click();
+  assert.equal(await s1.getByRole('radio',{name:'Verificación de existencia en almacén: Sin saldo',exact:true}).getAttribute('aria-checked'),'true');
+  assert.equal(await s1.getByRole('radio',{name:'Publicar precio: No',exact:true}).getAttribute('aria-checked'),'false');
+  assert.ok(await s1.locator('[colspan]').count(),'El S1 conserva sus celdas combinadas');
+  await page.getByText('Responsables para próximos expedientes',{exact:true}).click();
+  await page.getByRole('checkbox',{name:'Usar estos responsables como datos oficiales en próximos expedientes'}).check();
+  await s1.scrollIntoViewIfNeeded();await page.screenshot({path:`${output}/s1-edicion-en-documento.png`,fullPage:true});
+  await page.getByRole('button',{name:'Guardar cambios',exact:true}).click();await page.getByRole('button',{name:'Editar documento',exact:true}).waitFor({timeout:20000});
+  assert.equal(automatic.snapshot.adquisicion.borradores_ia[2].draft.fields.solicitante,'Solicitante corregido');
+  assert.equal(automatic.snapshot.adquisicion.borradores_ia[2].draft.fields.almacen,'Sin saldo');assert.equal(automatic.snapshot.adquisicion.borradores_ia[2].draft.fields.publicar_precio,'Sí');assert.equal(automatic.snapshot.adquisicion.borradores_ia[2].draft.fields.con_presupuesto,'Sí');
+  assert.equal(automatic.templates[0].contenido_plantilla.officialPeopleByCompany.ende.fields.solicitante,'Solicitante corregido');
+  await page.reload();await page.getByRole('button').filter({hasText:'Solicitud S1'}).first().click();await frame.getByText('Solicitante corregido',{exact:true}).waitFor({timeout:20000});
+  await page.getByRole('button',{name:'Editar documento',exact:true}).click();await s1.getByRole('textbox',{name:'Nombre del solicitante',exact:true}).waitFor();
+  assert.equal(await s1.getByRole('radio',{name:'Verificación de existencia en almacén: Sin saldo',exact:true}).getAttribute('aria-checked'),'true');
+  assert.equal(await s1.getByRole('radio',{name:'Publicar precio: Sí',exact:true}).getAttribute('aria-checked'),'true');
+  const download=page.waitForEvent('download');await page.getByRole('button',{name:'Descargar Word',exact:true}).click();await(await download).saveAs(`${output}/S1-descargado.docx`);
+  const s1Word=(await mammoth.extractRawText({path:`${output}/S1-descargado.docx`})).value;assert.ok(s1Word.includes('Solicitante corregido'));assert.ok(s1Word.includes('☒'),'Las opciones elegidas se exportan marcadas al Word');
+  assert.deepEqual(automatic.errors,[]);await automatic.context.close();
   const conflict=await setup(browser,'assistant-conflict',{conflicts:['La cantidad difiere entre los antecedentes.']});await uploadAndCreate(conflict.page);await conflict.page.getByRole('alert').filter({hasText:'Aclara la diferencia'}).waitFor();assert.deepEqual(conflict.calls,[]);await conflict.context.close();
   const partial=await setup(browser,'assistant-partial',{failure:3});await uploadAndCreate(partial.page);await partial.page.getByText('Los documentos preparados se conservaron.',{exact:false}).waitFor({timeout:20000});assert.deepEqual(Object.keys(partial.snapshot.adquisicion.borradores_ia),['1','2','4','5']);await partial.page.getByRole('button',{name:'Volver a intentar esta carpeta',exact:true}).click();await partial.page.getByText('Documento preparado. Abre su carpeta',{exact:false}).waitFor({timeout:20000});assert.deepEqual(partial.calls,[1,2,3,4,5,3]);assert.equal(partial.snapshot.adquisicion.asistente_compra.confirmedAt,null);assert.equal(Object.keys(partial.snapshot.adquisicion.borradores_ia).length,5);await partial.context.close();
-  console.log('PASS UI: archivo sin relato -> cinco carpetas editables, faltantes y conflictos esenciales, propuestas sin confirmación ficticia, revisión, recuperación parcial, S1 institucional, responsables oficiales y descarga Word.');
+  console.log('PASS UI: archivo -> cinco carpetas, revisión IA, editar párrafos y celdas dentro del documento, añadir/quitar filas, guardar/reabrir, DOCX exacto, S1 con celdas combinadas y casillas, responsables oficiales, faltantes y recuperación parcial.');
  }finally{await browser.close();}
 }
 main().catch(e=>{console.error(e.stack);process.exitCode=1;});

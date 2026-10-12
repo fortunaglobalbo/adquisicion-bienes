@@ -22,7 +22,9 @@
     "test:attachments": "node scripts/purchase-attachments-test.cjs",
     "test:hoja-ruta-print": "node scripts/hoja-ruta-print-test.cjs",
     "test:selection": "node scripts/selection-test.cjs",
-    "test:evaluation-template": "node scripts/evaluation-template-test.cjs"
+    "test:evaluation-template": "node scripts/evaluation-template-test.cjs",
+    "test:editor": "node scripts/editable-document-test.cjs",
+    "test:editor-preview": "node scripts/editable-document-preview-test.cjs"
   },
   "dependencies": {
     "@xmldom/xmldom": "0.8.15",

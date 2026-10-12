@@ -10,6 +10,14 @@ Los PDF escaneados y mixtos se leen mediante imágenes de sus páginas; se admit
 
 Mis compras muestra los expedientes por fecha de creación descendente, incluyendo la copia local. Editar o cambiar el estado de un expediente anterior no cambia ese orden.
 
+## Editar sobre el documento
+
+«Editar documento» permite escribir directamente en los párrafos y celdas de la hoja institucional, sin un formulario paralelo de campos. Los títulos, logos y estructura permanecen fijos. Las filas se añaden o quitan desde el documento; las casillas del S1 y los nombres/cargos del informe de evaluación también se editan allí. «Guardar cambios» conserva la versión Word y muestra su vista actualizada; al volver a abrir el expediente se recuperan esos valores. Pegar introduce texto plano, sin ejecutar HTML ni alterar el formato de la plantilla. Los responsables para próximas compras se guardan desde la opción desplegable correspondiente.
+
+Los ítems del archivo actual definen el alcance de la redacción automática, aunque el título o una ficha anterior mencionen otro producto. La diferencia se presenta como un aviso, sin pedir al usuario repetir datos completos. Las contradicciones entre archivos actuales sí requieren aclaración. Antecedentes explica el contexto institucional y justificación desarrolla la utilidad operativa; proveedor, monto y número de cotización permanecen como evidencia comercial. Se conservan las correcciones manuales, con un aviso si contienen bienes distintos de los actuales. No se añaden leyes ni certificaciones técnicas sin respaldo.
+
+Pruebas: `npm run test:editor`, `npm run test:editor-preview` y `npm run test:assistant-ui` (interfaz aislada). Cubren cursor, texto pegado, valores repetidos, celdas combinadas, casillas, filas, guardado, reapertura y exportación a Word.
+
 ## Estados editables
 
 En Mis compras y dentro del expediente, el estado admite texto libre y se guarda automáticamente al pausar la escritura, salir del campo o pulsar Enter. El texto se conserva en `estado_personalizado` del snapshot JSONB sincronizado; la columna SQL `estado` mantiene los códigos de flujo compatibles con su restricción original. Los filtros y las métricas usan el estado visible. Los códigos conocidos también se actualizan al escribirlos, sin modificar el texto elegido por el usuario. Un fallo de red conserva el cambio en la cola local y muestra que falta sincronizar; «Guardado» requiere confirmar la sincronización. La hoja de ruta utiliza el mismo editor.
