@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
       draft=updateComparativeReport(draft,adq);
     } else if (!["preview", "download", "export"].includes(body.action)) throw Error("Acción desconocida.");
     if (body.draftOnly === true && body.action === 'complete') return NextResponse.json({ draft }, { headers: { 'Cache-Control': 'no-store' } });
-    const output = await renderFixedWord(number, draft);
+    const output = await renderFixedWord(number, draft, adq);
     if (body.action === "export") return NextResponse.json({ draft: output.draft, docx: output.buffer.toString("base64") }, { headers: { "Cache-Control": "no-store" } });
     if (body.action === "download") return new Response(new Uint8Array(output.buffer), { headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",

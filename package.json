@@ -28,7 +28,9 @@
     "test:fixed-response": "node scripts/fixed-response-test.cjs",
     "test:comparative": "node scripts/comparative-report-test.cjs",
     "test:comparative-ui": "node scripts/comparative-report-ui-test.cjs",
-    "test:opencode-retry": "node scripts/opencode-retry-test.cjs"
+    "test:opencode-retry": "node scripts/opencode-retry-test.cjs",
+    "test:tdr-title": "node scripts/purchase-title-test.cjs && node scripts/tdr-title-integration-test.cjs",
+    "test:tdr-index": "node scripts/tdr-pagination-test.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.48.1",

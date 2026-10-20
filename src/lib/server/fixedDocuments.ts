@@ -19,6 +19,7 @@ import { technicalEvaluationData } from './technicalEvaluation';
 import { comparativeReportData, updateComparativeReport } from './comparativeReport';
 import { comparativeSnapshot } from '../procurement/comparativeReport';
 import { availablePurchaseBrief, obsoletePurchaseMentions, suggestedCurrentPurpose, isProtectiveEquipment, PurchaseBrief } from '../docx/purchaseBrief';
+import { currentPurchaseTitle, repairAutomaticPurchaseTitle } from '../docx/purchaseTitle';
 import referenceV04 from '../../../templates/ende/normative-v04.json';
 import { keepTdrHeadingsWithBody } from './wordPagination';
 
@@ -48,6 +49,7 @@ export function seedFixedDraft(number: number, adq: Adquisicion): FixedDraft {
     ...(number === 2 ? administrativeDefaults(adq) : {}),
     ...(number === 6 ? technicalEvaluationData(adq).fields : {}),
     ...(number === 3 ? comparativeReportData(adq).fields : {}),
+    ...(number === 1 ? {objeto:currentPurchaseTitle({title:adq.titulo_proceso,category:adq.categoria,items:availablePurchaseBrief(adq)?.items||adq.items||[]})} : {}),
   };
   // Receiving a new good is a fact to confirm; previous item quantities are not evidence of receipt.
   const items = number === 3 ? comparativeReportData(adq).items : number === 6 ? technicalEvaluationData(adq).items : number === 7 || !model.columns.length ? [] : (adq.items || []).map((item, i) => Object.fromEntries(model.columns.map(c => [c.key,
@@ -83,15 +85,16 @@ export function validateFixedDraft(model: FixedModel, draft: FixedDraft) {
   if (!model.columns.length && draft.items.length) throw Error("Este modelo no utiliza una tabla de ítems.");
 }
 
-export function normalizeFixedDraft(model: FixedModel, draft: FixedDraft): FixedDraft {
+export function normalizeFixedDraft(model: FixedModel, draft: FixedDraft, adq?: Adquisicion): FixedDraft {
   draft = upgradeFixedDraft(model.number, draft);
   validateFixedDraft(model, draft);
   const result: FixedDraft = { ...draft, fields: { ...draft.fields }, items: draft.items.map((r, i) => ({ ...r, numero: String(i + 1) })) };
+  if(model.number===1)result.fields.objeto=repairAutomaticPurchaseTitle(result.fields.objeto,{title:adq?.titulo_proceso||result.fields.objeto,category:adq?.categoria,items:result.items.length?result.items.map(item=>({descripcion:item.descripcion||''})):adq?.items||[]},result.editedFields?.includes('objeto'));
   return result;
 }
 
-export async function renderFixedWord(number: number, input: FixedDraft) {
-  const model = fixedModel(number), draft = normalizeFixedDraft(model, input);
+export async function renderFixedWord(number: number, input: FixedDraft, adq?: Adquisicion) {
+  const model = fixedModel(number), draft = normalizeFixedDraft(model, input, adq);
   const buffer = await fs.readFile(path.join(process.cwd(), "templates", "ende", model.file));
   if (createHash("sha256").update(buffer).digest("hex") !== model.sha256) throw Error("El modelo cambió sin registrar una nueva versión.");
   const structure = await inspectTemplate(buffer);
@@ -309,7 +312,7 @@ export async function completeFixedDocument(number: number, adq: Adquisicion, cu
     ...(number===1 && fields.categoria && fields.categoria !== missingValue ? ['categoria'] : []),
   ]));
   const evaluationRevision=number===6&&!current.editedItems&&!current.editedFields?.some(k=>['recepcion','evaluacion','conclusiones','recomendaciones'].includes(k))?technicalEvaluationData(adq).revision:current.evaluationRevision;
-  return normalizeFixedDraft(model, { companyId: company.id, modelVersion: model.version, fields, items: current.editedItems ? current.items : items, editedItems: current.editedItems, sources, sourceIds, sourceQuotes, proposals, warnings:Array.from(new Set(warnings)), editedFields:current.editedFields || [], confirmedFields, selectionPlan:current.selectionPlan, evaluationRevision, consultedAt: new Date().toISOString(), normativeStatus: status });
+  return normalizeFixedDraft(model, { companyId: company.id, modelVersion: model.version, fields, items: current.editedItems ? current.items : items, editedItems: current.editedItems, sources, sourceIds, sourceQuotes, proposals, warnings:Array.from(new Set(warnings)), editedFields:current.editedFields || [], confirmedFields, selectionPlan:current.selectionPlan, evaluationRevision, consultedAt: new Date().toISOString(), normativeStatus: status }, adq);
 }
 
 function purchaseItemsDiffer(previous:Record<string,string>[],current:PurchaseBrief['items']):boolean {
@@ -329,7 +332,7 @@ function currentPurchaseNarrative(company:string,adq:Adquisicion,brief:PurchaseB
   ].filter(Boolean);
   const height=/arn[eé]s|amortiguador/i.test(descriptions);
   const protectionText=protection.length?`elementos de protección para ${protection.join(', ')}${height?' y componentes para trabajos en altura':''}`:height?'componentes de protección para trabajos en altura':'los elementos de protección requeridos';
-  const objeto=epp?'Adquisición de equipos de protección personal para el personal de '+company:adq.categoria==='Servicios'?'Contratación de los servicios detallados en el presente documento':'Adquisición de los bienes detallados en el presente documento';
+  const objeto=currentPurchaseTitle({title:adq.titulo_proceso,category:adq.categoria,items:brief.items});
   const antecedentes=epp
     ? `${company}, como empresa del sector eléctrico, requiere equipos de protección personal adecuados para las labores de operación y mantenimiento de sus redes de distribución. Según la tarea asignada, estas actividades demandan medidas de prevención frente a riesgos mecánicos${/lente|gafa/i.test(descriptions)?', proyección de partículas':''}${height?' y caídas durante trabajos en altura':''}. En este contexto, se plantea la dotación de ${protectionText}, conforme a las cantidades y características establecidas en el presente documento.`
     : `${company} requiere atender las necesidades operativas de ${adq.unidad_solicitante || 'la unidad solicitante'} mediante la provisión de los bienes o servicios descritos en este documento. La compra se orienta a la siguiente finalidad: ${brief.purpose.replace(/[.\s]+$/,'')}. Las cantidades, unidades y características aportadas se detallan en las especificaciones, para permitir una comparación de las propuestas y una posterior verificación de su cumplimiento.`;

@@ -16,6 +16,8 @@ Mis compras muestra los expedientes por fecha de creación descendente, incluyen
 
 Los ítems del archivo actual definen el alcance de la redacción automática, aunque el título o una ficha anterior mencionen otro producto. La diferencia se presenta como un aviso, sin pedir al usuario repetir datos completos. Las contradicciones entre archivos actuales sí requieren aclaración. Antecedentes explica el contexto institucional y justificación desarrolla la utilidad operativa; proveedor, monto y número de cotización permanecen como evidencia comercial. Se conservan las correcciones manuales, con un aviso si contienen bienes distintos de los actuales. No se añaden leyes ni certificaciones técnicas sin respaldo.
 
+El TDR conserva el nombre específico del proceso en portada y encabezados. Al exportar se reparan los antiguos títulos automáticos genéricos usando el proceso y sus ítems actuales; los títulos escritos manualmente se respetan. El índice es una tabla de contenido nativa limitada a sus catorce secciones: Microsoft Word compone sus páginas al abrir el archivo, evitando las referencias independientes que podían quedar todas en 1. La vista HTML sigue siendo una vista de contenido y no estima páginas. Se comprobó la apertura automática en Word con documentos de 7 y 12 páginas. Pruebas: `npm run test:tdr-title` y `npm run test:tdr-index`.
+
 Pruebas: `npm run test:editor`, `npm run test:editor-preview` y `npm run test:assistant-ui` (interfaz aislada). Cubren cursor, texto pegado, valores repetidos, celdas combinadas, casillas, filas, guardado, reapertura y exportación a Word.
 
 ## Estados editables
