@@ -138,7 +138,7 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
           contextoCarpetas: {
             tdrResumen: f1?.documentos[0]?.nombre_original || "TDR con especificaciones técnicas completas",
             s1Resumen: f2?.documentos[0]?.nombre_original || "Solicitud S1-N014 aprobada con partida 39500",
-            justificacionResumen: f3?.documentos[0]?.nombre_original || "Cuadro de Justificación por reposición técnica",
+            justificacionResumen: f3?.documentos[0]?.nombre_original || "Cuadro comparativo e informe técnico",
             cotizacionesResumen: f4?.documentos[0]?.nombre_original || "Proformas con NIT verificado y cotización menor precio",
           },
         };
@@ -330,7 +330,7 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
 
           const carpetaDescriptions: Record<number, { from: string; icon: string; hint: string }> = {
             2: { from: "El usuario sube manualmente", icon: "📋", hint: "Formulario S1-N014, Solicitud de inicio de proceso, partida presupuestaria" },
-            3: { from: "El usuario sube manualmente", icon: "📊", hint: "Cuadro de justificación, previsión de precio aprobada, informe técnico de necesidad" },
+            3: { from: "La IA lee las solicitudes y ofertas", icon: "📊", hint: "Cuadro comparativo e informe técnico en el formato institucional, editable" },
             4: { from: "El usuario sube manualmente", icon: "💼", hint: "Cotizaciones / proformas de proveedores con NIT, precios y especificaciones" },
           };
           const meta = carpetaDescriptions[carpeta.numero] || {

@@ -33,10 +33,10 @@ async function main(){
   if(model.columns.length){const found=result.tables.find(t=>t.headers.join('|')===model.columns.map(c=>c.label).join('|'));assert.ok(found);assert.equal(found.rows.length,3);}
  }
  console.log('PASS siete modelos: campos completos, sin datos heredados, tablas de tres filas');
- const d=seedFixedDraft(3,adq);d.items=[{numero:'1',cantidad:'4',precio:'2,50',unidad:'m',descripcion:'Cable',activo:'Nuevo'}];
- assert.equal(normalizeFixedDraft(FIXED_MODELS[2],d).fields.presupuesto,'10.00');
- d.items[0].precio='1.234,56';assert.equal(normalizeFixedDraft(FIXED_MODELS[2],d).fields.presupuesto,'[PENDIENTE]');
- d.items=[];d.fields.presupuesto='10.00';assert.equal(normalizeFixedDraft(FIXED_MODELS[2],d).fields.presupuesto,'[PENDIENTE]');
+ const d=seedFixedDraft(3,adq);assert.equal(d.items.length,0,'Los bienes solicitados no son ofertas recibidas');
+ assert.equal(d.fields.presupuesto,undefined);assert.match(d.fields.recepcion,/No se han incorporado/);
+ d.items=[{numero:'1',empresa:'Proveedor',cotizacion:'Oferta documentada',precio:'68.562,00 Bs',respaldo:'Verificación por documentar'}];
+ assert.equal(normalizeFixedDraft(FIXED_MODELS[2],d).items[0].precio,'68.562,00 Bs');
  const long=seedFixedDraft(1,adq);long.items=Array.from({length:30},(_,i)=>({...long.items[0],numero:String(i+1),descripcion:'Cable para mantenimiento '+(i+1)}));
  const longOutput=await renderFixedWord(1,long);fs.writeFileSync('test-results/fixed-models/filled/tdr-30-items.docx',longOutput.buffer);
  const longStructure=await inspectTemplate(longOutput.buffer);assert.equal(longStructure.tables.find(t=>t.headers.includes('CANTIDAD')).rows.length,30);

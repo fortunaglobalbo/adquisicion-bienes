@@ -114,7 +114,7 @@ export function EditableDocument(props: EditableDocumentProps) {
       const column = model.columns.find(item => item.key === element.dataset.fixedColumn);
       const row = Number(element.dataset.fixedRow ?? element.closest('[data-fixed-row]')?.getAttribute('data-fixed-row'));
       if (!column || !Number.isInteger(row) || row < 0 || row > draft.items.length) return;
-      configure(element, `${column.label}, ${model.number === 6 ? 'proveedor' : 'ítem'} ${row + 1}`, draft.items[row]?.[column.key] || '', column.key !== 'numero');
+      configure(element, `${column.label}, ${[3, 6].includes(model.number) ? 'proveedor' : 'ítem'} ${row + 1}`, draft.items[row]?.[column.key] || '', column.key !== 'numero');
     });
   }, [html, draft, model, disabled]);
 
@@ -172,8 +172,8 @@ export function EditableDocument(props: EditableDocumentProps) {
       />
     </div>
     {!!model.columns.length && <div className="mx-auto mt-3 flex max-w-[860px] flex-wrap items-center gap-2" aria-label="Editar filas del documento">
-      <button type="button" className={action} disabled={disabled} onClick={props.onAddItem}>Añadir {model.number === 6 ? 'proveedor' : 'ítem'}</button>
-      {selectedRow !== null && draft.items[selectedRow] && <button type="button" className={`${action} text-red-800`} disabled={disabled} onClick={() => { props.onRemoveItem(selectedRow); setSelectedRow(null); }}>Quitar {model.number === 6 ? 'proveedor' : 'ítem'} {selectedRow + 1}</button>}
+      <button type="button" className={action} disabled={disabled} onClick={props.onAddItem}>Añadir {[3, 6].includes(model.number) ? 'proveedor' : 'ítem'}</button>
+      {selectedRow !== null && draft.items[selectedRow] && <button type="button" className={`${action} text-red-800`} disabled={disabled} onClick={() => { props.onRemoveItem(selectedRow); setSelectedRow(null); }}>Quitar {[3, 6].includes(model.number) ? 'proveedor' : 'ítem'} {selectedRow + 1}</button>}
       {draft.items.length > 0 && selectedRow === null && <span className="text-xs text-slate-600">Para quitar una fila, haz clic en una de sus celdas.</span>}
     </div>}
     <style>{`

@@ -30,10 +30,10 @@ async function main(){
    if(!live && number===1){current.editedItems=true;current.items[0].especificaciones='Especificación corregida manualmente';}
    if(!live){draftReply={fields:current.fields,sourceIds:{},warnings:[]};if(number===4){current.fields.cuerpo='Texto corregido por el usuario';current.editedFields=['cuerpo'];}}
    const draft=await completeFixedDocument(number,adq,current,'');
-   if([1,3].includes(number)){assert.equal(draft.items.length,1);assert.equal(draft.items[0].cantidad,'10');}
+   if(number===1){assert.equal(draft.items.length,1);assert.equal(draft.items[0].cantidad,'10');}
    else assert.equal(draft.items.length,0);
    if(!live && number===1){assert.equal(draft.items[0].especificaciones,'Especificación corregida manualmente');assert.equal(draft.editedItems,true);}
-   if(number===3)assert.equal(draft.fields.presupuesto,'350.00');
+   if(number===3){assert.equal(draft.fields.presupuesto,undefined);assert.match(draft.fields.recepcion,/No se han incorporado/);}
    if(number===4&&!live)assert.equal(draft.fields.cuerpo,'Texto corregido por el usuario');
    const output=await renderFixedWord(number,draft);fs.writeFileSync(`${dir}/${number}.docx`,output.buffer);fs.writeFileSync(`${dir}/${number}.json`,JSON.stringify(draft,null,2));
    adq={...adq,borradores_ia:{...adq.borradores_ia,[number]:{draft,briefRevision:brief.revision,updatedAt:new Date().toISOString()}}};

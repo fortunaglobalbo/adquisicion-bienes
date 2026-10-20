@@ -13,6 +13,7 @@ import { fillAdministrativeBlanks } from '@/lib/docx/administrativeDefaults';
 import { updateTechnicalEvaluation, fillEvaluationReferences } from '@/lib/server/technicalEvaluation';
 import { evaluationPreview } from '@/lib/server/evaluationPreview';
 import { editableDocumentPreview } from '@/lib/server/editableDocumentPreview';
+import { updateComparativeReport } from '@/lib/server/comparativeReport';
 
 export const runtime = "nodejs";
 export const maxDuration = 180;
@@ -79,6 +80,9 @@ export async function POST(req: NextRequest) {
     } else if (body.action === 'refresh-evaluation' && number === 6) {
       validateFixedDraft(model,draft);
       draft=updateTechnicalEvaluation(draft,adq);
+    } else if (body.action === 'refresh-comparative' && number === 3) {
+      validateFixedDraft(model,draft);
+      draft=updateComparativeReport(draft,adq);
     } else if (!["preview", "download", "export"].includes(body.action)) throw Error("Acción desconocida.");
     if (body.draftOnly === true && body.action === 'complete') return NextResponse.json({ draft }, { headers: { 'Cache-Control': 'no-store' } });
     const output = await renderFixedWord(number, draft);
@@ -104,7 +108,7 @@ export async function POST(req: NextRequest) {
       } catch { previewWarning = "El convertidor PDF no respondió. Se muestra el contenido; el Word sigue disponible."; }
     }
     const mammoth = await import("mammoth");
-    const html = number===2 ? await wordFormPreview(output.buffer) : number===6 ? await evaluationPreview(output.buffer) : (await mammoth.convertToHtml({ buffer: output.buffer })).value;
+    const html = number===2 ? await wordFormPreview(output.buffer) : [3,6].includes(number) ? await evaluationPreview(output.buffer) : (await mammoth.convertToHtml({ buffer: output.buffer })).value;
     const editableHtml=await editableDocumentPreview(output.buffer,output.draft,model,html);
     return NextResponse.json({ draft: output.draft, html, editableHtml, pdf, previewWarning, revised, revisionSummary, modelVersion: model.version }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {

@@ -20,9 +20,9 @@ export const FOLDER_TEMPLATES: {
   },
   {
     numero: 3,
-    nombre: "Cuadro de Justificación",
-    tipo_generacion: "MANUAL",
-    descripcion: "Subida y procesamiento de justificación técnica y criterio de evaluación.",
+    nombre: "Cuadro comparativo",
+    tipo_generacion: "IA",
+    descripcion: "Informe y cuadro comparativo de solicitudes y ofertas, basado en las cotizaciones y el formato institucional.",
   },
   {
     numero: 4,

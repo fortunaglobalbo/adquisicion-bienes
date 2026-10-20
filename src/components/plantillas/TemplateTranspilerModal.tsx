@@ -57,7 +57,7 @@ export const TemplateTranspilerModal: React.FC<TemplateTranspilerModalProps> = (
   const carpetasNombres: Record<number, string> = {
     1: "1. TDR (Términos de Referencia)",
     2: "2. Form S1-N014 (Solicitud de Adquisición)",
-    3: "3. Cuadro de Justificación",
+    3: "3. Cuadro comparativo",
     4: "4. Solicitud de Cotización a Empresas",
     5: "5. Solicitud de Inicio de Proceso",
     6: "6. Form S2-N014 (Solicitud de Cotización)",

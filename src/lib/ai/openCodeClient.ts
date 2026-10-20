@@ -58,6 +58,30 @@ export function extractJsonFromText(raw: string): any {
   return null;
 }
 
+class TransientOpenCodeError extends Error {
+  constructor(readonly finalError:OpenCodeError,readonly delayMs=1500){super(finalError.message);}
+}
+
+function retryAfterMs(value:string|null):number|null {
+  if(!value?.trim())return null;
+  const input=value.trim();
+  const delay=/^\d+(?:\.\d+)?$/.test(input)?Number(input)*1000:Date.parse(input)-Date.now();
+  return Number.isFinite(delay)&&delay>=0?delay:null;
+}
+
+function waitForRetry(delay:number,signal:AbortSignal):Promise<void> {
+  return new Promise((resolve,reject)=>{
+    if(signal.aborted){reject(signal.reason);return;}
+    let timer:ReturnType<typeof setTimeout>;
+    const abort=()=>{clearTimeout(timer);signal.removeEventListener('abort',abort);reject(signal.reason);};
+    signal.addEventListener('abort',abort,{once:true});
+    timer=setTimeout(()=>{signal.removeEventListener('abort',abort);resolve();},delay);
+  });
+}
+
+const connectionError=(error:unknown)=>error instanceof TypeError&&/fetch|network|socket/i.test(error.message)||
+  !!error&&typeof error==='object'&&'cause' in error&&/^(?:ECONNRESET|ECONNREFUSED|ETIMEDOUT|EAI_AGAIN|UND_ERR_SOCKET|UND_ERR_CONNECT_TIMEOUT)$/.test(String((error as {cause?:{code?:unknown}}).cause?.code||''));
+
 export async function callOpenCodeGo(
   messages: ChatMessage[],
   temperature = 0.1,
@@ -72,16 +96,26 @@ export async function callOpenCodeGo(
   const model = process.env.OPENCODE_GO_MODEL || DEFAULT_OPENCODE_MODEL;
 
   const maxAttempts = 2;
+  const budgetMs=Number.isFinite(timeoutMs)?Math.max(1,Math.floor(timeoutMs)):45000;
+  const deadline=performance.now()+budgetMs;
+  const budgetSignal=AbortSignal.timeout(budgetMs);
+  const signal=options.signal?AbortSignal.any([options.signal,budgetSignal]):budgetSignal;
+  const session=sessionId||crypto.randomUUID();
+  const timeoutError=()=>new OpenCodeError('timeout','OpenCode GO tardó demasiado en responder. Vuelve a intentar; el borrador se conserva.');
+  const cancellation=()=>new OpenCodeError('cancelled','Lectura cancelada. Los datos se conservan.');
+  const finish=(error:OpenCodeError):string=>{if(options.strict)throw error;console.warn(`[OpenCode GO] ${error.code}`);return '';};
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
+      if(options.signal?.aborted)throw cancellation();
+      if(budgetSignal.aborted||performance.now()>=deadline)throw timeoutError();
       const res = await fetch(`${baseUrl}/chat/completions`, {
         method: "POST",
-        signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs),
+        signal,
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
           "User-Agent": "ende-document-assistant/1.0",
-          "x-opencode-session": sessionId || crypto.randomUUID(),
+          "x-opencode-session": session,
         },
         body: JSON.stringify({
           model,
@@ -91,38 +125,64 @@ export async function callOpenCodeGo(
           ...(options.disableThinking && model.startsWith("deepseek") ? { thinking: { type: "disabled" } } : {}),
         }),
       });
+      if(options.signal?.aborted)throw cancellation();
+      if(budgetSignal.aborted||performance.now()>=deadline)throw timeoutError();
 
       if (!res.ok) {
         console.warn(`OpenCode Go API Error [${res.status}] (intento ${attempt}/${maxAttempts})`);
-        if ((res.status === 503 || res.status === 502 || res.status === 504) && attempt < maxAttempts && !options.signal?.aborted) {
-          await new Promise((resolve) => setTimeout(resolve, 1500));
-          continue;
+        if(res.status===401||res.status===403){
+          let payload:any=null;try{payload=await res.json();}catch{/* Never echo provider text or credentials. */}
+          const code=payload?.error?.code||payload?.code||payload?.errorCode;
+          throw new OpenCodeError('rejected',res.status===401&&code==='api_key_expired'
+            ? 'La credencial de OpenCode GO venció (HTTP 401). Actualiza la conexión; el borrador se conserva.'
+            : res.status===401?'OpenCode GO no aceptó la credencial (HTTP 401). Revisa la conexión; el borrador se conserva.'
+            : 'La credencial de OpenCode GO no tiene acceso a esta solicitud (HTTP 403). Revisa los permisos de la conexión; el borrador se conserva.');
         }
-        if (options.strict) throw new OpenCodeError(res.status === 429 ? 'rate_limit' : res.status >= 500 || res.status === 408 ? 'unavailable' : 'rejected', res.status === 429 ? "OpenCode GO alcanzó su límite de uso. Intenta de nuevo más tarde." : `OpenCode GO rechazó la solicitud (HTTP ${res.status}). El borrador se conserva.`);
-        return "";
+        if(res.status===429){
+          let payload:any=null;try{payload=await res.json();}catch{/* Unknown failures remain a rate limit; never guess a quota. */}
+          const details=[payload?.error?.code,payload?.error?.type,payload?.error?.message,payload?.error,payload?.errorCode,payload?.code,payload?.type,payload?.message].filter(value=>typeof value==='string').join(' ').slice(0,4000);
+          const quota=/quota|exhausted|usage[\s_-]*limit|monthly|billing|insufficient[\s_-]*(?:credit|fund)|credit[\s_-]*(?:balance|limit)/i.test(details);
+          const delay=retryAfterMs(res.headers.get('retry-after'));
+          const limit=new OpenCodeError('rate_limit','OpenCode GO alcanzó su límite de uso. Intenta de nuevo más tarde; el borrador se conserva.');
+          if(!quota&&delay!==null&&delay<=5000)throw new TransientOpenCodeError(limit,delay);
+          throw limit;
+        }
+        const error=new OpenCodeError(res.status>=500||res.status===408?'unavailable':'rejected',res.status>=500||res.status===408
+          ? `OpenCode GO no está disponible temporalmente (HTTP ${res.status}). El borrador se conserva.`
+          : `OpenCode GO rechazó la solicitud (HTTP ${res.status}). El borrador se conserva.`);
+        await res.body?.cancel().catch(()=>{});
+        if([500,502,503,504,408].includes(res.status))throw new TransientOpenCodeError(error);
+        throw error;
       }
 
-      const data = await res.json();
-      const choice = data.choices?.[0];
+      let data:any;
+      try{data=await res.json();}catch(error){
+        if(signal.aborted||error instanceof Error&&/TimeoutError|AbortError/.test(error.name))throw error;
+        throw new TransientOpenCodeError(new OpenCodeError('unavailable','La conexión con OpenCode GO se interrumpió al recibir la respuesta. El borrador se conserva.'));
+      }
+      if(options.signal?.aborted)throw cancellation();
+      if(budgetSignal.aborted||performance.now()>=deadline)throw timeoutError();
+      const choice = data?.choices?.[0];
       const content = typeof choice?.message?.content === "string" ? choice.message.content.trim() : "";
       if (options.strict && (!content || choice?.finish_reason === "length")) {
-        console.warn("[GO incomplete]", JSON.stringify({ finishReason: choice?.finish_reason, completionTokens: data.usage?.completion_tokens }));
-        throw new OpenCodeError("incomplete", choice?.finish_reason === "length" ? "OpenCode GO alcanzó su límite de respuesta sin terminar. El documento anterior se conserva. Intenta un cambio por vez o utiliza «Editar documento»." : "OpenCode GO devolvió una respuesta vacía. Vuelve a intentar; el borrador se conserva.");
+        console.warn("[GO incomplete]", JSON.stringify({ finishReason: choice?.finish_reason, completionTokens: data?.usage?.completion_tokens }));
+        if(choice?.finish_reason==='length')throw new OpenCodeError('incomplete','OpenCode GO alcanzó su límite de respuesta sin terminar. El documento anterior se conserva. Intenta un cambio por vez o utiliza «Editar documento».');
+        throw new TransientOpenCodeError(new OpenCodeError('incomplete','OpenCode GO devolvió una respuesta vacía. Vuelve a intentar; el borrador se conserva.'));
       }
       return content;
     } catch (error) {
-      if (attempt < maxAttempts && error instanceof TypeError && /fetch|network/i.test(error.message) && !options.signal?.aborted) {
-        await new Promise((resolve) => setTimeout(resolve, 1500));
+      if(options.signal?.aborted)return finish(cancellation());
+      if(budgetSignal.aborted||performance.now()>=deadline)return finish(timeoutError());
+      const network=connectionError(error);
+      const finalError=error instanceof TransientOpenCodeError?error.finalError:error instanceof OpenCodeError?error
+        : error instanceof Error&&/TimeoutError|AbortError/.test(error.name)?timeoutError()
+        : new OpenCodeError('unavailable','No se pudo conectar con OpenCode GO. Los datos se conservan.');
+      const delay=error instanceof TransientOpenCodeError?error.delayMs:1500;
+      if(attempt<maxAttempts&&(error instanceof TransientOpenCodeError||network)&&deadline-performance.now()>delay+50){
+        try{await waitForRetry(delay,signal);}catch{return finish(options.signal?.aborted?cancellation():timeoutError());}
         continue;
       }
-      if (options.strict) {
-        if (options.signal?.aborted) throw new OpenCodeError('cancelled', 'Lectura cancelada. Los datos se conservan.');
-        if (error instanceof Error && /TimeoutError|AbortError/.test(error.name)) throw new OpenCodeError('timeout', "OpenCode GO tardó demasiado en responder. Vuelve a intentar; el borrador se conserva.");
-        if (error instanceof TypeError && /fetch|network/i.test(error.message)) throw new OpenCodeError('unavailable', 'No se pudo conectar con OpenCode GO. Los datos se conservan.');
-        throw error instanceof Error ? error : Error("No se pudo conectar con OpenCode GO.");
-      }
-      console.error("Error llamando a OpenCode Go:", error);
-      return "";
+      return finish(finalError);
     }
   }
   return "";

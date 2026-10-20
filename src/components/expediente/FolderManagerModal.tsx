@@ -73,7 +73,7 @@ export const FolderManagerModal: React.FC<FolderManagerModalProps> = ({
       pasos: ["1. Subir Formulario S1-N014", "2. Verificar partida", "3. Guardar en expediente"],
     },
     3: {
-      queHace: "Cuadro de Justificación técnica de la necesidad y previsión de precio aprobada.",
+      queHace: "Cuadro comparativo de solicitudes y ofertas documentadas, con informe técnico editable.",
       deQuienDepende: "Carpeta 1 (TDR) y Carpeta 2 (S1-N014).",
       pasos: ["1. Subir informe de justificación", "2. Comprobar monto referencial en Bs."],
     },

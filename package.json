@@ -25,7 +25,10 @@
     "test:evaluation-template": "node scripts/evaluation-template-test.cjs",
     "test:editor": "node scripts/editable-document-test.cjs",
     "test:editor-preview": "node scripts/editable-document-preview-test.cjs",
-    "test:fixed-response": "node scripts/fixed-response-test.cjs"
+    "test:fixed-response": "node scripts/fixed-response-test.cjs",
+    "test:comparative": "node scripts/comparative-report-test.cjs",
+    "test:comparative-ui": "node scripts/comparative-report-ui-test.cjs",
+    "test:opencode-retry": "node scripts/opencode-retry-test.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.48.1",

@@ -78,7 +78,6 @@ async function reviseWithAI(model: FixedModel, current: FixedDraft, request: str
         const field=model.fields.find(f=>f.key===key);
         if (!field || typeof value!=='string' || value.length>16000) throw Error(`Campo o valor inválido: ${key}. Usa solo las claves del modelo.`);
         if (value===current.fields[key]) continue;
-        if (model.number===3 && key==='presupuesto') throw Error('presupuesto es calculado: corrige cantidad o precio de los ítems.');
         const quotes=verifiedQuotes(value,sources.map(s=>s.id),result.sourceQuotes?.[key],sources);
         if (field.normative) {
           const old=current.fields[key] || '';

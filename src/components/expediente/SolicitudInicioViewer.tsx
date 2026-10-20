@@ -391,7 +391,7 @@ export const SolicitudInicioViewer: React.FC<SolicitudInicioViewerProps> = ({
                 </div>
                 <div className="flex items-start gap-2.5">
                   <span className="font-bold text-gray-800">•</span>
-                  <span>Cuadro de Justificación de solicitud de compra.</span>
+                  <span>Cuadro comparativo e informe técnico.</span>
                 </div>
                 <div className="flex items-start gap-2.5">
                   <span className="font-bold text-gray-800">•</span>

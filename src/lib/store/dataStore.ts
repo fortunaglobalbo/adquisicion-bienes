@@ -181,7 +181,7 @@ export class DataStore {
     } catch (e) { return { success: false, error: e instanceof Error ? e.message : "No se pudo eliminar." }; }
   }
   static getAllCarpetas(): Carpeta[] {
-    return this.read<Carpeta[]>(KEYS.folders, []).map(c=>c.numero===6?{...c,nombre:'Informe técnico de evaluación',descripcion:'Evaluación técnica y económica de cotizaciones, cuadro comparativo, conclusiones y recomendaciones.'}:c);
+    return this.read<Carpeta[]>(KEYS.folders, []).map(c=>c.numero===3?{...c,nombre:'Cuadro comparativo',tipo_generacion:'IA',descripcion:'Informe y cuadro comparativo basado en solicitudes y ofertas disponibles.'}:c.numero===6?{...c,nombre:'Informe técnico de evaluación',descripcion:'Evaluación técnica y económica de cotizaciones, cuadro comparativo, conclusiones y recomendaciones.'}:c);
   }
   static getCarpetasByAdquisicion(id: string): Carpeta[] {
     return this.getAllCarpetas().filter(c => c.adquisicion_id === id).sort((a,b) => (a.orden || a.numero) - (b.orden || b.numero));

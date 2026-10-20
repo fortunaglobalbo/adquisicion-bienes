@@ -24,6 +24,12 @@ En Mis compras y dentro del expediente, el estado admite texto libre y se guarda
 
 ## Informe técnico de evaluación y datos automáticos del S1
 
+La carpeta 3 es el **Cuadro comparativo**, basado directamente en `CUADRO COMPARATIVO.docx` aportado por el usuario. Conserva el logotipo, la cabecera **INFORME DE CONFORMIDAD (CONTRATACIONES), FORMULARIO A6-N014**, fecha y referencia, destinatario, vía, informante con sus cargos y las cinco secciones del Word original. La tabla contiene empresa, cotización/evaluación, precio y respaldo. Se retiraron los proveedores, importes, equipos y referencias a la tercera versión del reglamento del ejemplo; no se reutilizan como hechos de otra compra.
+
+El asistente general prepara un informe provisional en la carpeta 3 sin presumir ofertas recibidas; si ya existe un comparativo, lo conserva. Dentro de esa carpeta se pueden subir las solicitudes y cotizaciones de los proveedores para preparar el informe con sus antecedentes reales. Una invitación a cotizar se distingue de una oferta recibida: no se transforma en precio cero, descalificación o cumplimiento sin respaldo. Los párrafos y celdas siguen editables; los cambios conservan su historial. Este informe documental se distingue del cálculo de evaluación de la carpeta 4.
+
+La plantilla 3 se genera con `scripts/build-comparative-template.py` desde una copia del Word original y se registra como versión `2026-10-20.1`. El constructor general valida y preserva esa plantilla y su catálogo; no vuelve a reconstruir el antiguo cuadro de justificación. Cabecera, pie, imagen, estilos y relaciones se conservan como partes originales del paquete; el contenido y la tabla se completan para cada expediente.
+
 La carpeta 6 utiliza el **Informe técnico de evaluación de ofertas**, reconstruido como Word editable a partir del PDF aportado el 25 de septiembre de 2026. Reemplaza el S2 en el flujo actual y conserva las descargas de documentos anteriores. Incluye destinatario, vía, informante, antecedentes, recepción de cotizaciones, cuadro por proveedor, conclusiones y recomendaciones. Por indicación del usuario se conserva el encabezado institucional **INFORME DE CONFORMIDAD (CONTRATACIONES), FORMULARIO A6-N014**, el logo de ENDE y la distribución de A, VIA y De con sus cargos. Los destinatarios del ejemplo se usan como base editable cuando no existen responsables propios guardados. La conformidad de bienes/servicios permanece en la carpeta 7. No se trasladan proveedores, importes, firmas ni artículos del ejemplo a otras compras. El ajuste de formato actualiza también los borradores de evaluación anteriores, preservando su texto y ediciones.
 
 Cuando existe una comparación guardada en la carpeta 4, el informe incorpora sus ofertas y resultados. Si cambia esa comparación, aparece un aviso y el botón «Actualizar cuadro y conclusiones desde cotizaciones». Las ediciones manuales se conservan durante la redacción con IA; esa actualización explícita sustituye el cuadro y las conclusiones por los datos guardados y se puede deshacer. Una evaluación incompleta, un empate o reglas desactualizadas no producen una recomendación automática de adjudicación.
@@ -50,7 +56,7 @@ El expediente incluye **Asistente de esta compra**: lee PDF, Word, texto o fotos
 
 Cada carpeta permite corregir el contenido, revisar la vista, guardar una versión Word o descargarla. `/plantillas` es un catálogo; `/configuracion/plantillas` informa sobre la biblioteca y los servicios. Los usuarios ya no diseñan ni suben plantillas. Una carpeta fallida se puede reintentar sin perder las demás.
 
-Hay siete modelos DOCX basados en `PROCESO DE ADQUISICION`. TDR y conformidad conservan sus originales como referencia. S1 se reconstruyó en Word desde Excel; las fotografías se reconstruyeron una sola vez y requieren validación institucional. La carpeta 8 conserva el flujo previo. Los originales no se modificaron.
+Hay siete modelos DOCX basados en las referencias aportadas. TDR, cuadro comparativo y conformidad conservan sus Word originales como autoridad visual. S1 se reconstruyó en Word desde Excel; las fotografías se reconstruyeron una sola vez y requieren validación institucional. La carpeta 8 conserva el flujo previo. Los originales no se modificaron.
 
 AnythingLLM aporta las fuentes del espacio asignado a ENDE y OpenCode GO está conectado como redactor sin sustitución silenciosa. La aplicación rellena campos permitidos y tablas de los modelos; la IA no elige el diseño. Una cláusula normativa sin una fuente reconocida queda pendiente. Las referencias propuestas requieren revisión de aplicabilidad y vigencia.
 
@@ -113,7 +119,7 @@ Cada proceso de adquisición se organiza cronológica y normativamente en **8 ca
 📦 EXPEDIENTE DE ADQUISICIÓN
  ├── 📁 Carpeta 1: TDR (Términos de Referencia / Especificaciones Técnicas) [IA / 7 Páginas Oficiales]
  ├── 📁 Carpeta 2: Form S1-N014 (Solicitud de Adquisición y Partida Presupuestaria) [Documento Respaldatorio]
- ├── 📁 Carpeta 3: Cuadro de Justificación (Previsión de Precios e Informe Técnico) [Documento Respaldatorio]
+ ├── 📁 Carpeta 3: Cuadro comparativo e informe técnico (modelo Word institucional) [IA / editable]
  ├── 📁 Carpeta 4: Solicitud de Cotización a Empresas (Proformas, Proveedores y NIT) [Documento Respaldatorio]
  ├── 📁 Carpeta 5: Solicitud de Inicio de Proceso (Autorización y Memorándum Formal) [IA]
  ├── 📁 Carpeta 6: Informe técnico de evaluación (formato institucional A6-N014) [IA]
@@ -127,7 +133,7 @@ Cada proceso de adquisición se organiza cronológica y normativamente en **8 ca
 | :---: | :--- | :---: | :--- |
 | **1** | **TDR (Términos de Referencia)** | `IA` | Documento maestro de 7 páginas. Estructura los 14 puntos obligatorios de ENDE DEORURO, tablas técnicas (Bienes Simples, Salud Ocupacional o Servicios) y fichas técnicas por ítem. |
 | **2** | **Form S1-N014** | `Doc` | Solicitud formal de compra con asignación de partida presupuestaria (ej. 39500 - Útiles de escritorio y suministros). Subida manual del usuario o registro respaldatorio. |
-| **3** | **Cuadro de Justificación** | `Doc` | Cuadro comparativo de precios de mercado, cálculo de precio referencial estimado y necesidad técnica operativa de reposición. |
+| **3** | **Cuadro comparativo** | `IA` | Lee solicitudes y ofertas adjuntas, verifica importes y prepara el informe en el formato Word institucional. Edición directa y conservación de versiones. |
 | **4** | **Cotizaciones de Empresas** | `Doc` | Recepción de proformas comerciales con verificación de NIT, plazo de entrega y especificaciones ofertadas por proveedores. |
 | **5** | **Solicitud de Inicio** | `IA` | Memorándum formal dirigido a la Autoridad Responsable de Contrataciones (RPA/RPC) consolidando el objeto, partida y TDR. |
 | **6** | **Form S2-N014** | `IA` | Formulario estándar de invitación formal a cotizar con plazo de validez de oferta (30 días) y requerimientos legales (RNC/NIT). |

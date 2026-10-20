@@ -27,8 +27,9 @@ async function main(){
  const blank=await generation({data:{fields:{objeto:'Adquisición de equipos de protección personal'},items:null}},manualBlank);assert.equal(blank.fields.antecedentes,'');assert.equal(blank.fields.justificacion,'');exactRows(blank);
  const manual={...current,fields:{...current.fields,antecedentes:'Párrafo que el usuario corrigió.'},editedFields:['antecedentes'],items:current.items.map((item,i)=>({...item,cantidad:String(i+25)})),editedItems:true};
  const conserved=await generation({result:{fields,items:null}},manual);assert.equal(conserved.fields.antecedentes,manual.fields.antecedentes);assert.deepEqual(conserved.items,manual.items);
- const numeric=await generation({fields:{...fields,justificacion:'La compra atiende la necesidad del área.'},items:[{numero:1,descripcion:'Cable',unidad:'m',cantidad:4,precio:2.5}]},seedFixedDraft(3,adq),{...adq,asistente_compra:undefined},3);
- assert.equal(numeric.items[0].cantidad,'4');assert.equal(numeric.items[0].precio,'2.5');assert.equal(numeric.fields.presupuesto,'10.00');
+ const {parseFixedDocumentResponse}=require('../src/lib/server/fixedDocumentResponse.ts');
+ const numeric=parseFixedDocumentResponse(JSON.stringify({fields:{numero:24,objeto:'Compra de equipos'},items:[{numero:1,empresa:'Proveedor',cotizacion:'Oferta',precio:68562,respaldo:'Documento adjunto'}]}),fixedModel(3),{authoritativeItems:false,allowMissingItems:false});
+ assert.equal(numeric.fields.numero,'24');assert.equal(numeric.items[0].numero,'1');assert.equal(numeric.items[0].precio,'68562');
  const duplicate='```json\n'+JSON.stringify({fields,items:[]})+'\n```\n```json\n'+JSON.stringify({fields,items:[]})+'\n```';exactRows(await generation(duplicate));
  const ambiguous=JSON.stringify({fields,items:[]})+'\n'+JSON.stringify({fields:{...fields,antecedentes:'Otra versión distinta del documento.'},items:[]});
  await assert.rejects(()=>generation(ambiguous),/documento válido|versiones.*distintas/);

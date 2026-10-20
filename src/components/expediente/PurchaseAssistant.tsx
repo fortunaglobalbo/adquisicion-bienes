@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import { UploadCloud } from 'lucide-react';
 import Swal, { type SweetAlertOptions } from 'sweetalert2';
 import type { Adquisicion, Carpeta } from '@/types';
-import { fixedModel, FixedDraft } from '@/lib/docx/fixedModels';
+import { compatibleFixedDraft, fixedModel, FixedDraft } from '@/lib/docx/fixedModels';
+import { comparativeHistoryWithPrevious } from '@/lib/docx/comparativeHistory';
 import { initialBrief, briefProblems, briefUpdates, suggestedCurrentPurpose, PurchaseBrief } from '@/lib/docx/purchaseBrief';
 import { readPurchaseResponse } from '@/lib/ai/purchaseReadingResponse';
 import { DataStore } from '@/lib/store/dataStore';
@@ -16,11 +17,13 @@ type Work = { token: string; controller: AbortController; phase: 'reading' | 'qu
 
 function latestDraft(adq: Adquisicion, carpetas: Carpeta[], number: number): FixedDraft | undefined {
   const model = fixedModel(number);
-  const saved = carpetas.find(folder => folder.numero === number)?.documentos.filter(document => document.metadata?.fixedDraft?.modelVersion === model.version).sort((a,b) => b.fecha_creacion.localeCompare(a.fecha_creacion))[0];
-  const prepared = adq.borradores_ia?.[number];
+  const company = adq.empresa_id || 'ende';
+  const saved = carpetas.find(folder => folder.numero === number)?.documentos.filter(document => compatibleFixedDraft(number, document.metadata?.fixedDraft) && document.metadata?.fixedDraft?.companyId === company).sort((a,b) => b.fecha_creacion.localeCompare(a.fecha_creacion))[0];
+  const candidate = adq.borradores_ia?.[number];
+  const prepared = compatibleFixedDraft(number, candidate?.draft) && candidate?.draft.companyId === company ? candidate : undefined;
   let draft = prepared && (!saved || prepared.updatedAt > saved.fecha_creacion) ? prepared.draft : saved?.metadata?.fixedDraft;
   const storedTime = Math.max(Date.parse(prepared?.updatedAt || '') || 0, Date.parse(saved?.fecha_creacion || '') || 0);
-  try { const local = JSON.parse(localStorage.getItem(`fixed-draft:${adq.id}:${number}`) || 'null'); if (local?.draft?.modelVersion === model.version && local.draft.companyId === (adq.empresa_id || 'ende') && local.updatedAt > storedTime) draft = local.draft; } catch {}
+  try { const local = JSON.parse(localStorage.getItem(`fixed-draft:${adq.id}:${number}`) || 'null'); if (compatibleFixedDraft(number, local?.draft) && local.draft.companyId === company && local.updatedAt > storedTime) draft = local.draft; } catch {}
   return draft;
 }
 function startingBrief(adq: Adquisicion, carpetas: Carpeta[]): PurchaseBrief {
@@ -33,7 +36,7 @@ function startingBrief(adq: Adquisicion, carpetas: Carpeta[]): PurchaseBrief {
 }
 function unfinishedFolders(adq: Adquisicion): number[] {
   const brief = adq.asistente_compra;
-  return brief?.preparedAt ? initialFolders.filter(number => !adq.borradores_ia?.[number] || adq.borradores_ia[number].briefRevision !== brief.revision) : [];
+  return brief?.preparedAt ? initialFolders.filter(number => !(number === 3 && adq.comparative_report) && (!adq.borradores_ia?.[number] || adq.borradores_ia[number].briefRevision !== brief.revision)) : [];
 }
 const positiveQuantity = (value: string) => /^\d+(?:[.,]\d+)?$/.test(value.trim()) && Number(value.replace(',', '.')) > 0;
 
@@ -138,12 +141,14 @@ export function PurchaseAssistant({ adquisicion, carpetas, onUpdated, onBusyChan
     let working: Adquisicion = { ...latest, ...updates }; const failed: number[] = []; work.phase = 'generating'; work.remaining = [...numbers];
     for (let position = 0; position < numbers.length; position++) {
       checkCurrent(work); const number = numbers[position]; showProgress(work, `Redactando documentos… (${position + 1} de ${numbers.length})`);
+      if (number === 3 && working.comparative_report) { work.remaining = work.remaining.filter(value => value !== number); continue; }
       try {
         const form = new FormData(); form.append('request', JSON.stringify({ action: 'complete', draftOnly: true, number, adquisicion: working, draft: latestDraft(working, props.carpetas, number), context: '' }));
         const response = await fetch('/api/fixed-documents', { method: 'POST', body: form, signal: work.controller.signal }); const result = await response.json(); checkCurrent(work);
         if (!response.ok || !result?.draft) throw Error(result.error || 'No se pudo preparar el documento.');
-        working = { ...working, borradores_ia: { ...working.borradores_ia, [number]: { draft: result.draft, briefRevision: saved.revision, updatedAt: new Date().toISOString() } } };
-        checkCurrent(work); const storedDraft = await DataStore.updateAdquisicion(props.adquisicion.id, { borradores_ia: working.borradores_ia }); if (!storedDraft.success) throw Error(storedDraft.error || 'No se pudo conservar el borrador.');
+        const history = number === 3 ? comparativeHistoryWithPrevious(DataStore.getAdquisicionById(props.adquisicion.id) || working, props.carpetas) : undefined;
+        working = { ...working, ...(history ? { comparative_report_history: history } : {}), borradores_ia: { ...working.borradores_ia, [number]: { draft: result.draft, briefRevision: saved.revision, updatedAt: new Date().toISOString() } } };
+        checkCurrent(work); const storedDraft = await DataStore.updateAdquisicion(props.adquisicion.id, { borradores_ia: working.borradores_ia, ...(history ? { comparative_report_history: history } : {}) }); if (!storedDraft.success) throw Error(storedDraft.error || 'No se pudo conservar el borrador.');
         work.remaining = work.remaining.filter(value => value !== number);
       } catch { checkCurrent(work); failed.push(number); }
     }

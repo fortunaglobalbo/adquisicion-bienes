@@ -61,7 +61,7 @@ export const FolderAiGuideBanner: React.FC<FolderAiGuideBannerProps> = ({
     },
     3: {
       queHace:
-        "Establece el Cuadro de Justificación de la necesidad técnica y la previsión presupuestaria aprobada en Bs.",
+        "Prepara el cuadro comparativo y el informe con las solicitudes y cotizaciones adjuntas, sin suponer cumplimiento ni adjudicación.",
       deQuienDepende: ["Carpeta 1 (TDR) y Carpeta 2 (S1-N014)"],
       pasos: [
         "Sube el informe técnico de justificación o previsión de precio.",

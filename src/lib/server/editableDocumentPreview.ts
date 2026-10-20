@@ -35,7 +35,7 @@ export async function editableDocumentPreview(buffer: Buffer, draft: FixedDraft,
   };
   const marker = (key: string, value: string, part?: 'name' | 'role') => {
     const field = fields.get(key);
-    if (!field || (model.number === 3 && key === 'presupuesto')) return token(lines(value));
+    if (!field) return token(lines(value));
     return token(`<span data-fixed-field="${escape(key)}"${part ? ` data-fixed-part="${part}"` : ''} aria-label="${escape(field.label)}${part === 'name' ? ': nombre' : part === 'role' ? ': cargo' : ''}">${lines(value)}</span>`);
   };
   const checkbox = (key: string, choice: string, expected: string) => {
@@ -43,7 +43,7 @@ export async function editableDocumentPreview(buffer: Buffer, draft: FixedDraft,
     return token(`<span data-fixed-field="${escape(key)}" data-fixed-choice="${escape(choice)}" role="radio" aria-checked="${checked}" aria-label="${escape(fields.get(key)?.label || key)}: ${escape(choice)}">${checked ? '☒' : '☐'}</span>`);
   };
   const references: Record<string, { key: string; part: 'name' | 'role'; value: string }> = {};
-  if (model.number === 6) for (const key of ['destinatario', 'via', 'solicitante']) {
+  if ([3,6].includes(model.number)) for (const key of ['destinatario', 'via', 'solicitante']) {
     const [name, ...role] = (draft.fields[key] || '').split(/\r?\n/);
     references[`${key}_nombre`] = { key, part: 'name', value: name };
     references[`${key}_cargo`] = { key, part: 'role', value: role.join('\n') };
@@ -84,7 +84,7 @@ export async function editableDocumentPreview(buffer: Buffer, draft: FixedDraft,
   let editable = await fillTemplate(template, changes, tables);
   if (model.number === 1) editable = await keepTdrHeadingsWithBody(editable);
   if (model.number === 1 && draft.selectionPlan) editable = await addSelectionTables(editable, draft.selectionPlan);
-  const converted = model.number === 2 ? await wordFormPreview(editable) : model.number === 6 ? await evaluationPreview(editable) : (await mammoth.convertToHtml({ buffer: editable })).value;
+  const converted = model.number === 2 ? await wordFormPreview(editable) : [3,6].includes(model.number) ? await evaluationPreview(editable) : (await mammoth.convertToHtml({ buffer: editable })).value;
   // Tokens consist only of letters and numbers, which both converters preserve
   // in one text node. Replace each exact token, never user-provided document text.
   let html = converted;

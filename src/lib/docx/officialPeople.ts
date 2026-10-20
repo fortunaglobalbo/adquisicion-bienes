@@ -2,7 +2,7 @@
 export const officialPeopleKeys: Record<number, string[]> = {
   1: ['elaborado', 'revisado', 'aprobado'],
   2: ['solicitante', 'cargo', 'area', 'responsable_recepcion'],
-  3: ['solicitante', 'destinatario'],
+  3: ['destinatario', 'via', 'solicitante'],
   4: ['remitente'],
   5: ['destinatario', 'via', 'solicitante'],
   6: ['destinatario', 'via', 'solicitante'],

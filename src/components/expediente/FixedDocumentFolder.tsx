@@ -6,6 +6,7 @@ import { fixedModel, FixedDraft, compatibleFixedDraft, upgradeFixedDraft } from 
 import { DataStore } from "@/lib/store/dataStore";
 import { officialPeople, officialPeopleKeys } from "@/lib/docx/officialPeople";
 import { initialBrief } from '@/lib/docx/purchaseBrief';
+import { comparativeSnapshot } from '@/lib/procurement/comparativeReport';
 import { EditableDocument } from './EditableDocument';
 
 const control = "w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-900 focus:ring-2 focus:ring-blue-600";
@@ -17,7 +18,7 @@ function documentFrame(html: string) {
 export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBusy=false }: { adquisicion: Adquisicion; carpeta: Carpeta; onSaved: () => void; assistantBusy?:boolean }) {
   const model = fixedModel(carpeta.numero);
   const latest = [...carpeta.documentos].sort((a,b)=>b.fecha_creacion.localeCompare(a.fecha_creacion)).find(d => compatibleFixedDraft(model.number,d.metadata?.fixedDraft));
-  const purchaseChanged = model.number !== 1 && ((latest?.metadata?.purchaseSnapshot && latest.metadata.purchaseSnapshot !== purchaseSnapshot(adquisicion)) || (adquisicion.borradores_ia?.[model.number] && adquisicion.borradores_ia[model.number].briefRevision !== adquisicion.asistente_compra?.revision));
+  const purchaseChanged = ![1,3].includes(model.number) && ((latest?.metadata?.purchaseSnapshot && latest.metadata.purchaseSnapshot !== purchaseSnapshot(adquisicion)) || (adquisicion.borradores_ia?.[model.number] && adquisicion.borradores_ia[model.number].briefRevision !== adquisicion.asistente_compra?.revision));
   const prepared = adquisicion.borradores_ia?.[model.number];
   const storedInitial = compatibleFixedDraft(model.number,prepared?.draft) && prepared && (!latest || prepared.updatedAt > latest.fecha_creacion) ? prepared.draft : latest?.metadata?.fixedDraft;
   const initial = storedInitial ? upgradeFixedDraft(model.number,storedInitial) : undefined;
@@ -51,7 +52,9 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
   const pdfUrl = useRef<string | null>(null);
   const storedVersion=useRef(`${prepared?.updatedAt||''}:${latest?.fecha_creacion||''}`);
   const pendingNorms = model.fields.filter(f=>f.normative && !draft?.confirmedFields?.includes(f.key) && !adquisicion.asistente_compra?.decisions?.[model.number===2&&f.key==='categoria'?'categoria_s1':f.key] && (!draft?.sourceIds[f.key]?.length || /PENDIENTE/.test(draft?.fields[f.key] || ''))).map(f=>f.label);
-  const evaluationChanged=model.number===6&&!!draft&&!!adquisicion.quote_evaluation&&draft.evaluationRevision!==adquisicion.quote_evaluation.updatedAt;
+  const comparisonRevision=adquisicion.comparative_report && (!adquisicion.quote_evaluation || adquisicion.comparative_report.updatedAt>adquisicion.quote_evaluation.updatedAt)?adquisicion.comparative_report.revision:adquisicion.quote_evaluation?.updatedAt;
+  const evaluationChanged=model.number===6&&!!draft&&!!comparisonRevision&&draft.evaluationRevision!==comparisonRevision;
+  const comparativeChanged=model.number===3&&!!draft&&!!adquisicion.comparative_report&&(draft.evaluationRevision!==adquisicion.comparative_report.revision || !!draft.comparativeSnapshot&&draft.comparativeSnapshot!==comparativeSnapshot(adquisicion));
   async function request(kind: string, selectedDraft=draft) {
     const form = new FormData();
     form.append("request", JSON.stringify({ action: kind, number: model.number, adquisicion, draft:selectedDraft, context: pendingInstruction ? `${pendingInstruction}\nRespuesta del usuario: ${context}` : context }));
@@ -67,12 +70,12 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
       const result = await (await request(kind,selectedDraft)).json();
       if (!mounted.current || version !== requestVersion.current) return;
       if (result.question) { setClarification(result.question); setPendingInstruction(result.instruction || context); setContext(''); setAiEdit(true); return; }
-      if (kind === 'complete' || kind === 'revise' || kind === 'refresh-evaluation') {setUndoDraft(draft);setClarification('');setPendingInstruction('');}
+      if (kind === 'complete' || kind === 'revise' || kind === 'refresh-evaluation' || kind === 'refresh-comparative') {setUndoDraft(draft);setClarification('');setPendingInstruction('');}
       setDraft(result.draft); setHtml(result.html);setEditableHtml(result.editableHtml||''); setPreviewWarning(result.previewWarning); setStale(false);
       if (pdfUrl.current) URL.revokeObjectURL(pdfUrl.current);
       pdfUrl.current = result.pdf ? URL.createObjectURL(new Blob([Uint8Array.from(atob(result.pdf), c => c.charCodeAt(0))], { type: "application/pdf" })) : null;
       setPdf(pdfUrl.current);
-      if (kind === "complete" || kind === "revise" || kind === 'refresh-evaluation') { setDirty(true); setAiEdit(false); setContext(""); setFiles([]); setMessage(kind==='refresh-evaluation'?'Cuadro y conclusiones actualizados desde las cotizaciones guardadas. Puedes editarlos y guardar el informe.':result.revised ? `Cambios aplicados: ${(result.revisionSummary || []).join(", ") || "el documento ya contiene los datos solicitados"}. Revisa la vista y pulsa Guardar cambios.` : "Datos incorporados al borrador. Revisa los campos pendientes antes de guardarlo."); }
+      if (kind === "complete" || kind === "revise" || kind === 'refresh-evaluation' || kind === 'refresh-comparative') { setDirty(true); setAiEdit(false); setContext(""); setFiles([]); setMessage(kind==='refresh-evaluation'||kind==='refresh-comparative'?'Cuadro y conclusiones actualizados desde las cotizaciones guardadas. Puedes editarlos y guardar el informe.':result.revised ? `Cambios aplicados: ${(result.revisionSummary || []).join(", ") || "el documento ya contiene los datos solicitados"}. Revisa la vista y pulsa Guardar cambios.` : "Datos incorporados al borrador. Revisa los campos pendientes antes de guardarlo."); }
     } catch (e) { if (mounted.current && version === requestVersion.current) setError(e instanceof Error ? e.message : "No se pudo actualizar."); }
     finally { if (mounted.current && version === requestVersion.current) setBusy(false); }
   }
@@ -161,7 +164,7 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
         }
         const currentAdq = DataStore.getAdquisicionById(adquisicion.id) || adquisicion;
         if(model.number===2)await DataStore.updateAdquisicion(adquisicion.id,{solicitud_numero:savedDraft.fields.numero});
-        const stored = await DataStore.updateAdquisicion(adquisicion.id, {borradores_ia: {...currentAdq.borradores_ia, [model.number]: {draft: savedDraft, briefRevision: currentAdq.asistente_compra?.revision || '', updatedAt: new Date().toISOString()}}});
+        const stored = await DataStore.updateAdquisicion(adquisicion.id, {borradores_ia: {...currentAdq.borradores_ia, [model.number]: {draft: savedDraft, briefRevision: model.number===3?currentAdq.comparative_report?.revision||'':currentAdq.asistente_compra?.revision || '', updatedAt: new Date().toISOString()}}});
         if (!stored.success) throw Error(stored.error);
         if (saveOfficial) {
           const people = officialPeople(model.number, savedDraft.fields);
@@ -225,7 +228,8 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
     <fieldset disabled={busy || assistantBusy} className="space-y-4 min-w-0">
       {!!suggestedKeys.length&&<details className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm"><summary className="cursor-pointer font-semibold">Condiciones sugeridas ya incluidas en el documento</summary><p className="mt-2">Puedes usarlas o cambiarlas en «Editar documento». Son propuestas para esta compra.</p><div className="my-3 space-y-3">{suggestedKeys.map(key=><div key={key}><strong>{model.fields.find(f=>f.key===key)?.label||key}</strong><p className="whitespace-pre-wrap">{draft!.fields[key]}</p><p className="text-slate-600">{draft!.proposals![key].reason}</p></div>)}</div><button className={action} onClick={confirmSuggestions}>Usar estas condiciones para esta compra</button></details>}
       {model.number===2&&<p className="text-sm text-slate-600">El número se propone desde el código del expediente. Cargo, área y responsable de recepción se completan con los datos oficiales disponibles. Todo se puede editar.</p>}
-      {model.number===6&&<div className="rounded-lg border border-blue-200 bg-blue-50 p-3 space-y-2 text-sm"><p>Informe técnico de evaluación basado en el modelo aportado. Puedes editar libremente los párrafos y el cuadro de proveedores.</p>{evaluationChanged&&<p className="font-semibold">Las cotizaciones cambiaron desde esta versión del informe.</p>}{adquisicion.quote_evaluation?.quotes.length?<button className={action} onClick={()=>refresh('refresh-evaluation')}>Actualizar cuadro y conclusiones desde cotizaciones</button>:<p>Guarda la comparación en la carpeta 4 para incorporar sus proveedores, precios y resultados automáticamente.</p>}</div>}
+      {model.number===3&&comparativeChanged&&<div className="rounded-lg bg-amber-50 p-3 text-sm"><p>Las cotizaciones o el requerimiento cambiaron desde esta versión. Tus correcciones manuales se conservarán.</p><button className={action} onClick={()=>refresh('refresh-comparative')}>Actualizar cuadro desde cotizaciones</button></div>}
+      {model.number===6&&<div className="rounded-lg border border-blue-200 bg-blue-50 p-3 space-y-2 text-sm"><p>Informe técnico de evaluación basado en el modelo aportado. Puedes editar libremente los párrafos y el cuadro de proveedores.</p>{evaluationChanged&&<p className="font-semibold">Las cotizaciones cambiaron desde esta versión del informe.</p>}{adquisicion.quote_evaluation?.quotes.length||adquisicion.comparative_report?<button className={action} onClick={()=>refresh('refresh-evaluation')}>Actualizar cuadro y conclusiones desde cotizaciones</button>:<p>Sube las cotizaciones en la carpeta 3 para preparar el cuadro comparativo, o guarda una evaluación de ofertas en la carpeta 4.</p>}</div>}
       {model.number>4&&(adquisicion.asistente_compra?.confirmedAt||adquisicion.asistente_compra?.preparedAt)&&<button className={action} onClick={()=>refresh('complete')}><Sparkles size={16}/>Redactar con los datos de esta compra</button>}
       <div className="flex flex-wrap gap-2">
         <button className={action} onClick={toggleEditing}>

@@ -3,6 +3,7 @@ import type { FixedDraft } from '../docx/fixedModels';
 import { administrativeDefaults, requestNumber, hasAdministrativeValue } from '../docx/administrativeDefaults';
 import { evaluateQuotes, methodLabels } from '../procurement/selection';
 import { formatCurrencyBs } from '../docx/formatters';
+import { comparativeReportData } from './comparativeReport';
 
 const amount=(value:number)=>formatCurrencyBs(value).replace(/\.$/,'');
 
@@ -24,6 +25,11 @@ export function technicalEvaluationData(adq: Adquisicion) {
     recomendaciones: 'Incorporar y revisar las cotizaciones en la carpeta 4, o registrar aquí el cuadro de evaluación respaldado con los antecedentes de la compra.',
   };
   const evaluation = adq.quote_evaluation;
+  if(adq.comparative_report && (!evaluation?.quotes.length || adq.comparative_report.updatedAt>evaluation.updatedAt)) {
+    const comparison=comparativeReportData(adq);
+    for(const key of ['antecedentes','recepcion','evaluacion','conclusiones','recomendaciones'])fields[key]=comparison.fields[key];
+    return {fields,items:comparison.items,revision:comparison.revision,warnings:comparison.warnings};
+  }
   if (!evaluation?.quotes.length) return {fields, items: [] as Record<string,string>[], revision: '', warnings: [] as string[]};
   const {plan,quotes} = evaluation;
   const rows = evaluateQuotes(plan, quotes);

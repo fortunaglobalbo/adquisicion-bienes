@@ -268,7 +268,7 @@ export async function generateSolicitudInicioDocx(
             indent: { left: 400 },
             children: [
               new TextRun({ text: "•  ", bold: true, size: FONT_BODY }),
-              new TextRun({ text: "Cuadro de Justificación de solicitud de compra.", size: FONT_BODY, font: "Inter" }),
+              new TextRun({ text: "Cuadro comparativo e informe técnico.", size: FONT_BODY, font: "Inter" }),
             ],
           }),
           new Paragraph({

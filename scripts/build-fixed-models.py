@@ -12,6 +12,15 @@ SRC = ROOT / 'PROCESO DE ADQUISICION'
 OUT = ROOT / 'templates' / 'ende'
 OUT.mkdir(parents=True, exist_ok=True)
 catalog = []
+# Folder 3 has its own retained Word authority. Validate it before writing any
+# models: this builder must never recreate the older justification layout.
+retained_entries = json.loads((OUT/'catalog.json').read_text(encoding='utf-8'))
+retained_comparative = next((entry for entry in retained_entries if entry['number']==3),None)
+if not retained_comparative or retained_comparative.get('version')!='2026-10-20.1':
+    raise ValueError('Prepara el cuadro comparativo con scripts/build-comparative-template.py antes de reconstruir los modelos.')
+comparative_path = OUT/retained_comparative['file']
+if not comparative_path.is_file() or hashlib.sha256(comparative_path.read_bytes()).hexdigest()!=retained_comparative.get('sha256'):
+    raise ValueError('El cuadro comparativo no coincide con su catálogo; reconstruye solo esa plantilla desde su Word original.')
 
 def token(key): return '{{' + key + '}}'
 def word_field(p, instruction):
@@ -125,16 +134,9 @@ fields=[field(k,l,k in ['categoria','seleccion','garantias']) for l,k in rows if
 save(d,2,'Solicitud de adquisición S1-N014',fields,source='2FORM S1-N014 SOL DE ADQUI/SD - FERRETERIA (1).xlsx')
 catalog[-1]['version']='2026-09-10.2'
 
-d=base('FORMULARIO DE SOLICITUD DE ADQUISICIONES Y CONTRATACIONES')
-fields=[field(k,l) for k,l in [('numero','Número'),('fecha','Fecha'),('solicitante','Solicitante y cargo'),('destinatario','Destinatario y cargo'),('objeto','Objeto')]]
-for f in fields: para(d,f['label']+': ',f['key'])
-d.add_paragraph('CUADRO DE JUSTIFICACIÓN DE SOLICITUD DE COMPRA').runs[0].bold=True
-columns=table(d,['Ítem','Cantidad','Precio unitario (Bs)','U. M.','Detalle','Activo'],['numero','cantidad','precio','unidad','descripcion','activo'])
-rows=[('Tipo de compra','categoria'),('Especificaciones técnicas / ficha técnica / TDR','anexo_tdr'),('Destino final','destino'),('Centro de costo','centro_costo'),('Previsión de precio (Bs)','presupuesto'),('Justificación','justificacion'),('Lista de posibles proveedores','proveedores')]
-t=d.add_table(rows=0,cols=2);t.style='Table Grid'
-for l,k in rows: c=t.add_row().cells;c[0].text=l;c[1].text=token(k);fields.append(field(k,l))
-signatures(d,['Solicitante','Aprobación área','Responsable de contrataciones'])
-save(d,3,'Cuadro de justificación',fields,columns,'3CUADRO DE JUSTIFICACION/fotografía')
+# Preserve both the exact DOCX and its complete catalogue entry. The dedicated
+# builder patches CUADRO COMPARATIVO.docx in place and owns any future revision.
+catalog.append(retained_comparative)
 
 d=base('SOLICITUD DE COTIZACIÓN A EMPRESAS')
 fields=[field(k,l) for k,l in [('destinatario','Empresa destinataria'),('correo','Correo destinatario'),('asunto','Asunto'),('cuerpo','Texto de la solicitud'),('fecha_limite','Fecha límite para responder'),('anexos','Documentos adjuntos'),('remitente','Remitente y cargo')]]

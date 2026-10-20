@@ -16,6 +16,8 @@ import { applySelection, assertPlan } from '../procurement/selection';
 import { addSelectionTables } from './selectionWord';
 import { administrativeDefaults, fillAdministrativeBlanks } from '../docx/administrativeDefaults';
 import { technicalEvaluationData } from './technicalEvaluation';
+import { comparativeReportData, updateComparativeReport } from './comparativeReport';
+import { comparativeSnapshot } from '../procurement/comparativeReport';
 import { availablePurchaseBrief, obsoletePurchaseMentions, suggestedCurrentPurpose, isProtectiveEquipment, PurchaseBrief } from '../docx/purchaseBrief';
 import referenceV04 from '../../../templates/ende/normative-v04.json';
 import { keepTdrHeadingsWithBody } from './wordPagination';
@@ -45,9 +47,10 @@ export function seedFixedDraft(number: number, adq: Adquisicion): FixedDraft {
     ...people,
     ...(number === 2 ? administrativeDefaults(adq) : {}),
     ...(number === 6 ? technicalEvaluationData(adq).fields : {}),
+    ...(number === 3 ? comparativeReportData(adq).fields : {}),
   };
   // Receiving a new good is a fact to confirm; previous item quantities are not evidence of receipt.
-  const items = number === 6 ? technicalEvaluationData(adq).items : number === 7 || !model.columns.length ? [] : (adq.items || []).map((item, i) => Object.fromEntries(model.columns.map(c => [c.key,
+  const items = number === 3 ? comparativeReportData(adq).items : number === 6 ? technicalEvaluationData(adq).items : number === 7 || !model.columns.length ? [] : (adq.items || []).map((item, i) => Object.fromEntries(model.columns.map(c => [c.key,
     ({ numero: String(i + 1), descripcion: item.descripcion, unidad: item.unidad,
       cantidad: item.cantidad > 0 ? String(item.cantidad) : missingValue,
       especificaciones: item.especificacionMinima || item.caracteristicasTecnicas || missingValue,
@@ -61,6 +64,7 @@ export function seedFixedDraft(number: number, adq: Adquisicion): FixedDraft {
   const prepared = fillAdministrativeBlanks(draft,adq,number);
   if(number===2) prepared.editedFields=Array.from(new Set([...(prepared.editedFields||[]),...Object.keys(administrativeDefaults(adq)).filter(k=>values[k]&&values[k]!==missingValue)]));
   if(number===6){const data=technicalEvaluationData(adq);prepared.evaluationRevision=data.revision;prepared.warnings=data.warnings;prepared.editedFields=Array.from(new Set([...(prepared.editedFields||[]),...['fecha','numero','solicitud','destinatario','via','solicitante'].filter(k=>values[k]&&values[k]!==missingValue)]));}
+  if(number===3){const data=comparativeReportData(adq);prepared.evaluationRevision=data.revision;prepared.comparativeSnapshot=comparativeSnapshot(adq);prepared.warnings=data.warnings;prepared.normativeStatus='not_applicable';}
   return adq.selection_plan?.confirmedAt ? applySelection(prepared,adq.selection_plan,number) : prepared;
 }
 
@@ -83,12 +87,6 @@ export function normalizeFixedDraft(model: FixedModel, draft: FixedDraft): Fixed
   draft = upgradeFixedDraft(model.number, draft);
   validateFixedDraft(model, draft);
   const result: FixedDraft = { ...draft, fields: { ...draft.fields }, items: draft.items.map((r, i) => ({ ...r, numero: String(i + 1) })) };
-  if (model.number === 3) {
-    // Monetary inputs use a single decimal separator; never guess ambiguous thousands separators.
-    const decimal = (s: string) => /^\d+(?:[.,]\d{1,2})?$/.test(s.trim()) ? Number(s.replace(",", ".")) : NaN;
-    const totals = result.items.map(r => decimal(r.cantidad) * decimal(r.precio));
-    result.fields.presupuesto = totals.length && totals.every(Number.isFinite) ? (totals.reduce((sum, n) => sum + Math.round(n * 100), 0) / 100).toFixed(2) : missingValue;
-  }
   return result;
 }
 
@@ -100,7 +98,7 @@ export async function renderFixedWord(number: number, input: FixedDraft) {
   const changes: DocumentChange[] = [];
   const tables: TableChange[] = [];
   const referenceFields: Record<string,string> = {};
-  if(number===6) for(const key of ['destinatario','via','solicitante']) {
+  if([3,6].includes(number)) for(const key of ['destinatario','via','solicitante']) {
     const [name,...role] = (draft.fields[key] || '').split(/\r?\n/);
     referenceFields[`${key}_nombre`] = name;
     referenceFields[`${key}_cargo`] = role.join('\n');
@@ -134,6 +132,7 @@ export async function completeFixedDocument(number: number, adq: Adquisicion, cu
   const company = companyKnowledge(adq.empresa_id || "ende"), model = fixedModel(number);
   validateFixedDraft(model, current);
   if (current.companyId !== company.id) throw Error("El borrador corresponde a otra empresa.");
+  if(number===3)return normalizeFixedDraft(model,updateComparativeReport(current,adq));
   const session = `ende-document-${createHash('sha256').update(`${company.id}:${adq.id}:${number}`).digest('hex').slice(0,32)}`;
   const hasNormativeFields=model.fields.some(f=>f.normative);
   let sources: FixedDraft["sources"] = [], answer = "", status: FixedDraft["normativeStatus"] = hasNormativeFields ? "unavailable" : "not_applicable", partialSearch = false;
@@ -195,7 +194,7 @@ export async function completeFixedDocument(number: number, adq: Adquisicion, cu
   ], 0.1, 16000, 85000, session, {strict:true,disableThinking:true});
   if (!raw) throw Error("OpenCode GO devolvió una respuesta vacía. Vuelve a intentar; el borrador se conserva.");
   const result = parseFixedDocumentResponse(raw,model,{
-    authoritativeItems:!!current.editedItems || !!(brief&&[1,3].includes(number)) || !!(number===6&&adq.quote_evaluation?.quotes.length),
+    authoritativeItems:!!current.editedItems || !!(brief&&number===1) || !!(number===6&&(adq.comparative_report||adq.quote_evaluation?.quotes.length)),
     allowMissingItems:number===6,
   });
   const validIds = new Set(sources.map(s => s.id));
@@ -266,8 +265,8 @@ export async function completeFixedDocument(number: number, adq: Adquisicion, cu
     return [f.key,value || missingValue];
   }));
   let items: Record<string,string>[] = model.columns.length ? result.items.map((r: Record<string, unknown>) => Object.fromEntries(model.columns.map(c => [c.key, c.key.endsWith('oferta') ? '' : text(r?.[c.key]) || missingValue]))) : [];
-  if (brief && [1,3].includes(number)) items = brief.items.map((item,i)=>Object.fromEntries(model.columns.map(c=>[c.key, ({numero:String(i+1),descripcion:item.descripcion,cantidad:item.cantidad,unidad:item.unidad,especificaciones:technicalBriefSpecification(item),precio:item.precio,precio_oferta:'',total_oferta:''} as Record<string,string>)[c.key] || text(items[i]?.[c.key]) || (c.key.endsWith('oferta')?'':missingValue)])));
-  if(number===6 && adq.quote_evaluation?.quotes.length){
+  if (brief && number===1) items = brief.items.map((item,i)=>Object.fromEntries(model.columns.map(c=>[c.key, ({numero:String(i+1),descripcion:item.descripcion,cantidad:item.cantidad,unidad:item.unidad,especificaciones:technicalBriefSpecification(item),precio:item.precio,precio_oferta:'',total_oferta:''} as Record<string,string>)[c.key] || text(items[i]?.[c.key]) || (c.key.endsWith('oferta')?'':missingValue)])));
+  if(number===6 && (adq.comparative_report || adq.quote_evaluation?.quotes.length)){
     const evaluation=technicalEvaluationData(adq);items=evaluation.items;
     for(const key of ['recepcion','evaluacion','conclusiones','recomendaciones'])fields[key]=evaluation.fields[key];
   }
@@ -299,7 +298,7 @@ export async function completeFixedDocument(number: number, adq: Adquisicion, cu
     fields[key]=current.fields[key];sourceIds[key]=[];sourceQuotes[key]=[];
     if(staleMention(current.fields[key])) reviewWarnings.push(`${model.fields.find(f=>f.key===key)!.label}: se conservó tu corrección manual; menciona bienes distintos de los ítems actuales. Puedes corregirla directamente en el documento.`);
   }
-  if(brief && [1,3].includes(number) && current.editedItems && purchaseItemsDiffer(current.items,brief.items)) reviewWarnings.push('Se conservó la tabla modificada manualmente. Revisa su correspondencia con los ítems del archivo actual.');
+  if(brief && number===1 && current.editedItems && purchaseItemsDiffer(current.items,brief.items)) reviewWarnings.push('Se conservó la tabla modificada manualmente. Revisa su correspondencia con los ítems del archivo actual.');
   const warnings: string[] = relevantWarnings(model,Array.isArray(result.warnings) ? result.warnings : []);
   warnings.unshift(...reviewWarnings);
   if (hasNormativeFields && !sources.length) warnings.unshift("No se recuperó fundamento normativo. Requiere revisión antes de su uso oficial.");
@@ -309,7 +308,7 @@ export async function completeFixedDocument(number: number, adq: Adquisicion, cu
     ...(current.confirmedFields || []),
     ...(number===1 && fields.categoria && fields.categoria !== missingValue ? ['categoria'] : []),
   ]));
-  const evaluationRevision=number===6&&!current.editedItems&&!current.editedFields?.some(k=>['recepcion','evaluacion','conclusiones','recomendaciones'].includes(k))?adq.quote_evaluation?.updatedAt:current.evaluationRevision;
+  const evaluationRevision=number===6&&!current.editedItems&&!current.editedFields?.some(k=>['recepcion','evaluacion','conclusiones','recomendaciones'].includes(k))?technicalEvaluationData(adq).revision:current.evaluationRevision;
   return normalizeFixedDraft(model, { companyId: company.id, modelVersion: model.version, fields, items: current.editedItems ? current.items : items, editedItems: current.editedItems, sources, sourceIds, sourceQuotes, proposals, warnings:Array.from(new Set(warnings)), editedFields:current.editedFields || [], confirmedFields, selectionPlan:current.selectionPlan, evaluationRevision, consultedAt: new Date().toISOString(), normativeStatus: status });
 }
 

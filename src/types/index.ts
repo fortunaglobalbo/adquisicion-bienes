@@ -66,6 +66,8 @@ export interface Adquisicion {
   selection_plan?: import('../lib/procurement/selection').SelectionPlan;
   quote_evaluation?: import('../lib/procurement/selection').QuoteEvaluation;
   quote_evaluation_history?: import('../lib/procurement/selection').QuoteEvaluation[];
+  comparative_report?: import('../lib/procurement/comparativeReport').ComparativeReport;
+  comparative_report_history?: { data?: import('../lib/procurement/comparativeReport').ComparativeReport; draft?: import('../lib/docx/fixedModels').FixedDraft; updatedAt: string; reason: string }[];
   asistente_compra?: import('../lib/docx/purchaseBrief').PurchaseBrief;
   responsables_oficiales?: Record<string, Record<string, string>>;
   borradores_ia?: Record<string, import('../lib/docx/purchaseBrief').PreparedDocument>;

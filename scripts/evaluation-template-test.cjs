@@ -26,6 +26,12 @@ const quote=(id,price,reviewed=true)=>({id,provider:`Proveedor ${id}`,groupId:'o
  const draft=seedFixedDraft(6,evaluated);draft.fields.conclusiones='Conclusión corregida libremente';draft.editedFields.push('conclusiones');draft.editedItems=true;draft.items[0].respaldo='Respaldo corregido';
  response={fields:{...draft.fields,conclusiones:'Texto que no debe sustituir la edición'},items:[]};const completed=await completeFixedDocument(6,evaluated,draft,'');assert.equal(completed.fields.conclusiones,'Conclusión corregida libremente');assert.equal(completed.items[0].respaldo,'Respaldo corregido');
  const updated=updateTechnicalEvaluation(draft,evaluated);assert.match(updated.fields.conclusiones,/Proveedor B/);assert.equal(updated.evaluationRevision,evaluated.quote_evaluation.updatedAt);
+ const {normalizeComparativeReport}=require('../src/lib/procurement/comparativeReport.ts');
+ const comparative=normalizeComparativeReport({suppliers:[{name:'HELIOS S.R.L.',kind:'offer',sourceIds:['archivo-1'],quoteDate:'2026-10-13',currency:'BOB',total:68562,items:[{description:'Correa de prueba',quantity:10,unit:'Pieza',unitPrice:6856.2,subtotal:68562}]}]},[{id:'archivo-1',fileName:'oferta.jpg',kind:'offer',evidence:'Oferta visible'}],adq,new Date('2026-10-20T12:00:00Z'));
+ for(const acquisition of [{...adq,comparative_report:comparative},{...evaluated,comparative_report:comparative}]){
+  const baseline=seedFixedDraft(6,acquisition);response={fields:{...baseline.fields,conclusiones:'Ganador inventado'},items:[{empresa:'No debe copiarse'}]};
+  const generated=await completeFixedDocument(6,acquisition,baseline,'');assert.equal(generated.evaluationRevision,comparative.revision);assert.equal(generated.items[0].empresa,'HELIOS S.R.L.');assert.match(generated.fields.conclusiones,/sola oferta/);assert.ok(!generated.fields.conclusiones.includes('inventado'));
+ }
  const {reviseFixedDocument}=require('../src/lib/server/reviseFixedDocument.ts'),{fixedModel}=require('../src/lib/docx/fixedModels.ts');
  response={changes:{},itemChanges:[{action:'add',values:{empresa:'Proveedor C',cotizacion:'Oferta adicional según el usuario',precio:'8700',respaldo:'Cotización C'}}]};
  const added=await reviseFixedDocument(fixedModel(6),updated,'Añadir proveedor C con oferta de 8700 Bs y respaldo Cotización C');assert.equal(added.items[2].empresa,'Proveedor C');
