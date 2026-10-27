@@ -8,6 +8,8 @@ import { officialPeople, officialPeopleKeys } from "@/lib/docx/officialPeople";
 import { initialBrief } from '@/lib/docx/purchaseBrief';
 import { comparativeSnapshot } from '@/lib/procurement/comparativeReport';
 import { EditableDocument } from './EditableDocument';
+import { appendPurchaseAttachments, cleanupPurchaseAttachmentUploads } from '@/lib/uploads/attachmentClient';
+import { ATTACHMENT_HELP_TEXT, validateAttachmentSelection } from '@/lib/uploads/attachmentPolicy';
 
 const control = "w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-900 focus:ring-2 focus:ring-blue-600";
 const action = "inline-flex items-center gap-2 rounded-lg border border-amber-500 bg-amber-400 hover:bg-amber-500 text-slate-950 shadow-sm px-4 py-2 text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer";
@@ -49,25 +51,31 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
   const [saveOfficial, setSaveOfficial] = useState(false);
   const mounted = useRef(true);
   const requestVersion = useRef(0);
+  const requestController = useRef<AbortController | null>(null);
   const pdfUrl = useRef<string | null>(null);
   const storedVersion=useRef(`${prepared?.updatedAt||''}:${latest?.fecha_creacion||''}`);
   const pendingNorms = model.fields.filter(f=>f.normative && !draft?.confirmedFields?.includes(f.key) && !adquisicion.asistente_compra?.decisions?.[model.number===2&&f.key==='categoria'?'categoria_s1':f.key] && (!draft?.sourceIds[f.key]?.length || /PENDIENTE/.test(draft?.fields[f.key] || ''))).map(f=>f.label);
   const comparisonRevision=adquisicion.comparative_report && (!adquisicion.quote_evaluation || adquisicion.comparative_report.updatedAt>adquisicion.quote_evaluation.updatedAt)?adquisicion.comparative_report.revision:adquisicion.quote_evaluation?.updatedAt;
   const evaluationChanged=model.number===6&&!!draft&&!!comparisonRevision&&draft.evaluationRevision!==comparisonRevision;
   const comparativeChanged=model.number===3&&!!draft&&!!adquisicion.comparative_report&&(draft.evaluationRevision!==adquisicion.comparative_report.revision || !!draft.comparativeSnapshot&&draft.comparativeSnapshot!==comparativeSnapshot(adquisicion));
-  async function request(kind: string, selectedDraft=draft) {
+  async function request(kind: string, selectedDraft=draft, signal?: AbortSignal) {
     const form = new FormData();
     form.append("request", JSON.stringify({ action: kind, number: model.number, adquisicion, draft:selectedDraft, context: pendingInstruction ? `${pendingInstruction}\nRespuesta del usuario: ${context}` : context }));
-    if (kind === "complete" || kind === "revise") files.forEach(f => form.append("attachments", f));
-    const res = await fetch("/api/fixed-documents", { method: "POST", body: form });
-    if (!res.ok) { let message = "No se pudo preparar el documento."; try { message = (await res.json()).error || message; } catch {} throw Error(message); }
-    return res;
+    try {
+      if (kind === "complete" || kind === "revise") await appendPurchaseAttachments(form, files, adquisicion.id, { signal,
+        onProgress: ({ completed, total }) => { if (mounted.current && !signal?.aborted) setMessage(`Subiendo archivos… (${completed} de ${total})`); } });
+      const res = await fetch("/api/fixed-documents", { method: "POST", body: form, signal });
+      if (!res.ok) { let message = "No se pudo preparar el documento."; try { message = (await res.json()).error || message; } catch {} throw Error(message); }
+      return res;
+    } finally { void cleanupPurchaseAttachmentUploads(form, adquisicion.id); }
   }
   async function refresh(kind = "preview", selectedDraft=draft) {
+    requestController.current?.abort();
+    const controller = new AbortController(); requestController.current = controller;
     const version = ++requestVersion.current;
     setBusy(true); setError(""); setMessage("");
     try {
-      const result = await (await request(kind,selectedDraft)).json();
+      const result = await (await request(kind,selectedDraft,controller.signal)).json();
       if (!mounted.current || version !== requestVersion.current) return;
       if (result.question) { setClarification(result.question); setPendingInstruction(result.instruction || context); setContext(''); setAiEdit(true); return; }
       if (kind === 'complete' || kind === 'revise' || kind === 'refresh-evaluation' || kind === 'refresh-comparative') {setUndoDraft(draft);setClarification('');setPendingInstruction('');}
@@ -77,11 +85,11 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
       setPdf(pdfUrl.current);
       if (kind === "complete" || kind === "revise" || kind === 'refresh-evaluation' || kind === 'refresh-comparative') { setDirty(true); setAiEdit(false); setContext(""); setFiles([]); setMessage(kind==='refresh-evaluation'||kind==='refresh-comparative'?'Cuadro y conclusiones actualizados desde las cotizaciones guardadas. Puedes editarlos y guardar el informe.':result.revised ? `Cambios aplicados: ${(result.revisionSummary || []).join(", ") || "el documento ya contiene los datos solicitados"}. Revisa la vista y pulsa Guardar cambios.` : "Datos incorporados al borrador. Revisa los campos pendientes antes de guardarlo."); }
     } catch (e) { if (mounted.current && version === requestVersion.current) setError(e instanceof Error ? e.message : "No se pudo actualizar."); }
-    finally { if (mounted.current && version === requestVersion.current) setBusy(false); }
+    finally { if (requestController.current === controller) requestController.current = null; if (mounted.current && version === requestVersion.current) setBusy(false); }
   }
   useEffect(() => {
     mounted.current = true; void refresh();
-    return () => { mounted.current = false; requestVersion.current++; if (pdfUrl.current) URL.revokeObjectURL(pdfUrl.current); };
+    return () => { mounted.current = false; requestVersion.current++; requestController.current?.abort(); if (pdfUrl.current) URL.revokeObjectURL(pdfUrl.current); };
   }, []);
   useEffect(()=>{
     const version=`${prepared?.updatedAt||''}:${latest?.fecha_creacion||''}`;
@@ -248,7 +256,7 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
       {aiEdit && <div className="rounded-xl border border-slate-300 p-4 space-y-4 bg-slate-50">
         {clarification && <div role="status" className="rounded-lg border border-blue-200 bg-blue-50 p-3"><p className="font-semibold">{clarification}</p><p className="text-sm mt-1">Responde abajo; conservaré tu petición anterior. El documento sigue igual.</p></div>}
         <label className="block space-y-2"><span className="font-semibold">Describe lo que necesitas o los datos que cambian</span><textarea className={control} rows={4} value={context} onChange={e => {setContext(e.target.value);setDirty(true);}} placeholder="Ejemplo: cambia la entrega a 45 días, pon a María Pérez como responsable y cambia la cantidad del ítem 2 a 20 pares." /></label>
-        <label className="block space-y-2"><span>Antecedentes de esta compra (opcional)</span><input className={control} type="file" multiple accept=".pdf,.docx,.txt,.jpg,.jpeg,.png,.webp" onChange={e => setFiles(Array.from(e.target.files || []))} /><span className="text-sm text-slate-600">Hasta tres archivos, 3 MB en total. PDF con texto o escaneado, Word, TXT o fotos JPG, PNG y WebP. La IA lee las imágenes con visión. No se incorporan a la biblioteca normativa.</span></label>
+        <label className="block space-y-2"><span>Antecedentes de esta compra (opcional)</span><input className={control} type="file" multiple accept=".pdf,.docx,.txt,.jpg,.jpeg,.png,.webp" onChange={e => { const selected = Array.from(e.target.files || []); setFiles(selected); setError(validateAttachmentSelection(selected) || ''); }} /><span className="text-sm text-slate-600">{ATTACHMENT_HELP_TEXT} PDF con texto o escaneado. La IA lee las imágenes con visión. No se incorporan a la biblioteca normativa.</span></label>
         <button className={action} onClick={() => refresh(context.trim() || pendingInstruction ? "revise" : "complete")}><Sparkles size={16} />{clarification ? "Responder al asistente" : "Aplicar cambios con IA"}</button>
       </div>}
       {edit && draft && !!officialPeopleKeys[model.number]?.length && <details className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm">

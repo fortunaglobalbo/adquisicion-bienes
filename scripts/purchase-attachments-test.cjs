@@ -23,9 +23,13 @@ function pdf(scannedPages=1,mixed=false){
  buffers.push(Buffer.from(`xref\n0 ${objects.length+1}\n0000000000 65535 f \n${offsets.slice(1).map(n=>String(n).padStart(10,'0')+' 00000 n \n').join('')}trailer\n<< /Size ${objects.length+1} /Root 1 0 R >>\nstartxref\n${offset}\n%%EOF`));return Buffer.concat(buffers);
 }
 (async()=>{
- const scan=await extractPurchaseAttachment(pdf(),'scan.pdf');assert.equal(scan.images.length,1);assert.equal(scan.text,'');assert.ok(scan.images[0].startsWith('data:image/png;base64,'));
+ const scan=await extractPurchaseAttachment(pdf(),'scan.pdf');assert.equal(scan.images.length,1);assert.equal(scan.text,'');assert.ok(scan.images[0].startsWith('data:image/jpeg;base64,'));
  const mixed=await extractPurchaseAttachment(pdf(1,true),'mixed.pdf');assert.equal(mixed.images.length,1);assert.match(mixed.text,/cantidad 10 piezas/);assert.match(mixed.text,/Página 1/);
- await assert.rejects(()=>extractPurchaseAttachment(pdf(7),'too-many.pdf'),/seis páginas/);
+ const complete=await extractPurchaseAttachment(pdf(24),'complete.pdf');assert.equal(complete.images.length,24);assert.ok(complete.images.every(image=>image.startsWith('data:image/jpeg;base64,')));assert.ok(complete.images.reduce((bytes,url)=>bytes+Buffer.byteLength(url),0)<12*1024*1024);
+ await assert.rejects(()=>extractPurchaseAttachment(pdf(25),'too-many.pdf'),/25 páginas escaneadas.*quedan 24 imágenes/);
+ await assert.rejects(()=>extractPurchaseAttachment(pdf(7),'shared-budget.pdf',6),/7 páginas escaneadas.*quedan 6 imágenes/);
+ await assert.rejects(()=>extractPurchaseAttachment(pdf(),'no-budget.pdf',0),/quedan 0 imágenes/);
+ const digital=await extractPurchaseAttachment(pdf(0,true),'digital.pdf',0);assert.equal(digital.images.length,0);assert.match(digital.text,/cantidad 10 piezas/);
  const plain=await extractPurchaseAttachment(Buffer.from('Necesito 12 pares de guantes'),'request.txt');assert.equal(plain.images.length,0);assert.match(plain.text,/12 pares/);
  console.log('PASS PDF escaneado y mixto: texto + imágenes completas, límite explícito sin truncamiento silencioso y TXT conservado');
 })().catch(e=>{console.error(e.message);process.exitCode=1});

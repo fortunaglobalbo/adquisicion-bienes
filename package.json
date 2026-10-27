@@ -30,9 +30,14 @@
     "test:comparative-ui": "node scripts/comparative-report-ui-test.cjs",
     "test:opencode-retry": "node scripts/opencode-retry-test.cjs",
     "test:tdr-title": "node scripts/purchase-title-test.cjs && node scripts/tdr-title-integration-test.cjs",
-    "test:tdr-index": "node scripts/tdr-pagination-test.cjs"
+    "test:tdr-index": "node scripts/tdr-pagination-test.cjs",
+    "test:attachment-client": "node scripts/attachment-client-test.cjs",
+    "test:attachment-uploads": "node scripts/attachment-upload-test.cjs",
+    "test:vision-images": "node scripts/vision-images-test.cjs",
+    "test:docx-expansion": "node scripts/docx-expansion-test.cjs"
   },
   "dependencies": {
+    "@napi-rs/canvas": "0.1.80",
     "@supabase/supabase-js": "^2.48.1",
     "@xmldom/xmldom": "0.8.15",
     "clsx": "^2.1.1",

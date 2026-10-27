@@ -95,10 +95,10 @@ async function main(){
  console.log('PASS API exporta DOCX y rechaza empresa o versión incompatibles');
  goResponse=JSON.stringify({fields:tdr.fields,items:tdr.items,sourceIds:{},warnings:[]});
  const imageForm=new FormData();imageForm.append('request',JSON.stringify({action:'complete',number:1,adquisicion:adq,draft:tdr}));
- const png=Buffer.from([137,80,78,71,13,10,26,10]);
+ const png=require('@napi-rs/canvas').createCanvas(2,2).toBuffer('image/png');
  imageForm.append('attachments',new Blob([png],{type:'image/png'}),'foto.png');
  const vision=await POST(new Request('http://local/api/fixed-documents',{method:'POST',body:imageForm}));assert.equal(vision.status,200);
- assert.ok(goMessages[1].content.some(p=>p.type==='image_url'&&p.image_url.url==='data:image/png;base64,'+png.toString('base64')));
+ assert.ok(goMessages[1].content.some(p=>p.type==='image_url'&&p.image_url.url.startsWith('data:image/jpeg;base64,')));
  console.log('PASS adjunto de imagen enviado a visión junto con contexto y fuentes');
 }
 main().catch(e=>{console.error(e);process.exitCode=1});

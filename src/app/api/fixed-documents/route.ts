@@ -14,18 +14,24 @@ import { updateTechnicalEvaluation, fillEvaluationReferences } from '@/lib/serve
 import { evaluationPreview } from '@/lib/server/evaluationPreview';
 import { editableDocumentPreview } from '@/lib/server/editableDocumentPreview';
 import { updateComparativeReport } from '@/lib/server/comparativeReport';
+import { readPurchaseAttachments, cleanupPurchaseAttachments } from '@/lib/server/attachmentUploads';
+import { prepareVisionImage } from '@/lib/server/visionImages';
+import { MAX_VISION_IMAGES } from '@/lib/uploads/attachmentPolicy';
 
 export const runtime = "nodejs";
 export const maxDuration = 180;
 
 export async function POST(req: NextRequest) {
+  let attachmentForm:FormData|undefined,attachmentAcquisition='';
   try {
     const form = await req.formData();
+    attachmentForm=form;
     const json = String(form.get("request") || "{}");
     if (json.length > 500000) throw Error("El documento es demasiado extenso.");
     const body = JSON.parse(json);
     const number = Number(body.number), model = fixedModel(number);
     const adq: Adquisicion = body.adquisicion;
+    attachmentAcquisition=adq?.id||'';
     if (!adq?.id || !adq?.titulo_proceso || !Array.isArray(adq.items)) throw Error("Selecciona un expediente válido.");
     const company = companyKnowledge(adq.empresa_id || "ende");
     let draft = upgradeFixedDraft(number,body.draft || seedFixedDraft(number, adq));
@@ -37,27 +43,22 @@ export async function POST(req: NextRequest) {
     let revisionSummary: string[] = [];
     let revised = false;
     if (["complete", "analyze", "revise"].includes(body.action)) {
-      const files = form.getAll("attachments");
-      if (files.length > 3) throw Error("Adjunta hasta tres antecedentes por consulta.");
-      let bytes = 0;
+      const attachmentSignal=AbortSignal.any([req.signal,AbortSignal.timeout(30_000)]);
       const images: string[] = [];
-      for (const file of files) {
-        if (!(file instanceof File) || !/\.(docx|pdf|txt|png|jpg|jpeg|webp)$/i.test(file.name)) throw Error("Usa PDF, Word, TXT o imágenes JPG, PNG y WebP.");
-        bytes += file.size;
-        if (bytes > 3 * 1024 * 1024) throw Error("Los antecedentes deben pesar en conjunto menos de 3 MB.");
+      for await (const file of readPurchaseAttachments(form,adq.id,attachmentSignal)) {
         const buffer = Buffer.from(await file.arrayBuffer());
         if (/\.(png|jpg|jpeg|webp)$/i.test(file.name)) {
-          const mime = buffer.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])) ? "image/png" : buffer[0]===255 && buffer[1]===216 && buffer[2]===255 ? "image/jpeg" : buffer.subarray(0,4).toString()==="RIFF" && buffer.subarray(8,12).toString()==="WEBP" ? "image/webp" : null;
-          if (!mime) throw Error(`La imagen ${file.name} no es un JPG, PNG o WebP válido.`);
-          images.push(`data:${mime};base64,${buffer.toString("base64")}`);
+          if(images.length>=MAX_VISION_IMAGES)throw Error(`La lectura admite hasta ${MAX_VISION_IMAGES} fotos o páginas escaneadas. Divide los antecedentes en dos lecturas.`);
+          images.push(await prepareVisionImage(buffer,file.name));
           continue;
         }
-        const content = await extractPurchaseAttachment(buffer, file.name, 6-images.length);
+        const content = await extractPurchaseAttachment(buffer, file.name, MAX_VISION_IMAGES-images.length);
         if (!content.text.trim() && !content.images.length) throw Error(`No se pudo leer ${file.name}. Adjunta una imagen legible o un documento con contenido.`);
         images.push(...content.images);
         context += `\nANTECEDENTE DE ESTE EXPEDIENTE (${file.name}):\n${content.text}${content.images.length?'\nSus páginas escaneadas se adjuntan como imágenes para lectura con visión.':''}`;
         if (context.length > 60000) throw Error("Los antecedentes son demasiado extensos. Adjunta solo la información de esta compra.");
       }
+      attachmentSignal.throwIfAborted();
       if(images.reduce((total,url)=>total+url.length,0)>12*1024*1024) throw Error('Las imágenes preparadas son demasiado grandes para una lectura completa. Divide los antecedentes en consultas más pequeñas.');
       if (body.action === 'analyze') {
         if (body.stream === true) return purchaseReadingStream(adq,context,images,req.signal);
@@ -113,6 +114,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ draft: output.draft, html, editableHtml, pdf, previewWarning, revised, revisionSummary, modelVersion: model.version }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     console.error("[fixed-documents]", e instanceof Error ? e.stack : "Error al preparar documento");
-    return NextResponse.json({ error: e instanceof Error ? e.message : "No se pudo preparar el documento." }, { status: 400 });
+    return NextResponse.json({ error: e instanceof Error&&e.name==='TimeoutError' ? 'La preparación de los archivos tardó demasiado. Los archivos seleccionados y el borrador se conservan; vuelve a intentar.' : e instanceof Error ? e.message : "No se pudo preparar el documento." }, { status: 400 });
+  } finally {
+    if(attachmentForm&&attachmentAcquisition)await cleanupPurchaseAttachments(attachmentForm,attachmentAcquisition).catch(()=>{});
   }
 }

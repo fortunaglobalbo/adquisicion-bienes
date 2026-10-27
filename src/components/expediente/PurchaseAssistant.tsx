@@ -8,6 +8,8 @@ import { comparativeHistoryWithPrevious } from '@/lib/docx/comparativeHistory';
 import { initialBrief, briefProblems, briefUpdates, suggestedCurrentPurpose, PurchaseBrief } from '@/lib/docx/purchaseBrief';
 import { readPurchaseResponse } from '@/lib/ai/purchaseReadingResponse';
 import { DataStore } from '@/lib/store/dataStore';
+import { appendPurchaseAttachments, cleanupPurchaseAttachmentUploads } from '@/lib/uploads/attachmentClient';
+import { ATTACHMENT_HELP_TEXT, validateAttachmentSelection } from '@/lib/uploads/attachmentPolicy';
 
 const initialFolders = [1, 2, 3, 4, 5];
 const readyMessage = 'Documentos preparados. Edita el texto directamente en cada documento.';
@@ -102,10 +104,14 @@ export function PurchaseAssistant({ adquisicion, carpetas, onUpdated, onBusyChan
     const { borradores_ia, ...purchase } = current; const tdr = latestDraft(current, props.carpetas, 1);
     const form = new FormData(); form.append('request', JSON.stringify({ action: 'analyze', stream: true, number: 1, adquisicion: { ...purchase, asistente_compra: candidate,
       borradores_ia: tdr ? { '1': { updatedAt: borradores_ia?.[1]?.updatedAt || '', briefRevision: borradores_ia?.[1]?.briefRevision || '', draft: { ...tdr, sources: [], sourceQuotes: {} } } } : undefined }, context }));
-    selected.forEach(file => form.append('attachments', file));
-    const deadline = setTimeout(() => work.controller.abort('timeout'), 175000);
-    try { const response = await fetch('/api/fixed-documents', { method: 'POST', body: form, signal: work.controller.signal }); const found = await readPurchaseResponse(response, message => { if (isCurrent(work)) showProgress(work, message); }); checkCurrent(work); pendingBrief.current = found; return found; }
-    finally { clearTimeout(deadline); }
+    let deadline: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await appendPurchaseAttachments(form, selected, current.id, { signal: work.controller.signal,
+        onProgress: ({ completed, total }) => { if (isCurrent(work)) showProgress(work, `Subiendo archivos… (${completed} de ${total})`); } });
+      checkCurrent(work); showProgress(work, 'La IA está leyendo la información de los archivos.');
+      deadline = setTimeout(() => work.controller.abort('timeout'), 175000);
+      const response = await fetch('/api/fixed-documents', { method: 'POST', body: form, signal: work.controller.signal }); const found = await readPurchaseResponse(response, message => { if (isCurrent(work)) showProgress(work, message); }); checkCurrent(work); pendingBrief.current = found; return found;
+    } finally { clearTimeout(deadline); void cleanupPurchaseAttachmentUploads(form, current.id); }
   }
   async function resolveEssentials(work: Work, selected: File[], candidate: PurchaseBrief): Promise<PurchaseBrief> {
     let resolved: PurchaseBrief = { ...candidate, items: candidate.items.map(item => ({ ...item })), details: { ...candidate.details } };
@@ -177,8 +183,8 @@ export function PurchaseAssistant({ adquisicion, carpetas, onUpdated, onBusyChan
   async function selectFiles(selected: File[]) {
     if (active.current || !selected.length) return;
     setFiles(selected); setError(''); setStatus(''); pendingBrief.current = null; setRetryAction(null); setRemaining([]);
-    const formatError = selected.some(file => !/\.(?:pdf|docx|txt|jpe?g|png|webp)$/i.test(file.name)), limitError = selected.length > 3 || selected.reduce((total,file) => total + file.size,0) > 3 * 1024 * 1024;
-    if (formatError || limitError) { const message = formatError ? 'Sube PDF, Word, TXT o fotos JPG, PNG y WebP.' : 'Puedes subir hasta tres archivos y 3 MB en total. Selecciona los archivos nuevamente para ajustar la selección.'; setError(message); await Swal.fire({ titleText: 'Revisa el archivo', text: message, icon: 'warning', confirmButtonText: 'Entendido', confirmButtonColor: '#00264a', heightAuto: false }); dropZone.current?.focus(); return; }
+    const message = validateAttachmentSelection(selected);
+    if (message) { setError(message); await Swal.fire({ titleText: 'Revisa el archivo', text: message, icon: 'warning', confirmButtonText: 'Entendido', confirmButtonColor: '#00264a', heightAuto: false }); dropZone.current?.focus(); return; }
     await run(selected, false);
   }
 
@@ -189,8 +195,8 @@ export function PurchaseAssistant({ adquisicion, carpetas, onUpdated, onBusyChan
     <button ref={dropZone} type="button" aria-label="Subir cotización, PDF o foto" disabled={busy} className={`mt-3 flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-5 py-6 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60 ${dragging ? 'border-blue-600 bg-blue-100' : 'border-blue-300 bg-white hover:border-blue-500 hover:bg-blue-50'}`}
       onClick={() => fileInput.current?.click()} onDragEnter={event => { event.preventDefault(); if (!busy) { dragDepth.current++; setDragging(true); } }} onDragOver={event => { event.preventDefault(); event.dataTransfer.dropEffect = busy ? 'none' : 'copy'; }} onDragLeave={event => { event.preventDefault(); dragDepth.current = Math.max(0,dragDepth.current - 1); if (!dragDepth.current) setDragging(false); }} onDrop={event => { event.preventDefault(); dragDepth.current = 0; setDragging(false); if (!busy) void selectFiles(Array.from(event.dataTransfer.files)); }}>
       <UploadCloud aria-hidden="true" className="text-primary" size={28} />
-      <span className="font-semibold text-primary">Arrastra tu archivo aquí o haz clic para elegirlo</span>
-      <span className="text-xs text-slate-600">PDF, Word, TXT o fotos · Hasta 3 archivos y 3 MB en total</span>
+      <span className="font-semibold text-primary">Arrastra tus archivos aquí o haz clic para elegirlos</span>
+      <span className="text-xs text-slate-600">{ATTACHMENT_HELP_TEXT}</span>
       {!!files.length && <span className="mt-1 break-all text-sm text-slate-700">{files.map(file => file.name).join(' · ')}</span>}
     </button>
     {status && <p role="status" className="mt-3 text-sm text-primary">{status}</p>}

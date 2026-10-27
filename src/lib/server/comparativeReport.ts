@@ -4,6 +4,7 @@ import { fixedModel, FixedDraft, missingValue } from '../docx/fixedModels';
 import { callOpenCodeGo, extractJsonFromText } from '../ai/openCodeClient';
 import { buildComparativeReport, normalizeComparativeReport, comparativeSnapshot, ComparativeReport, ComparativeSource, ComparativeAcquisition } from '../procurement/comparativeReport';
 import { companyKnowledge } from './companyKnowledge';
+import { MAX_ATTACHMENT_FILES } from '../uploads/attachmentPolicy';
 
 export interface ComparativeInput {id:string;fileName:string;text:string;images:string[]}
 export function comparativeReportData(adq:ComparativeAcquisition){return buildComparativeReport(adq);}
@@ -29,7 +30,7 @@ No calcules ni reconstruyas precios ausentes; el servidor comprobará las operac
 
 export async function readComparativeDocuments(adq:Adquisicion,inputs:ComparativeInput[],context='',signal?:AbortSignal):Promise<ComparativeReport> {
   const company=companyKnowledge(adq.empresa_id||'ende');
-  if(!inputs.length||inputs.length>3)throw Error('Adjunta de uno a tres documentos para preparar el cuadro comparativo.');
+  if(!inputs.length||inputs.length>MAX_ATTACHMENT_FILES)throw Error(`Adjunta de uno a ${MAX_ATTACHMENT_FILES} documentos para preparar el cuadro comparativo.`);
   const messages:Array<{type:'text';text:string}|{type:'image_url';image_url:{url:string}}>=[];
   messages.push({type:'text',text:JSON.stringify({expediente:{objeto:adq.titulo_proceso,items:adq.items.map(item=>({descripcion:item.descripcion,cantidad:item.cantidad,unidad:item.unidad})),metodo:adq.selection_plan?.confirmedAt?adq.selection_plan.method:undefined},indicacion:context.slice(0,12000)})});
   for(const input of inputs){messages.push({type:'text',text:JSON.stringify({id:input.id,fileName:input.fileName,text:input.text,imagenes:input.images.length})});for(const url of input.images)messages.push({type:'image_url',image_url:{url}});}

@@ -9,6 +9,8 @@ import { fixedModel } from '@/lib/docx/fixedModels';
 import type { ComparativeReport } from '@/lib/procurement/comparativeReport';
 import { DataStore } from '@/lib/store/dataStore';
 import { comparativeHistoryWithPrevious, previousComparativeDrafts } from '@/lib/docx/comparativeHistory';
+import { appendPurchaseAttachments, cleanupPurchaseAttachmentUploads } from '@/lib/uploads/attachmentClient';
+import { ATTACHMENT_HELP_TEXT, validateAttachmentSelection } from '@/lib/uploads/attachmentPolicy';
 
 type ReportResponse = { data: ComparativeReport; draft: FixedDraft; summary: string; warnings: string[] };
 type Work = { token: string; controller: AbortController; committing: boolean; persisted: boolean };
@@ -28,10 +30,10 @@ export function ComparativeReportPanel({ adquisicion, carpetas, onSaved, onBusyC
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; const work = active.current; work?.controller.abort('unmount'); if (work && ownsModal(work)) Swal.close(); }; }, []);
   useEffect(() => { onBusyChange(busy); return () => onBusyChange(false); }, [busy, onBusyChange]);
 
-  function progress(work: Work, committing = false) {
+  function progress(work: Work, committing = false, uploadText?: string) {
     if (!current(work)) return;
     const titleText = committing ? 'Preparando informe…' : 'Leyendo cotizaciones…';
-    const text = committing ? 'Conservando el informe y sus versiones anteriores.' : 'La IA está leyendo los proveedores y los importes de los archivos.';
+    const text = uploadText || (committing ? 'Conservando el informe y sus versiones anteriores.' : 'La IA está leyendo los proveedores y los importes de los archivos.');
     if (ownsModal(work) && Swal.isVisible()) { Swal.update({ titleText, text, showCancelButton: !committing }); Swal.showLoading(); return; }
     if (Swal.isVisible()) return;
     const modal = Swal.fire({ titleText, text, showConfirmButton: false, showCancelButton: !committing, cancelButtonText: 'Cancelar lectura', allowOutsideClick: false, allowEscapeKey: false, heightAuto: false, returnFocus: false, cancelButtonColor: '#64748b',
@@ -53,7 +55,9 @@ export function ComparativeReportPanel({ adquisicion, carpetas, onSaved, onBusyC
     if (active.current) return;
     const work: Work = { token: crypto.randomUUID(), controller: new AbortController(), committing: synchronizeOnly, persisted: synchronizeOnly };
     active.current = work; setBusy(true); setError(''); setStatus(''); setRetry(null);
-    const deadline = setTimeout(() => { if (!work.committing) work.controller.abort('timeout'); }, 175000);
+    let deadline: ReturnType<typeof setTimeout> | undefined;
+    let attachmentForm: FormData | undefined;
+    let attachmentAcquisition='';
     try {
       if (synchronizeOnly) {
         progress(work, true);
@@ -69,9 +73,13 @@ export function ComparativeReportPanel({ adquisicion, carpetas, onSaved, onBusyC
       progress(work);
       const latest = DataStore.getAdquisicionById(props.current.adquisicion.id) || props.current.adquisicion;
       const previous = previousComparativeDrafts(latest, props.current.carpetas);
-      const form = new FormData();
+      const form = new FormData(); attachmentForm = form; attachmentAcquisition=latest.id;
       form.append('request', JSON.stringify({ adquisicion: latest, context: '', draft: previous.latest }));
-      selected.forEach(file => form.append('attachments', file));
+      await appendPurchaseAttachments(form, selected, latest.id, { signal: work.controller.signal,
+        onProgress: ({ completed, total }) => progress(work, false, `Subiendo archivos… (${completed} de ${total})`) });
+      if (!current(work)) return;
+      progress(work);
+      deadline = setTimeout(() => { if (!work.committing) work.controller.abort('timeout'); }, 175000);
       const response = await fetch('/api/comparative-report', { method: 'POST', body: form, signal: work.controller.signal });
       let prepared: ReportResponse & { error?: string };
       try { prepared = await response.json(); } catch { throw Error('La lectura se interrumpió. Los documentos anteriores se conservan.'); }
@@ -111,6 +119,7 @@ export function ComparativeReportPanel({ adquisicion, carpetas, onSaved, onBusyC
       }
     } finally {
       clearTimeout(deadline);
+      if (attachmentForm) void cleanupPurchaseAttachmentUploads(attachmentForm, attachmentAcquisition);
       if (mounted.current && active.current === work) { active.current = null; setBusy(false); queueMicrotask(() => { if (mounted.current && !Swal.isVisible()) zone.current?.focus(); }); }
     }
   }
@@ -118,10 +127,8 @@ export function ComparativeReportPanel({ adquisicion, carpetas, onSaved, onBusyC
   async function selectFiles(selected: File[]) {
     if (active.current || !selected.length) return;
     setFiles(selected); setError(''); setStatus(''); setRetry(null);
-    const invalid = selected.some(file => !/\.(?:pdf|docx|txt|jpe?g|png|webp)$/i.test(file.name));
-    const excessive = selected.length > 3 || selected.reduce((sum, file) => sum + file.size, 0) > 3 * 1024 * 1024;
-    if (invalid || excessive) {
-      const message = invalid ? 'Sube PDF, Word, TXT o fotos JPG, PNG y WebP.' : 'Selecciona hasta tres archivos y 3 MB en total.';
+    const message = validateAttachmentSelection(selected);
+    if (message) {
       setError(message); await Swal.fire({ titleText: 'Revisa los archivos', text: message, icon: 'warning', confirmButtonText: 'Entendido', confirmButtonColor: '#00264a', heightAuto: false }); zone.current?.focus(); return;
     }
     await run(selected);
@@ -135,7 +142,7 @@ export function ComparativeReportPanel({ adquisicion, carpetas, onSaved, onBusyC
       onClick={() => input.current?.click()} onDragEnter={event => { event.preventDefault(); if (!busy) { depth.current++; setDragging(true); } }} onDragOver={event => { event.preventDefault(); event.dataTransfer.dropEffect = busy ? 'none' : 'copy'; }} onDragLeave={event => { event.preventDefault(); depth.current = Math.max(0, depth.current - 1); if (!depth.current) setDragging(false); }} onDrop={event => { event.preventDefault(); depth.current = 0; setDragging(false); if (!busy) void selectFiles(Array.from(event.dataTransfer.files)); }}>
       <UploadCloud aria-hidden="true" size={28} className="text-primary" />
       <span className="font-semibold text-primary">Arrastra los archivos aquí o haz clic para elegirlos</span>
-      <span className="text-xs text-slate-600">Puedes incluir varios proveedores · Hasta 3 archivos y 3 MB en total</span>
+      <span className="text-xs text-slate-600">Puedes incluir varios proveedores · {ATTACHMENT_HELP_TEXT}</span>
       {!!files.length && <span className="mt-1 break-all text-sm text-slate-700">{files.map(file => file.name).join(' · ')}</span>}
     </button>
     {result?.summary && <p className="mt-3 text-sm text-slate-700">{result.summary}</p>}
