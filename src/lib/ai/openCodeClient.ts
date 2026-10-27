@@ -10,8 +10,8 @@ interface ChatMessage {
 }
 
 const DEFAULT_OPENCODE_KEY = "";
-const DEFAULT_OPENCODE_BASE_URL = "https://opencode.ai/zen/go/v1";
-const DEFAULT_OPENCODE_MODEL = "deepseek-v4-flash-vision-exp";
+const DEFAULT_OPENCODE_BASE_URL = "https://opencode.ai/inference/go/openai/v1";
+const DEFAULT_OPENCODE_MODEL = "kimi-k3";
 
 export function extractJsonFromText(raw: string): any {
   if (!raw) return null;
@@ -130,6 +130,13 @@ export async function callOpenCodeGo(
 
       if (!res.ok) {
         console.warn(`OpenCode Go API Error [${res.status}] (intento ${attempt}/${maxAttempts})`);
+        if(res.status===400||res.status===410){
+          let payload:any=null;try{payload=await res.json();}catch{/* Classify known failures without exposing upstream text. */}
+          const type=String(payload?.error?.type||payload?.error?.code||payload?.type||payload?.code||'');
+          const message=String(payload?.error?.message||payload?.message||'');
+          if(/model[ _-]?(?:deprecated|retired)/i.test(type))throw new OpenCodeError('rejected','El modelo configurado de OpenCode GO fue retirado por el proveedor. Actualiza el modelo de la conexión; el borrador se conserva.');
+          if(/requires Global regions/i.test(message))throw new OpenCodeError('rejected','OpenCode GO bloqueó este modelo por las regiones de procesamiento autorizadas. Revisa la configuración de privacidad o elige otro modelo; el borrador se conserva.');
+        }
         if(res.status===401||res.status===403){
           let payload:any=null;try{payload=await res.json();}catch{/* Never echo provider text or credentials. */}
           const code=payload?.error?.code||payload?.code||payload?.errorCode;

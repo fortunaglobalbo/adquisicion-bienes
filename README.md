@@ -66,6 +66,8 @@ Hay siete modelos DOCX basados en las referencias aportadas. TDR, cuadro compara
 
 AnythingLLM aporta las fuentes del espacio asignado a ENDE y OpenCode GO está conectado como redactor sin sustitución silenciosa. La aplicación rellena campos permitidos y tablas de los modelos; la IA no elige el diseño. Una cláusula normativa sin una fuente reconocida queda pendiente. Las referencias propuestas requieren revisión de aplicabilidad y vigencia.
 
+Conexión actualizada el 27 de octubre de 2026: Kimi K3 con visión dentro de OpenCode **Go**, conservando las regiones de privacidad existentes. El antiguo `deepseek-v4-flash-vision-exp` devuelve `ModelDeprecated` (HTTP 410); su reemplazo DeepSeek V4.1 requiere habilitar regiones Global y no se habilitan sin autorización. Se verificó Kimi K3 con las cuatro fotografías de cotizaciones aportadas: cuatro fuentes, una oferta de HELIOS por Bs 68.562 y dos solicitudes sin precios, con facturación de la consulta mediante Go. La configuración explícita de modelo y dirección se respeta; no se cambia de proveedor ni se usa pago por consumo automáticamente ante errores.
+
 Guardar conserva el DOCX, su borrador, la versión del modelo y las fuentes. Descargar no guarda ni aprueba el expediente. El TDR guardado actualiza datos compartidos; las versiones anteriores de otros documentos se conservan y avisan si los datos cambiaron. Las ediciones locales pueden recuperarse desde «Versiones y recuperación». Los antecedentes adjuntos se leen para la consulta y no se archivan automáticamente.
 
 S1 conserva la distribución, bandas azules, casillas y firmas del Excel en celdas editables de Word. Su vista se construye desde esas celdas, conservando combinaciones, bordes y estilos. La vista PDF paginada requiere `DOCX_PREVIEW_URL` y `DOCX_PREVIEW_KEY`; utiliza el mismo DOCX exportable. Sin convertidor hay una vista de contenido claramente identificada. El servicio independiente para el VPS está documentado en `vps-engine/PREVIEW_SETUP.md`. Los modelos se incluyen en el paquete de Vercel mediante la configuración de trazado de archivos.
@@ -370,8 +372,8 @@ ANYTHINGLLM_WORKSPACE=adquisiciones-ende
 
 # Proveedor de Inteligencia Artificial
 OPENCODE_GO_API_KEY=<tu-api-key>
-OPENCODE_GO_BASE_URL=https://opencode.ai/zen/go/v1
-OPENCODE_GO_MODEL=deepseek-v4-flash-vision-exp
+OPENCODE_GO_BASE_URL=https://opencode.ai/inference/go/openai/v1
+OPENCODE_GO_MODEL=kimi-k3
 ```
 
 ---
