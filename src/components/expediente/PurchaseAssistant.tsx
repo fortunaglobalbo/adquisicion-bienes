@@ -117,11 +117,10 @@ export function PurchaseAssistant({ adquisicion, carpetas, onUpdated, onBusyChan
     let resolved: PurchaseBrief = { ...candidate, items: candidate.items.map(item => ({ ...item })), details: { ...candidate.details } };
     const retain = () => { pendingBrief.current = resolved; };
     if (resolved.conflicts.length) {
-      const answer = await ask(work, 'Necesito aclarar un dato', 'Aclaración', resolved.conflicts.join(' '), resolved.clarification, value => value ? undefined : 'Escribe la aclaración para continuar.', true);
-      resolved.clarification = answer; retain(); work.reread = true;
-      resolved = await analyze(work, selected, resolved, `Aclaración expresa del usuario: ${answer}`);
-      if (resolved.conflicts.length) { resolved.clarification = answer; retain(); throw Error('La información todavía es contradictoria. Revisa el archivo o aclara el dato al volver a intentar.'); }
-      resolved.clarification = answer; retain();
+      resolved.provisionalWithConflicts = true;
+      resolved.confirmedAt = null;
+      resolved.notices = Array.from(new Set([...(resolved.notices || []), ...resolved.conflicts.map(conflict => `Revisión sugerida: ${conflict}`)]));
+      retain();
     }
     if (!resolved.items.length) { const description = await ask(work, '¿Qué necesitas comprar?', 'Bien o servicio', 'No pude identificar el bien o servicio en el archivo.', '', value => value ? undefined : 'Indica el bien o servicio.'); resolved.items = [{ descripcion: description, cantidad: '', unidad: '', especificaciones: '', precio: '' }]; retain(); }
     for (let index = 0; index < resolved.items.length; index++) {
@@ -205,6 +204,13 @@ export function PurchaseAssistant({ adquisicion, carpetas, onUpdated, onBusyChan
       {files.map((file,index) => <div key={`${file.name}-${index}`} className="flex items-center justify-between gap-3 rounded border bg-white px-3 py-2 text-sm"><span className="break-all">{file.name}</span><button type="button" disabled={busy} className="text-red-700" onClick={() => { setFiles(previous => previous.filter((_,position) => position !== index)); pendingBrief.current=null; setRetryAction(null); }}>Quitar</button></div>)}
       <button type="button" disabled={busy} className="rounded-lg bg-primary px-4 py-2 font-bold text-white disabled:opacity-50" onClick={() => void run(files,false)}>Procesar archivos</button>
     </div>}
+    {!!adquisicion.asistente_compra?.conflicts?.length && adquisicion.asistente_compra.provisionalWithConflicts && <aside className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm" aria-label="Sugerencias para revisar el borrador">
+      <p className="font-bold">Borrador provisional: sugerencias para completar</p>
+      <p>Como propuesta, usa la nota de solicitud para la cantidad y finalidad, y la ficha técnica para las características. Confirma cualquier diferencia antes de utilizar el documento.</p>
+      <ul className="mt-2 list-disc pl-5">{adquisicion.asistente_compra.conflicts.map((conflict,index) => <li key={index}>{conflict}</li>)}</ul>
+      <p className="mt-2">Texto sugerido: «Las características se basan en la ficha técnica adjunta. La cantidad y el alcance definitivo se confirmarán con la unidad solicitante».</p>
+      <p>Puedes corregir estos datos directamente en los documentos. Las discrepancias no se consideran resueltas ni aprobadas.</p>
+    </aside>}
     {status && <p role="status" className="mt-3 text-sm text-primary">{status}</p>}
     {error && <p role="alert" className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
     {retryAction && <button type="button" disabled={busy} className="mt-3 rounded-lg border border-amber-500 bg-amber-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-amber-500 disabled:opacity-50" onClick={() => void run(files,true)}>Volver a intentar</button>}

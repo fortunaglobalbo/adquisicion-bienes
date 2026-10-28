@@ -19,6 +19,7 @@ export interface PurchaseBrief {
   items: BriefItem[];
   facts: { topic: string; value: string; origin: string }[];
   conflicts: string[];
+  provisionalWithConflicts?: boolean;
   clarification: string;
   details: Record<string, string>;
   decisions?: Record<string,string>;
@@ -71,7 +72,7 @@ export function briefProblems(brief: PurchaseBrief): string[] {
   if (!brief.items.length || brief.items.some(i => !i.descripcion.trim() || !i.unidad.trim() || !/^\d+(?:[.,]\d+)?$/.test(i.cantidad) || Number(i.cantidad.replace(',', '.')) <= 0)) errors.push('Completa el bien, la cantidad y la unidad de cada ítem.');
   if (brief.deliveryDays && (!/^\d+$/.test(brief.deliveryDays) || Number(brief.deliveryDays) <= 0)) errors.push('El plazo debe ser un número de días mayor que cero.');
   if (brief.items.some(i => i.precio && (!/^\d+(?:[.,]\d{1,2})?$/.test(i.precio) || Number(i.precio.replace(',', '.')) <= 0))) errors.push('Revisa los precios estimados: usa números sin separadores de miles.');
-  if (brief.conflicts.length && !brief.clarification.trim()) errors.push('Aclara la diferencia detectada en los antecedentes.');
+  if (brief.conflicts.length && !brief.clarification.trim() && !brief.provisionalWithConflicts) errors.push('Aclara la diferencia detectada en los antecedentes.');
   return errors;
 }
 export function briefUpdates(adq: Adquisicion, brief: PurchaseBrief): Partial<Adquisicion> {

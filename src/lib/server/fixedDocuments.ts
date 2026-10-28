@@ -183,13 +183,14 @@ export async function completeFixedDocument(number: number, adq: Adquisicion, cu
     antecedentes_texto:'',justificacion_texto:brief.purpose,
     items:brief.items} : storedPurchase;
   const evidence = brief && !context.trim() && !images.length
-    ? { facts: brief.facts, missing: [], conflicts: brief.clarification ? [] : brief.conflicts }
+    ? { facts: brief.facts, missing: [], conflicts: brief.provisionalWithConflicts ? brief.conflicts : brief.clarification ? [] : brief.conflicts }
     : await extractDocumentEvidence({expediente:purchase,antecedentes:context,borrador:{fields:contextFields,items:brief?.items || current.items}},images,`${session}-extract`);
   const sharedTdr=adq.borradores_ia?.['1']?.draft;
   const sharedFields=sharedTdr?Object.fromEntries(Object.entries(sharedTdr.fields).map(([key,value])=>[key,!sharedTdr.editedFields?.includes(key)&&staleMention(value)?missingValue:value])):undefined;
   const raw = await callOpenCodeGo([
     { role: "system", content: fixedDocumentPrompt(company.name) },
     { role: "user", content: [{ type: "text", text: JSON.stringify({ model: { number, fields: model.fields, columns: model.columns }, expediente: purchase, fichaCompra:brief, fechaPreparacion:new Intl.DateTimeFormat('sv-SE',{timeZone:'America/La_Paz',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()), tdrCompartido:number!==1?{fields:sharedFields,items:brief?.items || sharedTdr?.items,proposals:sharedTdr?.proposals}:undefined, evidence, current: { fields: contextFields, items:current.editedItems?current.items:brief?.items || current.items }, context,
+      provisionalInstructions:brief?.provisionalWithConflicts ? 'Genera el borrador con los datos disponibles aunque haya contradicciones. Conserva las discrepancias como advertencias y propone redacción editable en los campos afectados, identificada expresamente como sugerencia para revisión. No presentes cantidades, precios, certificaciones ni decisiones contradictorias como confirmadas. No inventes datos para resolver diferencias.' : undefined,
       imageInstructions: "Las imágenes adjuntas son antecedentes de esta compra, no normas. Lee sus datos visibles. Si algo es ilegible o contradice los datos actuales, déjalo pendiente y explica la discrepancia. No copies firmas ni supongas aprobación.",
       normativeAnswer: sources.length ? answer || 'Extractos literales del reglamento V04 seleccionado por el usuario.' : "Sin fuentes recuperadas",
       selectedReference:hasNormativeFields?{title:referenceV04.documentTitle,version:referenceV04.version,date:referenceV04.date,applicability:referenceV04.applicability,limitations:referenceV04.limitations}:undefined,
