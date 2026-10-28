@@ -134,7 +134,8 @@ export async function callOpenCodeGo(
         body: JSON.stringify({
           model,
           ...(anthropic ? {system, messages:anthropicMessages} : {messages}),
-          temperature,
+          // Claude Haiku 5.5 rejects the deprecated temperature parameter.
+          ...(anthropic ? {} : {temperature}),
           max_tokens: maxTokens,
           ...(options.disableThinking && model.startsWith("deepseek") ? { thinking: { type: "disabled" } } : {}),
         }),
