@@ -11,7 +11,7 @@ interface ChatMessage {
 
 const DEFAULT_OPENCODE_KEY = "";
 const DEFAULT_OPENCODE_BASE_URL = "https://opencode.ai/inference/go/openai/v1";
-const DEFAULT_OPENCODE_MODEL = "kimi-k3";
+const DEFAULT_OPENCODE_MODEL = "claude-haiku-5-5";
 
 export function extractJsonFromText(raw: string): any {
   if (!raw) return null;
@@ -93,7 +93,20 @@ export async function callOpenCodeGo(
   const apiKey = process.env.OPENCODE_GO_API_KEY || DEFAULT_OPENCODE_KEY;
   if (!apiKey) { if (options.strict) throw new OpenCodeError("rejected", "Falta configurar la credencial de OpenCode GO."); return ""; }
   const baseUrl = (process.env.OPENCODE_GO_BASE_URL || DEFAULT_OPENCODE_BASE_URL).replace(/\/+$/, "");
-  const model = process.env.OPENCODE_GO_MODEL || DEFAULT_OPENCODE_MODEL;
+  const configuredModel = process.env.OPENCODE_GO_MODEL;
+  // Migrate the previous application default; custom model selections remain explicit.
+  const model = !configuredModel || configuredModel === 'kimi-k3' ? DEFAULT_OPENCODE_MODEL : configuredModel;
+  const anthropic = model.startsWith('claude-');
+  const endpoint = anthropic && /^https:\/\/opencode\.ai\//.test(baseUrl)
+    ? 'https://opencode.ai/inference/go/anthropic/v1/messages'
+    : `${baseUrl}/${anthropic ? 'messages' : 'chat/completions'}`;
+  const system = messages.filter(message=>message.role==='system').map(message=>typeof message.content==='string'?message.content:'').join('\n\n');
+  const anthropicMessages = anthropic ? messages.filter(message=>message.role!=='system').map(message=>({role:message.role,content:typeof message.content==='string'?message.content:message.content.map(part=>{
+    if(part.type==='text')return part;
+    const image=/^data:(image\/(?:jpeg|png|webp));base64,(.+)$/.exec(part.image_url.url);
+    if(!image)throw new OpenCodeError('rejected','No se pudo preparar una imagen para Claude. El borrador se conserva.');
+    return {type:'image',source:{type:'base64',media_type:image[1],data:image[2]}};
+  })})) : [];
 
   const maxAttempts = 2;
   const budgetMs=Number.isFinite(timeoutMs)?Math.max(1,Math.floor(timeoutMs)):45000;
@@ -108,18 +121,19 @@ export async function callOpenCodeGo(
     try {
       if(options.signal?.aborted)throw cancellation();
       if(budgetSignal.aborted||performance.now()>=deadline)throw timeoutError();
-      const res = await fetch(`${baseUrl}/chat/completions`, {
+      const res = await fetch(endpoint, {
         method: "POST",
         signal,
         headers: {
           "Content-Type": "application/json",
+          ...(anthropic ? {"anthropic-version":"2023-06-01"} : {}),
           Authorization: `Bearer ${apiKey}`,
           "User-Agent": "ende-document-assistant/1.0",
           "x-opencode-session": session,
         },
         body: JSON.stringify({
           model,
-          messages,
+          ...(anthropic ? {system, messages:anthropicMessages} : {messages}),
           temperature,
           max_tokens: maxTokens,
           ...(options.disableThinking && model.startsWith("deepseek") ? { thinking: { type: "disabled" } } : {}),
@@ -169,7 +183,7 @@ export async function callOpenCodeGo(
       }
       if(options.signal?.aborted)throw cancellation();
       if(budgetSignal.aborted||performance.now()>=deadline)throw timeoutError();
-      const choice = data?.choices?.[0];
+      const choice = anthropic && Array.isArray(data?.content) ? {message:{content:Array.isArray(data?.content)?data.content.filter((part:any)=>part.type==='text').map((part:any)=>part.text).join('\n'):''},finish_reason:data?.stop_reason==='max_tokens'?'length':data?.stop_reason} : data?.choices?.[0];
       const content = typeof choice?.message?.content === "string" ? choice.message.content.trim() : "";
       if (options.strict && (!content || choice?.finish_reason === "length")) {
         console.warn("[GO incomplete]", JSON.stringify({ finishReason: choice?.finish_reason, completionTokens: data?.usage?.completion_tokens }));

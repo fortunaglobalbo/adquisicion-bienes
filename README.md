@@ -1,3 +1,5 @@
+Carga actualizada el 28 de octubre de 2026: el asistente acumula PDF e imágenes de varios arrastres en una lista editable. No inicia la IA al seleccionar archivos: «Procesar archivos» envía el conjunto completo. Se mantienen 20 archivos y 50 MB por archivo. Modelo solicitado: `claude-haiku-5-5` en OpenCode Go, con conversión de imágenes y mensajes a la API Anthropic. El valor anterior `kimi-k3` se migra a Claude; otros modelos configurados explícitamente se conservan. Las restricciones de privacidad no se modifican.
+
 # ENDE Deoruro — Gestión de adquisiciones
 
 ## Asistente desde una cotización o imagen
@@ -373,7 +375,7 @@ ANYTHINGLLM_WORKSPACE=adquisiciones-ende
 # Proveedor de Inteligencia Artificial
 OPENCODE_GO_API_KEY=<tu-api-key>
 OPENCODE_GO_BASE_URL=https://opencode.ai/inference/go/openai/v1
-OPENCODE_GO_MODEL=kimi-k3
+OPENCODE_GO_MODEL=claude-haiku-5-5
 ```
 
 ---

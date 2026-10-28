@@ -182,15 +182,16 @@ export function PurchaseAssistant({ adquisicion, carpetas, onUpdated, onBusyChan
   }
   async function selectFiles(selected: File[]) {
     if (active.current || !selected.length) return;
-    setFiles(selected); setError(''); setStatus(''); pendingBrief.current = null; setRetryAction(null); setRemaining([]);
-    const message = validateAttachmentSelection(selected);
+    const combined = [...files];
+    for (const file of selected) if (!combined.some(previous => previous.name === file.name && previous.size === file.size && previous.lastModified === file.lastModified)) combined.push(file);
+    const message = validateAttachmentSelection(combined);
     if (message) { setError(message); await Swal.fire({ titleText: 'Revisa el archivo', text: message, icon: 'warning', confirmButtonText: 'Entendido', confirmButtonColor: '#00264a', heightAuto: false }); dropZone.current?.focus(); return; }
-    await run(selected, false);
+    setFiles(combined); setError(''); setStatus(''); pendingBrief.current = null; setRetryAction(null); setRemaining([]);
   }
 
   return <section className="mb-5 rounded-xl border border-blue-200 bg-blue-50/50 p-4" aria-label="Asistente de esta compra">
     <h2 className="font-bold text-lg text-primary">Asistente de esta compra</h2>
-    <p className="mt-1 text-sm text-slate-600">Sube tu archivo y la IA preparará los documentos de las carpetas 1 a 5. Después podrás corregirlos directamente en el documento.</p>
+    <p className="mt-1 text-sm text-slate-600">Reúne tus PDF e imágenes y pulsa «Procesar archivos». La IA leerá todo junto y preparará las carpetas 1 a 5. Después podrás corregirlos directamente en el documento.</p>
     <input ref={fileInput} className="sr-only" type="file" multiple tabIndex={-1} disabled={busy} accept=".pdf,.docx,.txt,.jpg,.jpeg,.png,.webp" aria-label="Cotización, PDF o foto" onChange={event => { const selected = Array.from(event.target.files || []); event.target.value = ''; void selectFiles(selected); }} />
     <button ref={dropZone} type="button" aria-label="Subir cotización, PDF o foto" disabled={busy} className={`mt-3 flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-5 py-6 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60 ${dragging ? 'border-blue-600 bg-blue-100' : 'border-blue-300 bg-white hover:border-blue-500 hover:bg-blue-50'}`}
       onClick={() => fileInput.current?.click()} onDragEnter={event => { event.preventDefault(); if (!busy) { dragDepth.current++; setDragging(true); } }} onDragOver={event => { event.preventDefault(); event.dataTransfer.dropEffect = busy ? 'none' : 'copy'; }} onDragLeave={event => { event.preventDefault(); dragDepth.current = Math.max(0,dragDepth.current - 1); if (!dragDepth.current) setDragging(false); }} onDrop={event => { event.preventDefault(); dragDepth.current = 0; setDragging(false); if (!busy) void selectFiles(Array.from(event.dataTransfer.files)); }}>
@@ -199,6 +200,11 @@ export function PurchaseAssistant({ adquisicion, carpetas, onUpdated, onBusyChan
       <span className="text-xs text-slate-600">{ATTACHMENT_HELP_TEXT}</span>
       {!!files.length && <span className="mt-1 break-all text-sm text-slate-700">{files.map(file => file.name).join(' · ')}</span>}
     </button>
+    {!!files.length && <div className="mt-3 space-y-2">
+      <p className="text-sm font-semibold">{files.length} archivos listos para procesar juntos</p>
+      {files.map((file,index) => <div key={`${file.name}-${index}`} className="flex items-center justify-between gap-3 rounded border bg-white px-3 py-2 text-sm"><span className="break-all">{file.name}</span><button type="button" disabled={busy} className="text-red-700" onClick={() => { setFiles(previous => previous.filter((_,position) => position !== index)); pendingBrief.current=null; setRetryAction(null); }}>Quitar</button></div>)}
+      <button type="button" disabled={busy} className="rounded-lg bg-primary px-4 py-2 font-bold text-white disabled:opacity-50" onClick={() => void run(files,false)}>Procesar archivos</button>
+    </div>}
     {status && <p role="status" className="mt-3 text-sm text-primary">{status}</p>}
     {error && <p role="alert" className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
     {retryAction && <button type="button" disabled={busy} className="mt-3 rounded-lg border border-amber-500 bg-amber-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-amber-500 disabled:opacity-50" onClick={() => void run(files,true)}>Volver a intentar</button>}
