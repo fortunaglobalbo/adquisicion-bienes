@@ -122,14 +122,11 @@ export function PurchaseAssistant({ adquisicion, carpetas, onUpdated, onBusyChan
       resolved.notices = Array.from(new Set([...(resolved.notices || []), ...resolved.conflicts.map(conflict => `Revisión sugerida: ${conflict}`)]));
       retain();
     }
-    if (!resolved.items.length) { const description = await ask(work, '¿Qué necesitas comprar?', 'Bien o servicio', 'No pude identificar el bien o servicio en el archivo.', '', value => value ? undefined : 'Indica el bien o servicio.'); resolved.items = [{ descripcion: description, cantidad: '', unidad: '', especificaciones: '', precio: '' }]; retain(); }
-    for (let index = 0; index < resolved.items.length; index++) {
-      const item = resolved.items[index];
-      if (!item.descripcion.trim()) { item.descripcion = await ask(work, `¿Qué artículo corresponde al ítem ${index + 1} de ${resolved.items.length}?`, `Bien o servicio del ítem ${index + 1}`, item.especificaciones ? `Características identificadas: ${item.especificaciones}` : 'No se pudo identificar el nombre de este artículo. Escribe su descripción para continuar.', '', value => value ? undefined : 'Indica el bien o servicio.'); retain(); }
-      const itemContext = `Ítem ${index + 1} de ${resolved.items.length}: ${item.descripcion}`;
-      if (!positiveQuantity(item.cantidad)) { item.cantidad = await ask(work, '¿Qué cantidad necesitas de este artículo?', `Cantidad para ${item.descripcion}`, `${itemContext}${item.unidad ? ` — Unidad: ${item.unidad}` : ''}`, item.cantidad, value => positiveQuantity(value) ? undefined : 'Escribe una cantidad mayor que cero.'); retain(); }
-      if (!item.unidad.trim()) { item.unidad = await ask(work, '¿En qué unidad se compra este artículo?', `Unidad de compra para ${item.descripcion}`, `${itemContext}. Cantidad: ${item.cantidad}. Indica la unidad de compra; por ejemplo: unidades, pares o metros.`, '', value => value ? undefined : 'Indica la unidad.'); retain(); }
-      // Optional prices and schedules never send the user back to a technical form.
+    resolved.allowIncompleteDraft = true;
+    if (!resolved.items.length) resolved.items = [{descripcion:latestProps.current.adquisicion.titulo_proceso,cantidad:'',unidad:'',especificaciones:'',precio:''}];
+    for (const item of resolved.items) {
+      if (!item.descripcion.trim()) item.descripcion = 'Artículo por identificar';
+      if (!positiveQuantity(item.cantidad)) item.cantidad = '';
       if (item.precio && (!/^\d+(?:[.,]\d{1,2})?$/.test(item.precio.trim()) || Number(item.precio.replace(',', '.')) <= 0)) item.precio = '';
     }
     if (resolved.deliveryDays && (!/^\d+$/.test(resolved.deliveryDays) || Number(resolved.deliveryDays) <= 0)) resolved.deliveryDays = '';
@@ -150,8 +147,23 @@ export function PurchaseAssistant({ adquisicion, carpetas, onUpdated, onBusyChan
       if (number === 3 && working.comparative_report) { work.remaining = work.remaining.filter(value => value !== number); continue; }
       try {
         const form = new FormData(); form.append('request', JSON.stringify({ action: 'complete', draftOnly: true, number, adquisicion: working, draft: latestDraft(working, props.carpetas, number), context: '' }));
-        const response = await fetch('/api/fixed-documents', { method: 'POST', body: form, signal: work.controller.signal }); const result = await response.json(); checkCurrent(work);
-        if (!response.ok || !result?.draft) throw Error(result.error || 'No se pudo preparar el documento.');
+        let result: {draft:FixedDraft};
+        try {
+          const response = await fetch('/api/fixed-documents', { method: 'POST', body: form, signal: work.controller.signal }); const received = await response.json(); checkCurrent(work);
+          if (!response.ok || !received?.draft) throw Error('La redacción no se completó.');
+          result = received;
+        } catch {
+          checkCurrent(work);
+          const previous = latestDraft(working, props.carpetas, number), model = fixedModel(number);
+          const known:Record<string,string> = {objeto:working.titulo_proceso,area:working.unidad_solicitante,solicitante:working.responsable_proceso,lugar:saved.location,justificacion:saved.purpose,antecedentes:working.antecedentes_texto||''};
+          const fallback:FixedDraft = previous ? {...previous, fields:{...previous.fields},items:previous.items.map(row=>({...row})),warnings:[...previous.warnings]} : {
+            modelVersion:model.version,companyId:working.empresa_id||'ende',fields:Object.fromEntries(model.fields.map(field=>[field.key,known[field.key]?.trim()||'[PENDIENTE]'])),
+            items:!model.columns.length?[]:saved.items.map((item,index)=>Object.fromEntries(model.columns.map(column=>[column.key,({numero:String(index+1),descripcion:item.descripcion,cantidad:item.cantidad,unidad:item.unidad,especificaciones:item.especificaciones,precio:item.precio} as Record<string,string>)[column.key]||'[PENDIENTE]']))),
+            sourceIds:{},sources:[],warnings:[],consultedAt:null,normativeStatus:'pending',confirmedFields:[],
+          };
+          fallback.warnings=Array.from(new Set([...fallback.warnings,'Borrador provisional preparado con los datos disponibles porque la IA no completó la redacción. Revisa los campos marcados [PENDIENTE]; no constituye aprobación ni verificación normativa.']));
+          result={draft:fallback};
+        }
         const history = number === 3 ? comparativeHistoryWithPrevious(DataStore.getAdquisicionById(props.adquisicion.id) || working, props.carpetas) : undefined;
         working = { ...working, ...(history ? { comparative_report_history: history } : {}), borradores_ia: { ...working.borradores_ia, [number]: { draft: result.draft, briefRevision: saved.revision, updatedAt: new Date().toISOString() } } };
         checkCurrent(work); const storedDraft = await DataStore.updateAdquisicion(props.adquisicion.id, { borradores_ia: working.borradores_ia, ...(history ? { comparative_report_history: history } : {}) }); if (!storedDraft.success) throw Error(storedDraft.error || 'No se pudo conservar el borrador.');
@@ -162,7 +174,7 @@ export function PurchaseAssistant({ adquisicion, carpetas, onUpdated, onBusyChan
     const sync = await DataStore.flushPending(); checkCurrent(work); props.onUpdated();
     if (failed.length) { setRetryAction('prepare'); setStatus('No se completaron todos los documentos. Lo preparado se conservó.'); await notice(work, failed.length === 1 ? 'Quedó un documento por preparar' : 'Quedaron documentos por preparar', 'Lo preparado se conservó. Pulsa «Volver a intentar» para completar lo que falta.', 'warning'); }
     else if (!sync.success) { setRetryAction('sync'); setStatus('Documentos preparados en este equipo. Falta sincronizarlos.'); await notice(work, 'Documentos preparados en este equipo', 'Falta sincronizarlos. Pulsa «Volver a intentar» cuando tengas conexión.', 'warning'); }
-    else { setRetryAction(null); setStatus(readyMessage); await notice(work, 'Documentos preparados', 'Puedes corregir el texto directamente en cada documento y guardar los cambios.', 'success'); }
+    else { setRetryAction(null); setStatus(readyMessage); await notice(work, 'Documentos preparados', 'Todas las carpetas tienen un borrador editable. Algunos pueden ser provisionales: revisa sus advertencias y los campos [PENDIENTE].', 'success'); }
   }
   async function run(selected: File[], resume: boolean) {
     if (active.current) return;
