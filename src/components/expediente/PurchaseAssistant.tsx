@@ -9,6 +9,7 @@ import { initialBrief, briefProblems, briefUpdates, suggestedCurrentPurpose, Pur
 import { readPurchaseResponse } from '@/lib/ai/purchaseReadingResponse';
 import { DataStore } from '@/lib/store/dataStore';
 import { appendPurchaseAttachments, cleanupPurchaseAttachmentUploads } from '@/lib/uploads/attachmentClient';
+import { completeTdrDraft } from '@/lib/docx/completeTdrDraft';
 import { ATTACHMENT_HELP_TEXT, validateAttachmentSelection } from '@/lib/uploads/attachmentPolicy';
 
 const initialFolders = [1, 2, 3, 4, 5];
@@ -162,8 +163,9 @@ export function PurchaseAssistant({ adquisicion, carpetas, onUpdated, onBusyChan
             sourceIds:{},sources:[],warnings:[],consultedAt:null,normativeStatus:'pending',confirmedFields:[],
           };
           fallback.warnings=Array.from(new Set([...fallback.warnings,'Borrador provisional preparado con los datos disponibles porque la IA no completó la redacción. Revisa los campos marcados [PENDIENTE]; no constituye aprobación ni verificación normativa.']));
-          result={draft:fallback};
+          result={draft:completeTdrDraft(number,fallback,working)};
         }
+        result.draft=completeTdrDraft(number,result.draft,working);
         const history = number === 3 ? comparativeHistoryWithPrevious(DataStore.getAdquisicionById(props.adquisicion.id) || working, props.carpetas) : undefined;
         working = { ...working, ...(history ? { comparative_report_history: history } : {}), borradores_ia: { ...working.borradores_ia, [number]: { draft: result.draft, briefRevision: saved.revision, updatedAt: new Date().toISOString() } } };
         checkCurrent(work); const storedDraft = await DataStore.updateAdquisicion(props.adquisicion.id, { borradores_ia: working.borradores_ia, ...(history ? { comparative_report_history: history } : {}) }); if (!storedDraft.success) throw Error(storedDraft.error || 'No se pudo conservar el borrador.');

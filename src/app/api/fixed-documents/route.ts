@@ -1,3 +1,4 @@
+import { completeTdrDraft } from '@/lib/docx/completeTdrDraft';
 import { NextRequest, NextResponse } from "next/server";
 import { completeFixedDocument, seedFixedDraft, renderFixedWord, validateFixedDraft } from "@/lib/server/fixedDocuments";
 import { fixedModel, upgradeFixedDraft } from "@/lib/docx/fixedModels";
@@ -85,6 +86,7 @@ export async function POST(req: NextRequest) {
       validateFixedDraft(model,draft);
       draft=updateComparativeReport(draft,adq);
     } else if (!["preview", "download", "export"].includes(body.action)) throw Error("Acción desconocida.");
+    draft=completeTdrDraft(number,draft,adq);
     if (body.draftOnly === true && body.action === 'complete') return NextResponse.json({ draft }, { headers: { 'Cache-Control': 'no-store' } });
     const output = await renderFixedWord(number, draft, adq);
     if (body.action === "export") return NextResponse.json({ draft: output.draft, docx: output.buffer.toString("base64") }, { headers: { "Cache-Control": "no-store" } });

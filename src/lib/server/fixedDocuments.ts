@@ -1,3 +1,4 @@
+import { completeTdrDraft } from '../docx/completeTdrDraft';
 import fs from "fs/promises";
 import path from "path";
 import { createHash } from "crypto";
@@ -94,6 +95,7 @@ export function normalizeFixedDraft(model: FixedModel, draft: FixedDraft, adq?: 
 }
 
 export async function renderFixedWord(number: number, input: FixedDraft, adq?: Adquisicion) {
+  if(adq) input=completeTdrDraft(number,input,adq);
   const model = fixedModel(number), draft = normalizeFixedDraft(model, input, adq);
   const buffer = await fs.readFile(path.join(process.cwd(), "templates", "ende", model.file));
   if (createHash("sha256").update(buffer).digest("hex") !== model.sha256) throw Error("El modelo cambió sin registrar una nueva versión.");
