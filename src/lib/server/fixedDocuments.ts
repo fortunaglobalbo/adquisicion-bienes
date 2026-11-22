@@ -26,6 +26,7 @@ import { availablePurchaseBrief, obsoletePurchaseMentions, suggestedCurrentPurpo
 import { currentPurchaseTitle, repairAutomaticPurchaseTitle } from '../docx/purchaseTitle';
 import referenceV04 from '../../../templates/ende/normative-v04.json';
 import { keepTdrHeadingsWithBody } from './wordPagination';
+import { completeConformityReport, conformityDefaults } from './conformityReport';
 
 const text = (value: unknown): string => typeof value === "string" ? value.trim() : "";
 const amountCategory = (value:unknown) => /^(?:categor[ií]a\s+)?(?:I{1,3}|especial)\b/i.test(text(value)) ? text(value) : '';
@@ -66,6 +67,7 @@ export function seedFixedDraft(number: number, adq: Adquisicion): FixedDraft {
       cuerpo:`Solicito considerar el inicio del proceso «${scope}» y disponer la revisión de sus antecedentes y requisitos para continuar el trámite correspondiente.`,
       anexos:'1. Formulario S1-N014.\n2. Informe técnico de justificación.\n3. Especificaciones técnicas o términos de referencia.\n4. Cotizaciones de referencia o previsión de precio, cuando corresponda.',
     } : {}),
+    ...(number === 7 ? conformityDefaults(adq).fields : {}),
     ...(number === 8 ? (() => {
       const payment = memoPeople(adq);
       const combine = (name: string, role: string) => [name, role].filter(Boolean).join(' - ');
@@ -95,7 +97,7 @@ export function seedFixedDraft(number: number, adq: Adquisicion): FixedDraft {
     } : {}),
   };
   // Receiving a new good is a fact to confirm; previous item quantities are not evidence of receipt.
-  const items = number === 3 ? comparativeReportData(adq).items : number === 6 ? technicalEvaluationData(adq).items : number === 7 || !model.columns.length ? [] : (adq.items || []).map((item, i) => Object.fromEntries(model.columns.map(c => [c.key,
+  const items = number === 3 ? comparativeReportData(adq).items : number === 6 ? technicalEvaluationData(adq).items : number === 7 ? conformityDefaults(adq).items : !model.columns.length ? [] : (adq.items || []).map((item, i) => Object.fromEntries(model.columns.map(c => [c.key,
     ({ numero: String(i + 1), descripcion: item.descripcion, unidad: item.unidad,
       ubicacion: adq.lugar_entrega || adq.unidad_solicitante,
       justificacion_operativa: brief?.purpose || missingValue,
@@ -182,12 +184,13 @@ export async function renderFixedWord(number: number, input: FixedDraft, adq?: A
   return { buffer: number===1&&draft.selectionPlan ? await addSelectionTables(paginated,draft.selectionPlan) : paginated, draft };
 }
 
-export async function completeFixedDocument(number: number, adq: Adquisicion, current: FixedDraft, context: string, images: string[] = []) {
+export async function completeFixedDocument(number: number, adq: Adquisicion, current: FixedDraft, context: string, images: string[] = [], signal?: AbortSignal) {
   current = upgradeFixedDraft(number, current);
   const company = companyKnowledge(adq.empresa_id || "ende"), model = fixedModel(number);
   validateFixedDraft(model, current);
   if (current.companyId !== company.id) throw Error("El borrador corresponde a otra empresa.");
   current=fillDossierPeople(number,current,adq);
+  if(number===7) return normalizeFixedDraft(model,await completeConformityReport(adq,current,context,images,signal),adq);
   if(number===3)return normalizeFixedDraft(model,updateComparativeReport(current,adq),adq);
   const session = `ende-document-${createHash('sha256').update(`${company.id}:${adq.id}:${number}`).digest('hex').slice(0,32)}`;
   const hasNormativeFields=model.fields.some(f=>f.normative);

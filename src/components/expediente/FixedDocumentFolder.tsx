@@ -87,7 +87,7 @@ export function FixedDocumentFolder({ adquisicion, carpeta, modelNumber=carpeta.
       if (kind === 'complete' || kind === 'revise' || kind === 'refresh-evaluation' || kind === 'refresh-comparative') {setUndoDraft(draft);setClarification('');setPendingInstruction('');}
       setDraft(result.draft);
       setEditableHtml(result.editableHtml || '');
-      if (kind === "complete" || kind === "revise" || kind === 'refresh-evaluation' || kind === 'refresh-comparative') { setDirty(true); setAiEdit(false); setContext(""); setFiles([]); setMessage(kind==='refresh-evaluation'||kind==='refresh-comparative'?'Cuadro y conclusiones actualizados desde las cotizaciones guardadas. Puedes editarlos y guardar el informe.':result.revised ? `Cambios aplicados: ${(result.revisionSummary || []).join(", ") || "el documento ya contiene los datos solicitados"}. Revisa la vista y pulsa Guardar cambios.` : "Documento actualizado. Pulsa «Guardar cambios» para conservarlo."); }
+      if (kind === "complete" || kind === "revise" || kind === 'refresh-evaluation' || kind === 'refresh-comparative') { setDirty(true); setAiEdit(false); setContext(""); setFiles([]); setMessage(result.generationNotice || (kind==='refresh-evaluation'||kind==='refresh-comparative'?'Cuadro y conclusiones actualizados desde las cotizaciones guardadas. Puedes editarlos y guardar el informe.':result.revised ? `Cambios aplicados: ${(result.revisionSummary || []).join(", ") || "el documento ya contiene los datos solicitados"}. Revisa la vista y pulsa Guardar cambios.` : "Documento actualizado. Pulsa «Guardar cambios» para conservarlo.")); }
     } catch (e) { if (mounted.current && version === requestVersion.current) setError(e instanceof Error ? e.message : "No se pudo actualizar."); }
     finally { if (requestController.current === controller) requestController.current = null; if (mounted.current && version === requestVersion.current) setBusy(false); }
   }
@@ -224,7 +224,7 @@ export function FixedDocumentFolder({ adquisicion, carpeta, modelNumber=carpeta.
         <button className={action} aria-expanded={aiEdit} onClick={() => setAiEdit(v => !v)}>
           <Sparkles size={16} />{model.number === 8 ? 'Subir nota de petición de pago' : 'Completar o corregir con IA'}
         </button>
-        {model.number>4&&model.number!==8&&(adquisicion.asistente_compra?.confirmedAt||adquisicion.asistente_compra?.preparedAt)&&<button className={action} onClick={()=>refresh('complete')}>Redactar con los datos de esta compra</button>}
+        {(model.number===7 || model.number>4&&model.number!==8&&(adquisicion.asistente_compra?.confirmedAt||adquisicion.asistente_compra?.preparedAt))&&<button className={action} onClick={()=>refresh('complete')}>Redactar con los datos de esta compra</button>}
         {model.number===6 && (adquisicion.quote_evaluation?.quotes.length || adquisicion.comparative_report) ? <button className={action} onClick={()=>refresh('refresh-evaluation')}>Actualizar cuadro y conclusiones desde cotizaciones</button> : null}
       </div>
       {evaluationChanged && <p role="status" className="text-sm text-amber-800">Las cotizaciones cambiaron. Puedes actualizar el cuadro y las conclusiones.</p>}

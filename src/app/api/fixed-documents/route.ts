@@ -20,6 +20,7 @@ import { updateComparativeReport } from '@/lib/server/comparativeReport';
 import { readPurchaseAttachments, cleanupPurchaseAttachments } from '@/lib/server/attachmentUploads';
 import { prepareVisionImage } from '@/lib/server/visionImages';
 import { MAX_VISION_IMAGES } from '@/lib/uploads/attachmentPolicy';
+import { conformityFallbackMessage } from '@/lib/server/conformityReport';
 
 export const runtime = "nodejs";
 export const maxDuration = 180;
@@ -88,7 +89,8 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ brief: await analyzePurchaseBrief(adq, context, images, {signal:req.signal}) }, { headers: { 'Cache-Control': 'no-store' } });
       }
       // Decide on the server too: an older open tab may still send "complete" for an edit.
-      const revision = body.action === 'revise' || (body.action === 'complete' && !!body.draft && !!context.trim() && body.draftOnly !== true);
+      const revision = body.action === 'revise' || (body.action === 'complete' && !!body.draft &&
+        !!(number === 7 ? String(body.context || '').trim() : context.trim()) && body.draftOnly !== true);
       if (revision) {
         validateFixedDraft(model, draft);
         const previous = draft;
@@ -102,7 +104,7 @@ export async function POST(req: NextRequest) {
         revised = true;
       } else {
         try {
-          draft = await completeFixedDocument(number, adq, draft, context, images);
+          draft = await completeFixedDocument(number, adq, draft, context, images, req.signal);
         } catch (error) {
           if (req.signal.aborted || body.draftOnly !== true || ![5,9].includes(number)) throw error;
           const base = seedFixedDraft(number, adq);
@@ -136,7 +138,9 @@ export async function POST(req: NextRequest) {
       "Content-Disposition": `attachment; filename="Documento_${number}_para_revision.docx"`, "Cache-Control": "no-store",
     } });
     const editableHtml = await editableDocumentPreview(output.buffer, output.draft, model);
-    const editor = { draft: output.draft, editableHtml, revised, revisionSummary, solicitudNumeroAsignado, modelVersion: model.version };
+    const generationNotice = number === 7 && body.action === 'complete' && output.draft.warnings.includes(conformityFallbackMessage)
+      ? conformityFallbackMessage : undefined;
+    const editor = { draft: output.draft, editableHtml, revised, revisionSummary, solicitudNumeroAsignado, modelVersion: model.version, generationNotice };
     if (body.editorOnly === true) return NextResponse.json(editor, { headers: { "Cache-Control": "no-store" } });
     let pdf: string | null = null;
     let previewWarning = "Vista de contenido. La paginación final se comprueba en Word; el convertidor PDF no está configurado.";
