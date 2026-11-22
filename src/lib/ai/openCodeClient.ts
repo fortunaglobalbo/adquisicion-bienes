@@ -600,7 +600,7 @@ export async function extractSolicitudInicioWithAI(
   parrafo1?: string;
   parrafo2?: string;
 }> {
-  const systemPrompt = `Eres el Especialista Senior de Adquisiciones de ENDE Deoruro S.A.
+  const systemPrompt = `Eres el Especialista Senior de Adquisiciones de ENDE DEORURO S.A.
 Tu tarea es redactar la Solicitud de Inicio del Proceso de Compra oficial (Carpeta 5).
 Estructura oficial estricta:
 No.: [ej. 047/2026]
@@ -682,7 +682,7 @@ export async function generateTdrContentWithAI(adquisicion: Adquisicion, insumoT
 }
 
 async function generateTdrContentWithAIInternal(adquisicion: Adquisicion, insumoTexto?: string): Promise<string> {
-  return `El presente proceso de adquisición tiene por objeto dotar a la Distribuidora de Electricidad ENDE Deoruro S.A. de "${adquisicion.titulo_proceso}", asegurando la continuidad operativa del sistema de distribución eléctrica en el departamento de Oruro.`;
+  return `El presente proceso de adquisición tiene por objeto dotar a la Distribuidora de Electricidad ENDE DEORURO S.A. de "${adquisicion.titulo_proceso}", asegurando la continuidad operativa del sistema de distribución eléctrica en el departamento de Oruro.`;
 }
 
 export async function generateSolicitudInicioContentWithAI(
@@ -792,7 +792,7 @@ export async function extractMemoPagoWithAI(
     insumoTexto?: string;
   }
 ): Promise<any> {
-  const systemPrompt = `Eres un auditor contable y administrativo de ENDE Deoruro S.A.
+  const systemPrompt = `Eres un auditor contable y administrativo de ENDE DEORURO S.A.
 Debes estructurar el "MEMORÁNDUM DE SOLICITUD DE PAGO" oficial.
 Responde ÚNICAMENTE con un JSON con los siguientes campos:
 {

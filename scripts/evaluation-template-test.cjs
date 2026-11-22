@@ -24,7 +24,7 @@ const quote=(id,price,reviewed=true)=>({id,provider:`Proveedor ${id}`,groupId:'o
  assert.equal(requestNumber({...withTdr,solicitud_numero:'20260935/2026'}),'');
  assert.equal(seedFixedDraft(2,withTdr).fields.solicitante,'Ing. Solicitante TDR');
  const empty=seedFixedDraft(6,adq);assert.equal(empty.items.length,0);assert.equal(empty.fields.solicitud,'66/2026');assert.match(empty.fields.solicitante,/Cargo oficial/);assert.ok(!Object.values(empty.fields).join(' ').includes('ARIOL'));
- assert.equal(empty.fields.destinatario,'\nSUPERINTENDENCIA DE ADMINISTRACIÓN & FINANZAS');assert.equal(empty.fields.via,'\nGERENTE GENERAL');
+ assert.equal(empty.fields.destinatario,'JULIO ENRIQUE DAVILA PELAEZ\nSUPERINTENDENCIA DE ADMINISTRACIÓN & FINANZAS');assert.equal(empty.fields.via,'\nGERENTE GENERAL');
  const blankReferences={...empty,fields:{...empty.fields,destinatario:'[PENDIENTE]',via:''},editedFields:['via']};const filledReferences=fillEvaluationReferences(blankReferences,adq);assert.match(filledReferences.fields.destinatario,/SUPERINTENDENCIA/);assert.equal(filledReferences.fields.via,'');
  const {dossierPersonFields,fillDossierPeople,memoPeople}=require('../src/lib/docx/dossierPeople.ts');
  const saved=(fields,companyId='ende')=>({draft:{companyId,fields,items:[],editedFields:[]}});

@@ -18,9 +18,9 @@ const jetbrainsMono = JetBrains_Mono({
 import { AppShell } from "@/components/layout/AppShell";
 
 export const metadata: Metadata = {
-  title: "Plan de Adquisiciones | ENDE Deoruro S.A.",
+  title: "Plan de Adquisiciones | ENDE DEORURO S.A.",
   description:
-    "Sistema de Gestión de Expedientes de Adquisición de la Distribuidora de Electricidad ENDE Deoruro S.A. (Oruro - Bolivia)",
+    "Sistema de Gestión de Expedientes de Adquisición de la Distribuidora de Electricidad ENDE DEORURO S.A. (Oruro - Bolivia)",
 };
 
 export default function RootLayout({

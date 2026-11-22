@@ -239,7 +239,7 @@ export const MemoPagoViewer: React.FC<MemoPagoViewerProps> = ({
                 <div className="flex items-center gap-3">
                   <img
                     src="/logo-ende-deoruro.png"
-                    alt="ENDE Deoruro"
+                    alt="ENDE DEORURO"
                     className="h-12 w-auto object-contain"
                     onError={(e) => {
                       (e.target as any).style.display = "none";

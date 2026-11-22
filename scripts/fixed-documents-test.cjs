@@ -32,8 +32,32 @@ async function main(){
   assert.ok(!all.includes('{{'),'No deben quedar etiquetas internas en '+model.number);
   assert.ok(!/TREPADERAS|BOTAS DE SEGURIDAD|HERRAMIENTA PARA CUADRILLAS|SEPTIEMBRE - 2026|047\/2026|143.500/.test(all));
   if(model.columns.length){const found=result.tables.find(t=>t.headers.join('|')===model.columns.map(c=>c.label).join('|'));assert.ok(found);assert.equal(found.rows.length,3);}
+  if(model.number===5) {
+   assert.match(all,/CENTRAL - PLANTA/);
+   assert.ok(!result.tables.some(t=>[t.headers,...t.rows].flat().some(cell=>cell.includes('CENTRAL - PLANTA'))));
+  }
+  if(model.number===8) {
+   assert.equal(result.tables.length,1,'La solicitud de pago conserva la tabla del documento recibido');
+   assert.match(all,/SOLICITUD DE PAGO/);
+   assert.doesNotMatch(all,/MFRA|218906025|OS-00096|25\.740/);
+  }
  }
- console.log('PASS siete modelos: campos completos, sin datos heredados, tablas de tres filas');
+ console.log('PASS modelos fijos: campos completos, sin datos heredados y tablas según el documento');
+ const {POST:paymentRoute}=require('../src/app/api/fixed-documents/route.ts');
+ const paymentAcquisition={...adq,solicitud_inicio_de_nombre:'Ana Vargas',solicitud_inicio_de_cargo:'Apoyo a Gerencia'};
+ const payment=seedFixedDraft(8,paymentAcquisition);
+ assert.match(payment.fields.destinatario,/JULIO ENRIQUE DAVILA PELAEZ/);
+ goResponse=JSON.stringify({changes:{nit:'123456789',cuerpo:'Solicito tramitar el pago de la factura 227.'},itemChanges:[]});
+ const paymentForm=new FormData();
+ paymentForm.set('request',JSON.stringify({action:'revise',editorOnly:true,number:8,adquisicion:paymentAcquisition,draft:payment}));
+ paymentForm.append('attachments',new Blob(['Nota de petición de pago. NIT 123456789. Factura 227.'],{type:'text/plain'}),'nota.txt');
+ const paymentResponse=await paymentRoute(new Request('http://local/api/fixed-documents',{method:'POST',body:paymentForm}));
+ const paymentResult=await paymentResponse.json();
+ assert.equal(paymentResponse.status,200,paymentResult.error);
+ assert.equal(paymentResult.draft.fields.nit,'123456789');
+ assert.match(paymentResult.editableHtml,/data-fixed-field="cuerpo"/);
+ assert.match(JSON.stringify(goMessages),/Factura 227/);
+ goCalls=0;
  const d=seedFixedDraft(3,adq);assert.equal(d.items.length,0,'Los bienes solicitados no son ofertas recibidas');
  assert.equal(d.fields.presupuesto,undefined);assert.match(d.fields.recepcion,/No se han incorporado/);
  d.items=[{numero:'1',empresa:'Proveedor',cotizacion:'Oferta documentada',precio:'68.562,00 Bs',respaldo:'Verificación por documentar'}];

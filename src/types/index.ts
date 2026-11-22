@@ -96,7 +96,7 @@ export interface Adquisicion {
   lugar_entrega: string;
   proveedor_adjudicado?: string;
 
-  // Campos específicos de la Plantilla Institucional (PDF ENDE Deoruro)
+  // Campos específicos de la Plantilla Institucional (PDF ENDE DEORURO)
   revision?: string; // ej. "Rev. N° 1"
   mes_anio_documento?: string; // ej. "Mayo - 2026"
   elaborado_por?: string; // ej. "Ing. Tatiana Torres Andrade - Supervisor de Seguridad Industrial"

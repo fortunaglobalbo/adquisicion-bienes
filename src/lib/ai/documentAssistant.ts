@@ -43,7 +43,7 @@ export async function prepareDocument(structure: TemplateStructure, context: str
   }));
 
   const messages = [
-    { role: "system", content: `Eres el redactor técnico oficial de adquisiciones de ENDE Deoruro. Devuelve JSON estricto.
+    { role: "system", content: `Eres el redactor técnico oficial de adquisiciones de ENDE DEORURO. Devuelve JSON estricto.
 Formato:
 {
   "objeto": "texto en mayúsculas",

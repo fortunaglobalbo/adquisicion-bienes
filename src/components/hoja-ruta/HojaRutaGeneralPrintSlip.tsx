@@ -130,7 +130,7 @@ export const HojaRutaGeneralPrintSlip: React.FC<Props> = ({ hojas, onClose }) =>
 
         {/* Pie de página institucional simple */}
         <div className="mt-8 pt-3 border-t border-neutral-300 text-[10px] text-neutral-500 flex justify-between items-center font-mono">
-          <span>ENDE Deoruro S.A. • Control de Correspondencia y Seguimiento</span>
+          <span>ENDE DEORURO S.A. • Control de Correspondencia y Seguimiento</span>
           <span>Formato Oficial F-CC-02 • Papel Tamaño Carta</span>
         </div>
       </div>

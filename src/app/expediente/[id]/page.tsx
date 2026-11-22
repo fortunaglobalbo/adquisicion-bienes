@@ -34,6 +34,7 @@ import { createInitialFolders } from "@/lib/store/initialData";
 import { PURCHASE_REQUEST_FOLDER, TECHNICAL_JUSTIFICATION_MODEL, workflowFolders } from "@/lib/store/folderOrder";
 import {
   Adquisicion,
+  CategoriaAdquisicion,
   Carpeta,
   Documento,
   CampoExtraido,
@@ -59,6 +60,24 @@ export default function ExpedienteDetailPage() {
   const [isManagerOpen, setIsManagerOpen] = useState(false);
 
   const [dbError, setDbError] = useState<string | null>(null);
+  const [savingCategory, setSavingCategory] = useState(false);
+  const [categoryFeedback, setCategoryFeedback] = useState('');
+
+  async function changeCategory(category: CategoriaAdquisicion) {
+    setSavingCategory(true);
+    setCategoryFeedback('');
+    try {
+      const result = await DataStore.updateAdquisicion(id, { categoria: category });
+      if (!result.success) throw Error(result.error || 'No se pudo cambiar la categoría.');
+      setAdquisicion(DataStore.getAdquisicionById(id) || null);
+      const sync = await DataStore.flushPending();
+      setCategoryFeedback(sync.success ? 'Categoría guardada' : 'Categoría guardada en este equipo. Falta sincronizar.');
+    } catch (error) {
+      setCategoryFeedback(error instanceof Error ? error.message : 'No se pudo guardar la categoría.');
+    } finally {
+      setSavingCategory(false);
+    }
+  }
 
   const loadData = async (silent = false) => {
     if (!id) return;
@@ -177,7 +196,17 @@ export default function ExpedienteDetailPage() {
               <span className="text-primary font-bold bg-surface-container-high px-2 py-0.5 rounded">
                 {adquisicion.codigo}
               </span>
-              <span className="text-outline">• {adquisicion.categoria}</span>
+              <label className="flex items-center gap-2">
+                Categoría
+                <select className="rounded border border-outline-variant bg-white px-2 py-1 text-primary"
+                  value={adquisicion.categoria} disabled={savingCategory || assistantBusy}
+                  onChange={event => void changeCategory(event.target.value as CategoriaAdquisicion)}>
+                  {adquisicion.categoria !== 'Bienes' && adquisicion.categoria !== 'Servicios' && <option value={adquisicion.categoria}>{adquisicion.categoria}</option>}
+                  <option value="Bienes">Bienes</option>
+                  <option value="Servicios">Servicios</option>
+                </select>
+              </label>
+              {categoryFeedback && <span role="status">{categoryFeedback}</span>}
             </div>
 
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mt-3 gap-3">
@@ -242,7 +271,9 @@ export default function ExpedienteDetailPage() {
 
             {/* Right 9 Columns: Active Folder Canvas */}
             <div className="col-span-12 lg:col-span-9 bg-surface-container-lowest border border-outline-variant rounded-lg p-6 md:p-8 min-h-[550px] shadow-institutional flex flex-col">
-              {activeFolder && activeFolder.numero >= 1 && activeFolder.numero <= 7 ? (
+              {activeFolder?.numero === 8 ? (
+                <FixedDocumentFolder key={`${adquisicion.id}:8`} adquisicion={adquisicion} carpeta={activeFolder} onSaved={() => void loadData(true)} />
+              ) : activeFolder && activeFolder.numero >= 1 && activeFolder.numero <= 7 ? (
                 <>
                   {activeFolder.numero === 3
                     ? <ComparativeReportPanel key={adquisicion.id} adquisicion={adquisicion} carpetas={safeCarpetas} onSaved={() => void loadData(true)} onBusyChange={setAssistantBusy} />

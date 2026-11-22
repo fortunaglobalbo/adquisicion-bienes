@@ -125,7 +125,7 @@ export default function DashboardPage() {
                 )}
               </div>
               <p className="font-sans text-xs text-on-surface-variant mt-0.5">
-                Distribuidora de Electricidad ENDE Deoruro S.A. • Gestión de Procesos y Expedientes
+                Distribuidora de Electricidad ENDE DEORURO S.A. • Gestión de Procesos y Expedientes
               </p>
             </div>
 

@@ -78,7 +78,7 @@ export const TablaSeguimientoMaster: React.FC<Props> = ({
 
   return (
     <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-sm overflow-hidden flex flex-col h-full min-h-0 min-w-0">
-      {/* Encabezado Oficial ENDE Deoruro */}
+      {/* Encabezado Oficial ENDE DEORURO */}
       <div className="shrink-0 bg-[#001e40] text-white px-5 py-3 flex flex-wrap items-center justify-between gap-3 border-b-2 border-[#feb316]">
         <div className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}

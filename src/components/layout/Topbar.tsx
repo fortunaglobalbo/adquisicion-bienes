@@ -28,7 +28,7 @@ export const Topbar: React.FC<TopbarProps> = ({
         </h2>
         <span className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-mono bg-surface-container-high text-on-surface-variant border border-outline-variant">
           <Database className="w-3 h-3 text-primary" />
-          ENDE Deoruro - Oruro
+          ENDE DEORURO S.A.
         </span>
       </div>
 

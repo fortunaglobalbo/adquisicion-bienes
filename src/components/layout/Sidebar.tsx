@@ -44,7 +44,7 @@ export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
         </Link>
         <div className="mt-2 pl-2">
           <h1 className="font-headline-md text-base font-bold text-primary tracking-tight">
-            ENDE Deoruro S.A.
+            ENDE DEORURO S.A.
           </h1>
           <p className="font-mono text-xs text-on-surface-variant">
             {role === "hoja_ruta" ? "Control Hoja de Ruta" : "Portal de Adquisiciones"}

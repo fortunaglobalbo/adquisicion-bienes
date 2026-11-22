@@ -59,7 +59,7 @@ export const ModuleGate: React.FC<{ children: React.ReactNode }> = ({ children }
         </div>
 
         <h1 className="text-xl font-bold text-neutral-900 dark:text-neutral-100 tracking-tight">
-          ENDE Deoruro S.A.
+          ENDE DEORURO S.A.
         </h1>
         <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1 mb-6">
           Ingrese su código de autorización para acceder a este sistema

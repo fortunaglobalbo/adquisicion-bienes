@@ -37,7 +37,7 @@ export const InstitutionalLogo: React.FC<InstitutionalLogoProps> = ({
       {showText && (
         <div className="hidden xl:flex flex-col">
           <span className="font-headline-md text-xs font-bold text-primary tracking-wider uppercase leading-none">
-            ENDE Deoruro S.A.
+            ENDE DEORURO S.A.
           </span>
           <span className="font-mono text-[10px] text-on-surface-variant leading-tight">
             Distribuidora de Electricidad

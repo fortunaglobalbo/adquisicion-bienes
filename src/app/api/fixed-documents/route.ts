@@ -62,7 +62,9 @@ export async function POST(req: NextRequest) {
     if (["complete", "analyze", "revise"].includes(body.action)) {
       const attachmentSignal=AbortSignal.any([req.signal,AbortSignal.timeout(30_000)]);
       const images: string[] = [];
+      let hasAttachment = false;
       for await (const file of readPurchaseAttachments(form,adq.id,attachmentSignal)) {
+        hasAttachment = true;
         const buffer = Buffer.from(await file.arrayBuffer());
         if (/\.(png|jpg|jpeg|webp)$/i.test(file.name)) {
           if(images.length>=MAX_VISION_IMAGES)throw Error(`La lectura admite hasta ${MAX_VISION_IMAGES} fotos o páginas escaneadas. Divide los antecedentes en dos lecturas.`);
@@ -76,6 +78,10 @@ export async function POST(req: NextRequest) {
         if (context.length > 60000) throw Error("Los antecedentes son demasiado extensos. Adjunta solo la información de esta compra.");
       }
       attachmentSignal.throwIfAborted();
+      if (number === 8 && body.action === 'revise') {
+        if (!hasAttachment) throw Error('Adjunta la nota de petición de pago.');
+        context = 'Completa la solicitud de pago con los hechos que consten en la nota adjunta.\n' + context;
+      }
       if(images.reduce((total,url)=>total+url.length,0)>12*1024*1024) throw Error('Las imágenes preparadas son demasiado grandes para una lectura completa. Divide los antecedentes en consultas más pequeñas.');
       if (body.action === 'analyze') {
         if (body.stream === true) return purchaseReadingStream(adq,context,images,req.signal);

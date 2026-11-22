@@ -210,7 +210,7 @@ export const HojaRutaPrintSlip: React.FC<Props> = ({ hoja, onClose }) => {
 
         {/* Pie de página oficial */}
         <div className="mt-6 pt-3 border-t border-dashed border-neutral-300 text-[10px] text-neutral-500 flex justify-between items-center font-mono">
-          <span>Sistema Integrado de Adquisiciones y Contrataciones • ENDE Deoruro S.A.</span>
+          <span>Sistema Integrado de Adquisiciones y Contrataciones • ENDE DEORURO S.A.</span>
           <span>Impresión Formato Carta • {new Date().toLocaleDateString("es-BO")}</span>
           <span>Formato Oficial F-HR-01</span>
         </div>

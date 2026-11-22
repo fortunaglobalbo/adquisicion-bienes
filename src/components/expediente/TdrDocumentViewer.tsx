@@ -402,7 +402,7 @@ export const TdrDocumentViewer: React.FC<TdrDocumentViewerProps> = ({
   ];
   const incluirFoto = incluirFotoEnItems;
 
-  // 14 Puntos Oficiales de ENDE Deoruro S.A.
+  // 14 Puntos Oficiales de ENDE DEORURO S.A.
   const isSaludDomain = ((docData.categoria as any) === "Salud Ocupacional") || docData.titulo_proceso.toLowerCase().includes("oftalmo") || docData.titulo_proceso.toLowerCase().includes("laboratorio");
 
   const getDocPointContent = (num: number): string | undefined => {

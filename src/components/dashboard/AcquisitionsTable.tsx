@@ -236,7 +236,7 @@ export const AcquisitionsTable: React.FC<AcquisitionsTableProps> = ({
         <div className="p-3.5 border-t border-outline-variant flex justify-between items-center bg-surface-container-lowest rounded-b-lg font-mono text-xs text-on-surface-variant">
           <span>Mostrando {filtered.length} expedientes</span>
           <div className="flex items-center gap-2">
-            <span className="text-[11px] text-outline">Distribuidora de Electricidad ENDE Deoruro S.A.</span>
+            <span className="text-[11px] text-outline">Distribuidora de Electricidad ENDE DEORURO S.A.</span>
           </div>
         </div>
       </div>

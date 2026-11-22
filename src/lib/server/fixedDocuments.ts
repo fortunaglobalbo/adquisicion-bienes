@@ -15,7 +15,7 @@ import { extractDocumentEvidence, verifiedQuotes } from './documentEvidence';
 import { fixedDocumentPrompt } from './fixedDocumentPrompt';
 
 import { isInstitutionalRole, officialPeople, officialPeopleKeys } from "../docx/officialPeople";
-import { fillDossierPeople } from '../docx/dossierPeople';
+import { fillDossierPeople, memoPeople } from '../docx/dossierPeople';
 import { applySelection, assertPlan } from '../procurement/selection';
 import { addSelectionTables } from './selectionWord';
 import { administrativeDefaults, fillAdministrativeBlanks } from '../docx/administrativeDefaults';
@@ -66,6 +66,26 @@ export function seedFixedDraft(number: number, adq: Adquisicion): FixedDraft {
       cuerpo:`Solicito considerar el inicio del proceso «${scope}» y disponer la revisión de sus antecedentes y requisitos para continuar el trámite correspondiente.`,
       anexos:'1. Formulario S1-N014.\n2. Informe técnico de justificación.\n3. Especificaciones técnicas o términos de referencia.\n4. Cotizaciones de referencia o previsión de precio, cuando corresponda.',
     } : {}),
+    ...(number === 8 ? (() => {
+      const payment = memoPeople(adq);
+      const combine = (name: string, role: string) => [name, role].filter(Boolean).join(' - ');
+      const supplier = adq.memo_pago_proveedor || adq.proveedor_adjudicado;
+      const concept = (adq.memo_pago_objeto || scope).replace(/^SOLICITUD DE PAGO\s*/i, '');
+      return {
+        fecha: adq.memo_pago_fecha || reportDate,
+        referencia: adq.memo_pago_cite || '',
+        solicitante: combine(payment.memo_pago_de_nombre, payment.memo_pago_de_cargo),
+        destinatario: combine(payment.memo_pago_a_nombre, payment.memo_pago_a_cargo),
+        objeto: concept,
+        cuerpo: adq.memo_pago_conformidad_texto || [
+          `Solicito tramitar el pago correspondiente a «${concept}»${supplier ? ` a favor de ${supplier}` : ''}.`,
+          adq.memo_pago_nro_factura ? `Factura N.º ${adq.memo_pago_nro_factura}.` : '',
+        ].filter(Boolean).join(' '),
+        liquidacion: adq.memo_pago_monto_total && adq.memo_pago_monto_total > 0
+          ? `Importe registrado: ${new Intl.NumberFormat('es-BO', { style: 'currency', currency: 'BOB' }).format(adq.memo_pago_monto_total)}${adq.memo_pago_monto_literal ? ` (${adq.memo_pago_monto_literal})` : ''}.`
+          : '',
+      };
+    })() : {}),
     ...(number === 9 ? {
       fecha:reportDate, solicitante:people.solicitante || applicant,
       antecedentes:adq.antecedentes_texto || `La unidad solicitante presenta el requerimiento «${scope}». El presente informe documenta su necesidad y el alcance técnico previsto.`,
@@ -113,7 +133,8 @@ export function validateFixedDraft(model: FixedModel, draft: FixedDraft) {
 export function normalizeFixedDraft(model: FixedModel, draft: FixedDraft, adq?: Adquisicion): FixedDraft {
   draft = upgradeFixedDraft(model.number, draft);
   validateFixedDraft(model, draft);
-  const result: FixedDraft = { ...draft, fields: { ...draft.fields }, items: draft.items.map((r, i) => ({ ...r, numero: String(i + 1) })) };
+  const institutionalName = (value: string) => value.replace(/ENDE DEORURO S\.A\./gi, 'ENDE DEORURO S.A.');
+  const result: FixedDraft = { ...draft, fields: Object.fromEntries(Object.entries(draft.fields).map(([key, value]) => [key, institutionalName(value)])), items: draft.items.map((r, i) => ({ ...r, numero: String(i + 1) })) };
   if(model.number===1)result.fields.objeto=repairAutomaticPurchaseTitle(result.fields.objeto,{title:adq?.titulo_proceso||result.fields.objeto,category:adq?.categoria,items:result.items.length?result.items.map(item=>({descripcion:item.descripcion||''})):adq?.items||[]},result.editedFields?.includes('objeto'));
   return adq ? fillDossierPeople(model.number,result,adq) : result;
 }

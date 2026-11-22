@@ -5,6 +5,7 @@ import { isInstitutionalRole, officialPeopleKeys } from './officialPeople';
 
 type Person = { name: string; role: string };
 const finance = 'SUPERINTENDENCIA DE ADMINISTRACIÓN & FINANZAS';
+const financeName = 'JULIO ENRIQUE DAVILA PELAEZ';
 const manager = 'GERENTE GENERAL';
 // Detect names inserted by older templates. They cannot designate an official.
 const reportPeopleDefaults: Record<number,Record<string,string>> = {
@@ -116,7 +117,10 @@ export function dossierPersonFields(number:number, fields:Record<string,string>,
       const roles=new Set(matches.map(p=>keyRole(p.role)));
       person={...current,role:current.role || (roles.size===1 ? matches[0].role : '')};
     } else {
-      person=(!current.role && saved) || unique(byRole) || (!role && requester ? directory.requester : undefined);
+      person=(!current.role && saved) || unique(byRole) || (!current.role && requester ? directory.requester : undefined);
+      if (!person && byRole.length === 0 && (adq.empresa_id || 'ende') === 'ende' && keyRole(role) === keyRole(finance)) {
+        person = {name: financeName, role};
+      }
     }
     if(!person) {
       if(role && !explicit) result[key]=number===2 && key==='solicitante'?'[PENDIENTE]':([3,5,6,9].includes(number)?'\n':'')+role;

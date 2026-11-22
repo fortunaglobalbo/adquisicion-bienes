@@ -524,7 +524,7 @@
     ],
     "columns": [],
     "source": "SOLICITUD DE INICIO DE PROCESO.docx",
-    "sha256": "23c1a161c8d4cb633a281e9cc494f943c85a8a757582792c8eb5de4411bceeae"
+    "sha256": "59cafc45cc3ede7077ecbbbfdacb618c65d9e3ca512e8876f205bd079a61daad"
   },
   {
     "number": 6,
@@ -801,5 +801,88 @@
       }
     ],
     "sha256": "2450cd12fa52bc1a5bb1ae114929358e43f90036a962e9d5757f576a9784e877"
+  },
+  {
+    "number": 8,
+    "title": "Solicitud de pago",
+    "file": "08.docx",
+    "version": "2026-11-22.1",
+    "sha256": "131035c8a11cf124c1f0e09369aa52a1e72169072eae6e512eb6625dcb874ada",
+    "source": "SOLICITUD DE PAGO NFR.docx",
+    "fields": [
+      {
+        "key": "fecha",
+        "label": "Fecha de la solicitud",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "referencia",
+        "label": "Número o CITE",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "solicitante",
+        "label": "Remitente y cargo",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "destinatario",
+        "label": "Destinatario y cargo",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "objeto",
+        "label": "Objeto del pago",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "cuerpo",
+        "label": "Solicitud y datos de factura y orden",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "nit",
+        "label": "NIT del proveedor",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "fecha_factura",
+        "label": "Fecha de emisión de factura",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "informe",
+        "label": "Informe técnico de respaldo",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "conclusion",
+        "label": "Fecha de conclusión o entrega",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "observaciones",
+        "label": "Observaciones y penalidades documentadas",
+        "normative": false,
+        "hint": ""
+      },
+      {
+        "key": "liquidacion",
+        "label": "Importe y solicitud de desembolso",
+        "normative": false,
+        "hint": ""
+      }
+    ],
+    "columns": []
   }
 ]

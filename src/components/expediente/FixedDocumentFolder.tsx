@@ -222,17 +222,24 @@ export function FixedDocumentFolder({ adquisicion, carpeta, modelNumber=carpeta.
           <Download size={16} />Descargar Word
         </button>
         <button className={action} aria-expanded={aiEdit} onClick={() => setAiEdit(v => !v)}>
-          <Sparkles size={16} />Completar o corregir con IA
+          <Sparkles size={16} />{model.number === 8 ? 'Subir nota de petición de pago' : 'Completar o corregir con IA'}
         </button>
-        {model.number>4&&(adquisicion.asistente_compra?.confirmedAt||adquisicion.asistente_compra?.preparedAt)&&<button className={action} onClick={()=>refresh('complete')}>Redactar con los datos de esta compra</button>}
+        {model.number>4&&model.number!==8&&(adquisicion.asistente_compra?.confirmedAt||adquisicion.asistente_compra?.preparedAt)&&<button className={action} onClick={()=>refresh('complete')}>Redactar con los datos de esta compra</button>}
         {model.number===6 && (adquisicion.quote_evaluation?.quotes.length || adquisicion.comparative_report) ? <button className={action} onClick={()=>refresh('refresh-evaluation')}>Actualizar cuadro y conclusiones desde cotizaciones</button> : null}
       </div>
       {evaluationChanged && <p role="status" className="text-sm text-amber-800">Las cotizaciones cambiaron. Puedes actualizar el cuadro y las conclusiones.</p>}
+      {model.number === 8 && carpeta.documentos.filter(document => document.ruta_storage && !fixedDocumentBelongsToModel(8, document)).map(document =>
+        <a key={document.id} className="block w-fit text-sm text-primary underline"
+          href={`/api/files?path=${encodeURIComponent(document.ruta_storage!)}`}>{document.nombre_original}</a>
+      )}
       {aiEdit && <div className="rounded-xl border border-slate-300 p-4 space-y-4 bg-slate-50">
         {clarification && <div role="status" className="rounded-lg border border-blue-200 bg-blue-50 p-3"><p className="font-semibold">{clarification}</p><p className="text-sm mt-1">Responde abajo; conservaré tu petición anterior. El documento sigue igual.</p></div>}
         <label className="block space-y-2"><span className="font-semibold">Describe lo que necesitas o los datos que cambian</span><textarea className={control} rows={4} value={context} onChange={e => {setContext(e.target.value);setDirty(true);}} placeholder="Ejemplo: cambia la entrega a 45 días, pon a María Pérez como responsable y cambia la cantidad del ítem 2 a 20 pares." /></label>
-        <label className="block space-y-2"><span>Antecedentes de esta compra (opcional)</span><input className={control} type="file" multiple accept=".pdf,.docx,.txt,.jpg,.jpeg,.png,.webp" onChange={e => { const selected = Array.from(e.target.files || []); setFiles(selected); setError(validateAttachmentSelection(selected) || ''); }} /><span className="text-sm text-slate-600">{ATTACHMENT_HELP_TEXT} </span></label>
-        <button className={action} onClick={() => refresh(context.trim() || pendingInstruction ? "revise" : "complete")}><Sparkles size={16} />{clarification ? "Responder al asistente" : "Aplicar cambios con IA"}</button>
+        <label className="block space-y-2"><span>{model.number === 8 ? 'Nota de petición de pago (Word, PDF o foto)' : 'Antecedentes de esta compra (opcional)'}</span><input className={control} type="file" multiple accept=".pdf,.docx,.txt,.jpg,.jpeg,.png,.webp" onChange={e => { const selected = Array.from(e.target.files || []); setFiles(selected); setError(validateAttachmentSelection(selected) || ''); }} /><span className="text-sm text-slate-600">{ATTACHMENT_HELP_TEXT} </span></label>
+        <button className={action} disabled={model.number === 8 && (!draft || !files.length || !!validateAttachmentSelection(files))}
+          onClick={() => refresh(model.number === 8 || context.trim() || pendingInstruction ? "revise" : "complete")}>
+          <Sparkles size={16} />{clarification ? "Responder al asistente" : model.number === 8 ? 'Leer nota y completar solicitud' : "Aplicar cambios con IA"}
+        </button>
       </div>}
       {draft && model.number !== TECHNICAL_JUSTIFICATION_MODEL && !!officialPeopleKeys[model.number]?.length &&
         <label className="flex w-fit items-center gap-2 text-sm text-slate-700">

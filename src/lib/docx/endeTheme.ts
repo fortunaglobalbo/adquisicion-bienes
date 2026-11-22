@@ -1,4 +1,4 @@
-// Configuración de Estilos y Colores Institucionales ENDE Deoruro para docx v9.6.1
+// Configuración de Estilos y Colores Institucionales ENDE DEORURO para docx v9.6.1
 import { BorderStyle, ITableCellOptions, TableCell, Paragraph, TextRun, AlignmentType, HeadingLevel, ShadingType } from "docx";
 
 export const ENDE_COLORS = {

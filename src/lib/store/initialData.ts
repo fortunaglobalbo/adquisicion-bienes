@@ -10,7 +10,7 @@ export const FOLDER_TEMPLATES: {
     numero: 1,
     nombre: "TDR (Términos de Referencia / Especificaciones)",
     tipo_generacion: "IA",
-    descripcion: "Generación y visualización del documento oficial de Especificaciones Técnicas (idéntico a la plantilla institucional ENDE Deoruro).",
+    descripcion: "Generación y visualización del documento oficial de Especificaciones Técnicas (idéntico a la plantilla institucional ENDE DEORURO).",
   },
   {
     numero: 2,
@@ -50,7 +50,7 @@ export const FOLDER_TEMPLATES: {
   },
   {
     numero: 8,
-    nombre: "Memo Solicitud de Pago",
+    nombre: "Solicitud de pago",
     tipo_generacion: "IA",
     descripcion: "Memorándum oficial de Solicitud de Pago y Conformidad del Servicio/Bien con datos de facturación y bancarios.",
   },
@@ -91,7 +91,7 @@ export const INITIAL_ADQUISICIONES: Adquisicion[] = [
     multa_diaria_porcentaje: 0.25,
     lugar_entrega: "Almacenes ENDE DEORURO S.A., Oruro - Bolivia",
 
-    // Datos oficiales de la Plantilla Institucional ENDE Deoruro (PDF)
+    // Datos oficiales de la Plantilla Institucional ENDE DEORURO (PDF)
     revision: "Rev. N° 1",
     mes_anio_documento: "Mayo - 2026",
     elaborado_por: "Ing. Tatiana Torres Andrade - Supervisor de Seguridad Industrial",
@@ -294,14 +294,14 @@ export const INITIAL_PLANTILLAS: Plantilla[] = [
     fk_carpeta: 1,
     nombre: "TDR - Especificaciones Técnicas (7 Páginas)",
     version: "2.6 (2026)",
-    descripcion: "Formato institucional idéntico al PDF oficial ENDE Deoruro: Portada institucional con firmas y resumen, cabecera de 3 celdas, índice de contenidos, fichas técnicas con características de materiales y cláusulas finales.",
+    descripcion: "Formato institucional idéntico al PDF oficial ENDE DEORURO: Portada institucional con firmas y resumen, cabecera de 3 celdas, índice de contenidos, fichas técnicas con características de materiales y cláusulas finales.",
     fecha_creacion: "2026-01-15",
     secciones: [
       {
         id: "sec-1-1",
         tipo: "PORTADA_COVER",
         titulo: "Página 1: Portada Oficial y Resumen Ejecutivo",
-        subtitulo: "Membrete ENDE Deoruro, Tabla de Control de Cambios y Bloque de 3 Firmas",
+        subtitulo: "Membrete ENDE DEORURO, Tabla de Control de Cambios y Bloque de 3 Firmas",
         activo: true,
         orden: 1,
         descripcion: "Portada institucional con logo, código correlativo, fecha, cuadro de revisión y cuadro resumen con firmas (Elaborado, Revisado, Aprobado).",
@@ -331,7 +331,7 @@ export const INITIAL_PLANTILLAS: Plantilla[] = [
         subtitulo: "Calidad, Método de Selección, Vigencia, Multas, Plazo y Forma de Pago",
         activo: true,
         orden: 4,
-        descripcion: "Cláusulas institucionales obligatorias según el Reglamento de Adquisiciones de ENDE Deoruro S.A.",
+        descripcion: "Cláusulas institucionales obligatorias según el Reglamento de Adquisiciones de ENDE DEORURO S.A.",
       },
     ],
     firmantes_default: [
@@ -490,7 +490,7 @@ export const INITIAL_PLANTILLAS: Plantilla[] = [
         subtitulo: "No. de Nota, Fecha, A, VÍA, DE y OBJETO en mayúsculas",
         activo: true,
         orden: 1,
-        descripcion: "Estructura formal de correspondencia interna institucional de ENDE Deoruro.",
+        descripcion: "Estructura formal de correspondencia interna institucional de ENDE DEORURO.",
       },
       {
         id: "sec-5-2",
@@ -674,7 +674,7 @@ export const INITIAL_PLANTILLAS: Plantilla[] = [
         subtitulo: "CITE, Fecha, A, DE y Objeto de Pago",
         activo: true,
         orden: 1,
-        descripcion: "Datos de membrete oficial ENDE Deoruro S.A. y destinatarios del memorándum.",
+        descripcion: "Datos de membrete oficial ENDE DEORURO S.A. y destinatarios del memorándum.",
       },
       {
         id: "sec-8-2",

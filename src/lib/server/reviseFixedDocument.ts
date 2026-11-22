@@ -47,7 +47,7 @@ Si falta un dato imprescindible (p.ej. qué producto entre dos similares, cantid
 
 async function reviseWithAI(model: FixedModel, current: FixedDraft, request: string, images: string[]): Promise<FixedDraft> {
   let sources = current.sources;
-  if (/norma|reglamento|art[ií]culo|ley|multa|garant[ií]a|categor[ií]a/i.test(request)) {
+  if (model.number !== 8 && /norma|reglamento|art[ií]culo|ley|multa|garant[ií]a|categor[ií]a/i.test(request)) {
     try {
       const found = await AnythingLlmClient.searchWorkspaceSources(request.slice(0,2000), companyKnowledge(current.companyId).workspace, 3);
       sources = [...current.sources];
@@ -59,7 +59,8 @@ async function reviseWithAI(model: FixedModel, current: FixedDraft, request: str
   for (let attempt=0; attempt<2; attempt++) {
     try {
       const raw = await callOpenCodeGo([
-        {role:'system',content:editPrompt},
+        {role:'system',content:model.number === 8 ? editPrompt + `
+Para el modelo 8 usa la nota como evidencia de factura, identificación del proveedor, orden, informe, fechas e importes. Conserva remitente y destinatario institucionales salvo corrección expresa del usuario. El CITE de la solicitud interna es distinto del de la nota del proveedor. Registra penalidades e importe líquido solo si constan expresamente. No calcules deducciones ni inventes conformidad, firma o aprobación. Deja sin cambiar los datos ausentes y redacta la solicitud con lo comprobado. Si hay cifras incompatibles, deja las cifras de liquidación sin cambiar y describe la diferencia en observaciones.` : editPrompt},
         {role:'user',content:[{type:'text',text:JSON.stringify({...input,correccionDeFormato:feedback || undefined})},...images.map(url=>({type:'image_url' as const,image_url:{url}}))]},
       ],0.1,attempt ? 6500 : 4500,45000,undefined,{strict:true,disableThinking:true});
       let result = extractJsonFromText(raw);

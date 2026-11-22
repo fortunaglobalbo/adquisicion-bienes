@@ -597,7 +597,7 @@ export async function generateTdrDocx(adquisicion: Adquisicion, templateData?: a
                     ],
                   }),
                   ...adquisicion.items.map((it) => {
-                    const carac = it.caracteristicasTecnicas || it.especificacionMinima || "Cumplimiento con especificaciones técnicas requeridas por ENDE Deoruro S.A.";
+                    const carac = it.caracteristicasTecnicas || it.especificacionMinima || "Cumplimiento con especificaciones técnicas requeridas por ENDE DEORURO S.A.";
                     const caracParagraphs = carac
                       .split("\n")
                       .map((line) => line.trim())

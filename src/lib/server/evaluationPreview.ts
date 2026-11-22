@@ -43,7 +43,7 @@ export async function evaluationPreview(buffer: Buffer): Promise<string> {
 export async function institutionalReportPreview(buffer: Buffer, model: number): Promise<string> {
   const zip = await JSZip.loadAsync(buffer);
   const image = [5,9].includes(model) ? zip.file('word/media/image1.png') : null;
-  const logo = image ? `<img class="report-logo" alt="ENDE Deoruro" src="data:image/png;base64,${await image.async('base64')}">` : '';
+  const logo = image ? `<img class="report-logo" alt="ENDE DEORURO" src="data:image/png;base64,${await image.async('base64')}">` : '';
   const {value} = await mammoth.convertToHtml({buffer});
   return `<style>
     .institutional-report{font-family:Tahoma,sans-serif;line-height:1.3}
