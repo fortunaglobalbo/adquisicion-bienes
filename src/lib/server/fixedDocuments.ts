@@ -26,7 +26,7 @@ import { availablePurchaseBrief, obsoletePurchaseMentions, suggestedCurrentPurpo
 import { currentPurchaseTitle, repairAutomaticPurchaseTitle } from '../docx/purchaseTitle';
 import referenceV04 from '../../../templates/ende/normative-v04.json';
 import { keepTdrHeadingsWithBody } from './wordPagination';
-import { completeConformityReport, conformityDefaults } from './conformityReport';
+import { completeConformityReport, conformityDefaults, fillConformityRows } from './conformityReport';
 
 const text = (value: unknown): string => typeof value === "string" ? value.trim() : "";
 const amountCategory = (value:unknown) => /^(?:categor[ií]a\s+)?(?:I{1,3}|especial)\b/i.test(text(value)) ? text(value) : '';
@@ -143,7 +143,9 @@ export function normalizeFixedDraft(model: FixedModel, draft: FixedDraft, adq?: 
 
 export async function renderFixedWord(number: number, input: FixedDraft, adq?: Adquisicion) {
   if(adq) input=completeTdrDraft(number,input,adq);
-  const model = fixedModel(number), draft = normalizeFixedDraft(model, input, adq);
+  const model = fixedModel(number);
+  if (number === 7 && adq) input = fillConformityRows(input, adq);
+  const draft = normalizeFixedDraft(model, input, adq);
   const buffer = await fs.readFile(path.join(process.cwd(), "templates", "ende", model.file));
   if (createHash("sha256").update(buffer).digest("hex") !== model.sha256) throw Error("El modelo cambió sin registrar una nueva versión.");
   const structure = await inspectTemplate(buffer);

@@ -34,7 +34,9 @@ async function main(){
   if(model.columns.length){const found=result.tables.find(t=>t.headers.join('|')===model.columns.map(c=>c.label).join('|'));assert.ok(found);assert.equal(found.rows.length,3);}
   if(model.number===5) {
    assert.match(all,/CENTRAL - PLANTA/);
-   assert.ok(!result.tables.some(t=>[t.headers,...t.rows].flat().some(cell=>cell.includes('CENTRAL - PLANTA'))));
+   assert.match(all,/Cc\. Arch\. \/ Adj\. Lo indicado/);
+   assert.equal(result.tables.length,0);
+   assert.deepEqual((await renderFixedWord(5,{...draft,modelVersion:'2026-09-10.1'})).draft.fields,draft.fields);
   }
   if(model.number===7) {
    assert.equal(result.tables.length,1,'Solo permanece el cuadro de recepción');
@@ -42,6 +44,9 @@ async function main(){
    assert.match(all,/VÍA: Dato de prueba Vía/);
    assert.match(all,/De: Dato de prueba Responsable informante/);
    assert.match(all,/Proceso: COMPRA DE CABLE/);
+   for(const [i,section] of ['ANTECEDENTES','RECEPCIÓN DE BIENES / SERVICIOS','CONCLUSIONES','RECOMENDACIONES'].entries()){
+    assert.ok(all.includes(`${i+1}. ${section}`));
+   }
    assert.equal((await renderFixedWord(7,{...draft,modelVersion:'2026-09-10.1'})).draft.fields.via,draft.fields.via);
   }
   if(model.number===8) {
@@ -86,11 +91,13 @@ async function main(){
  assert.match(conformityResult.draft.fields.conclusiones,/verificar la recepción/);
  assert.equal(conformityResult.draft.fields.antecedentes,'Párrafo manual conservado.');
  assert.equal(conformityResult.draft.fields.numero,'TEST 12/2026');
- assert.deepEqual(conformityResult.draft.items,[],'Los ítems de compra no prueban recepción');
+ assert.deepEqual(conformityResult.draft.items,[{numero:'1',descripcion:'Cable · 4 m',fecha_recepcion:'Sin fecha registrada',observaciones:'Ítem del requerimiento. Recepción por verificar.'}]);
+ assert.match(conformityResult.editableHtml,/Cable · 4 m/);
+ assert.match(conformityResult.editableHtml,/Recepción por verificar/);
  goResponse=JSON.stringify({fields:{conclusiones:'El documento de respaldo registra una recepción parcial.'},
   items:[{descripcion:'Artículos de la nota',fecha_recepcion:'12/11/2026'}]});
  const receiptForm=new FormData();
- receiptForm.set('request',JSON.stringify({action:'complete',editorOnly:true,number:7,adquisicion:adq,draft:conformity}));
+ receiptForm.set('request',JSON.stringify({action:'complete',editorOnly:true,number:7,adquisicion:adq,draft:conformityResult.draft}));
  receiptForm.append('attachments',new Blob(['Nota de recepción parcial de artículos del 12/11/2026.'],{type:'text/plain'}),'nota-recepcion.txt');
  const receiptResponse=await paymentRoute(new Request('http://local/api/fixed-documents',{method:'POST',body:receiptForm}));
  const receiptResult=await receiptResponse.json();
@@ -98,6 +105,7 @@ async function main(){
  assert.equal(receiptResult.generationNotice,undefined);
  assert.equal(receiptResult.draft.items[0].fecha_recepcion,'12/11/2026');
  assert.match(JSON.stringify(goMessages),/recepción parcial de artículos/);
+ assert.match(JSON.stringify(goMessages),/itemsDelRequerimiento/);
  const manualReceipt={...corrected,editedItems:true,items:[{numero:'1',descripcion:'Registro manual',fecha_recepcion:'',observaciones:''}]};
  const completedReceipt=await completeFixedDocument(7,adq,manualReceipt,'Nota de recepción');
  assert.deepEqual(completedReceipt.items,manualReceipt.items);
