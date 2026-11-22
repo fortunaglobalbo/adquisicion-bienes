@@ -1,11 +1,12 @@
 """Build the fixed Word models from retained references; never overwrite originals."""
 from pathlib import Path
+from copy import deepcopy
 from docx import Document
-from docx.shared import Cm, Pt
+from docx.shared import Cm, Pt, Twips
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_TAB_ALIGNMENT, WD_TAB_LEADER
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
-import json, hashlib
+import json, hashlib, sys
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / 'PROCESO DE ADQUISICION'
@@ -116,9 +117,28 @@ for sec in d.sections:
                             word_field(p,'NUMPAGES')
 update=OxmlElement('w:updateFields');update.set(qn('w:val'),'true');d.settings.element.append(update)
 for c,k in zip(d.tables[0].rows[1].cells,['elaborado','revisado','aprobado']): replace_p(c.paragraphs[0],token(k))
-columns=[dict(key=k,label=h.text) for k,h in zip(['numero','descripcion','unidad','cantidad','especificaciones'],d.tables[1].rows[0].cells)]
+specifications = d.tables[1]
+specifications._tbl.tblGrid.append(deepcopy(specifications._tbl.tblGrid.gridCol_lst[-1]))
+for row in specifications.rows:
+    row._tr.append(deepcopy(row._tr.tc_lst[-1]))
+replace_p(specifications.rows[0].cells[-1].paragraphs[0], 'CUMPLE O NO CUMPLE')
+# Fit the six columns inside the section, keeping the institutional header styling.
+section = d.sections[-1]
+text_width = section.page_width.twips - section.left_margin.twips - section.right_margin.twips
+for column, percent in zip(specifications.columns, [7, 24, 10, 12, 31, 16]):
+    width = Twips(round(text_width * percent / 100))
+    column.width = width
+    for cell in column.cells:
+        cell.width = width
+specifications.autofit = False
+columns=[dict(key=k,label=h.text) for k,h in zip(['numero','descripcion','unidad','cantidad','especificaciones','cumplimiento'],specifications.rows[0].cells)]
 for c,k in zip(d.tables[1].rows[1].cells,[x['key'] for x in columns]): replace_p(c.paragraphs[0],token('items.'+k))
 save(d,1,'Especificaciones técnicas',fields,columns,'1TDR/TDR_ENDE.docx')
+catalog[-1]['version'] = '2026-11-21.1'
+if '--tdr-only' in sys.argv:
+    entries = [catalog[-1] if entry['number'] == 1 else entry for entry in retained_entries]
+    (OUT/'catalog.json').write_text(json.dumps(entries, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    sys.exit(0)
 
 # S1: native editable cells following the supplied Excel's printed layout.
 import runpy

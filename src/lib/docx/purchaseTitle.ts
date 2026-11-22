@@ -18,6 +18,7 @@ const protective = /\b(?:guantes?|arnes(?:es)?|cascos?|barbiquejos?|amortiguador
 export function isGenericPurchaseTitle(value: string): boolean {
   const wording = plain(clean(value)).replace(/[.\s]+$/, '');
   if (!wording || /^\[pendiente[^\]]*\]$/.test(wording)) return true;
+  if (/^pruebas?(?:\s+\d+)?$/.test(wording)) return true;
   return /^(?:(?:adquisicion|compra|provision|suministro|dotacion|contratacion)(?: de| del)?\s+)?(?:(?:los|las)\s+)?(?:bienes|servicios|productos|items|equipos|materiales)(?:\s+(?:detallados|descritos|requeridos|solicitados|indicados|especificados)(?:\s+(?:en (?:el presente|este|el) documento|en las especificaciones tecnicas|en esta compra))?)?$/.test(wording);
 }
 
@@ -62,6 +63,8 @@ export function currentPurchaseTitle(context: PurchaseTitleContext): string {
   if (!items.length) return title || '[PENDIENTE]';
   const services = plain(context.category || '') === 'servicios';
   const action = services ? 'Contratación de ' : 'Adquisición de ';
+  const first = clean(items[0].descripcion);
+  if (items.every(item => plain(clean(item.descripcion)) === plain(first))) return action + itemName(first, 150);
   // A single product should retain its identity; use a shared family only for a
   // collection of products whose descriptions all support that family.
   if (!services && items.length > 1) {

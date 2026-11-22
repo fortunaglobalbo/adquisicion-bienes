@@ -1,8 +1,9 @@
 import { completeTdrDraft } from '../docx/completeTdrDraft';
+import { contractualPenaltyClause, tdrPenaltyProposal } from '../docx/tdrPenalty';
 import fs from "fs/promises";
 import path from "path";
 import { createHash } from "crypto";
-import { fixedModel, FixedDraft, FixedModel, missingValue, upgradeFixedDraft } from "../docx/fixedModels";
+import { fixedModel, FixedDraft, FixedModel, missingValue, newFixedItem, tdrComplianceOptions, upgradeFixedDraft } from "../docx/fixedModels";
 import { inspectTemplate, fillTemplate, DocumentChange, TableChange } from "../docx/templateEditor";
 import { AnythingLlmClient } from "../ai/anythingLlmClient";
 import { callOpenCodeGo } from "../ai/openCodeClient";
@@ -38,9 +39,9 @@ export function seedFixedDraft(number: number, adq: Adquisicion): FixedDraft {
   const values: Record<string, string> = {
     objeto: adq.titulo_proceso, solicitante: adq.responsable_proceso, area: adq.unidad_solicitante,
     lugar: adq.lugar_entrega,
-    elaborado: adq.elaborado_por || (number === 1 ? "Ing. Tatiana Torres Andrade - Supervisor de Seguridad Industrial" : ""),
-    revisado: adq.revisado_por || (number === 1 ? "Lic. Raul Torrico Gomez - Área Administrativa / Financiera" : ""),
-    aprobado: adq.aprobado_por || (number === 1 ? "Lic. Raul Torrico Gomez - Gerencia / Unidades Administrativas" : ""),
+    elaborado: adq.elaborado_por || "",
+    revisado: adq.revisado_por || "",
+    aprobado: adq.aprobado_por || "",
     antecedentes: adq.antecedentes_texto || "", justificacion: adq.justificacion_texto || "",
     plazo: adq.plazo_entrega_dias > 0 ? `${adq.plazo_entrega_dias} días calendario` : "",
     presupuesto: adq.prevision_presupuesto > 0 ? adq.prevision_presupuesto.toFixed(2) : "",
@@ -75,7 +76,7 @@ export function seedFixedDraft(number: number, adq: Adquisicion): FixedDraft {
       ubicacion: adq.lugar_entrega || adq.unidad_solicitante,
       justificacion_operativa: brief?.purpose || missingValue,
       cantidad: item.cantidad > 0 ? String(item.cantidad) : missingValue,
-      especificaciones: item.especificacionMinima || item.caracteristicasTecnicas || missingValue,
+      especificaciones: item.especificacionMinima || item.caracteristicasTecnicas || missingValue, cumplimiento: tdrComplianceOptions,
       precio: item.precioUnitarioEstimado > 0 ? String(item.precioUnitarioEstimado) : missingValue,
       precio_oferta: "", total_oferta: "" } as Record<string, string>)[c.key] ?? missingValue,
   ])));
@@ -143,7 +144,7 @@ export async function renderFixedWord(number: number, input: FixedDraft, adq?: A
     changes.push({ target: p.id, label: "Campo fijo", value: p.text.replace(/\{\{([a-z_]+)\}\}/g, (_m, key) => display(key)), sourceIds: [] });
   }
   if (itemTable) {
-    const rows = draft.items.length ? draft.items : [Object.fromEntries(model.columns.map(c => [c.key, c.key.endsWith("oferta") ? "" : missingValue]))];
+    const rows = draft.items.length ? draft.items : [newFixedItem(model, null, missingValue)];
     tables.push({ target: itemTable.id, label: "Ítems", rows: rows.map(r => model.columns.map(c => /^\[PENDIENTE[^\]]*\]$/.test(r[c.key] || '') ? '________' : r[c.key] || '')) });
   }
   const filled=await fillTemplate(buffer, changes, tables);
@@ -245,6 +246,10 @@ export async function completeFixedDocument(number: number, adq: Adquisicion, cu
     if(f.normative){
       sourceQuotes[f.key]=verifiedQuotes(value,sourceIds[f.key],result.sourceQuotes?.[f.key],sources);
       sourceIds[f.key]=Array.from(new Set(sourceQuotes[f.key].map(q=>q.sourceId)));
+      if (f.key==='multas' && !fieldDecision && !explicitCondition && !adq.multa_diaria_porcentaje &&
+          /\d\s*%/.test(value) && sourceQuotes.multas.some(q=>/multa|penalidad|retraso/i.test(q.quote))) {
+        return [f.key,value];
+      }
       const unsupported = f.key==='calidad' && !explicitCondition && !current.editedFields?.includes(f.key)
         ? unsupportedQualityClaims(value,technicalEvidence+' '+sourceQuotes[f.key].map(q=>q.quote).join(' ')) : [];
       if(unsupported.length) {
@@ -254,7 +259,8 @@ export async function completeFixedDocument(number: number, adq: Adquisicion, cu
         reviewWarnings.push(`Calidad: se retiraron requisitos no aportados (${unsupported.slice(0,4).join(', ')}). Se conserva la cláusula general; adjunta la ficha técnica si deseas exigirlos.`);
       } else if(value && !/PENDIENTE/.test(value) && !sourceIds[f.key].length && !explicitCondition && !isProposal && f.key!=='categoria') reviewWarnings.push(`${f.label}: se sustituyó el texto sin respaldo verificable por la cláusula general del documento de referencia.`);
     }
-    if((decisionKeys.includes(f.key) || (f.key==='multas' && defaults.multas)) && isProposal) proposals[f.key]={value:proposedVal.slice(0,4000),reason:(text(result.proposals?.[f.key]?.reason) || defaults[f.key]?.reason || 'Condición comercial propuesta para revisar.').slice(0,1500)};
+    if(f.key==='multas' && defaults.multas && isProposal) proposals.multas=defaults.multas;
+    else if(decisionKeys.includes(f.key) && isProposal) proposals[f.key]={value:proposedVal.slice(0,4000),reason:(text(result.proposals?.[f.key]?.reason) || defaults[f.key]?.reason || 'Condición comercial propuesta para revisar.').slice(0,1500)};
     if(f.key==='categoria' && number === 2 && !explicitCondition && !fieldDecision) {
       // Calculate only from a complete, positive reference amount; it is a draft classification,
       // not proof of approval or of the company's separate petty-cash threshold.
@@ -289,8 +295,9 @@ export async function completeFixedDocument(number: number, adq: Adquisicion, cu
     }
     return [f.key,value || missingValue];
   }));
-  let items: Record<string,string>[] = model.columns.length ? result.items.map((r: Record<string, unknown>) => Object.fromEntries(model.columns.map(c => [c.key, c.key.endsWith('oferta') ? '' : text(r?.[c.key]) || missingValue]))) : [];
-  if (brief && number===1) items = brief.items.map((item,i)=>Object.fromEntries(model.columns.map(c=>[c.key, ({numero:String(i+1),descripcion:item.descripcion,cantidad:item.cantidad,unidad:item.unidad,especificaciones:technicalBriefSpecification(item),precio:item.precio,precio_oferta:'',total_oferta:''} as Record<string,string>)[c.key] || text(items[i]?.[c.key]) || (c.key.endsWith('oferta')?'':missingValue)])));
+  // Compliance is marked by the bidder or evaluator, never inferred while drafting the requirements.
+  let items: Record<string,string>[] = model.columns.length ? result.items.map((r: Record<string, unknown>) => Object.fromEntries(model.columns.map(c => [c.key, c.key === 'cumplimiento' ? tdrComplianceOptions : c.key.endsWith('oferta') ? '' : text(r?.[c.key]) || missingValue]))) : [];
+  if (brief && number===1) items = brief.items.map((item,i)=>Object.fromEntries(model.columns.map(c=>[c.key, ({numero:String(i+1),descripcion:item.descripcion,cantidad:item.cantidad,unidad:item.unidad,especificaciones:technicalBriefSpecification(item),cumplimiento:tdrComplianceOptions,precio:item.precio,precio_oferta:'',total_oferta:''} as Record<string,string>)[c.key] || text(items[i]?.[c.key]) || (c.key.endsWith('oferta')?'':missingValue)])));
   if(number===6 && (adq.comparative_report || adq.quote_evaluation?.quotes.length)){
     const evaluation=technicalEvaluationData(adq);items=evaluation.items;
     for(const key of ['recepcion','evaluacion','conclusiones','recomendaciones'])fields[key]=evaluation.fields[key];
@@ -377,10 +384,10 @@ function defaultDocumentProposals(number:number,adq:Adquisicion,current:FixedDra
     adjudicacion:{value:'La adjudicación se realizará por ítem, evaluándose y adjudicándose separadamente cada ítem requerido en el presente documento.',reason:'Unidad propuesta para mantener separados los bienes solicitados; puede cambiarse por un lote o paquete definido antes de la convocatoria.'},
     pago:{value:adq.categoria==='Servicios'?'El pago se realizará en Bolivianos, previa conformidad de la ejecución del servicio y presentación de la factura correspondiente, según las condiciones establecidas en el documento contractual.':'El pago se realizará en Bolivianos, previa entrega y recepción a conformidad de los bienes y presentación de la factura correspondiente, según las condiciones establecidas en el documento contractual.',reason:'Condición comercial propuesta para revisar; la forma de pago definitiva debe quedar establecida en el documento contractual.'},
   };
-  if(number===1 && Number.isFinite(adq.multa_diaria_porcentaje) && adq.multa_diaria_porcentaje>0 && !adq.multas_texto)all.multas={
-    value:`En caso de retraso injustificado, se propone una multa del ${adq.multa_diaria_porcentaje}% del monto total del contrato por cada día de retraso, sujeta a aprobación y especificación en el documento contractual.`,
-    reason:'Porcentaje ya registrado en este expediente; se conserva como propuesta para revisar. El reglamento V04 no fija esta tasa.',
-  };
+  if(number===1 && !adq.multas_texto) {
+    const penalty=tdrPenaltyProposal(adq);
+    if(penalty)all.multas=penalty;
+  }
   return Object.fromEntries(Object.entries(all).filter(([key])=>key in current.fields&&!current.confirmedFields?.includes(key)&&!adq.asistente_compra?.decisions?.[key]&&!current.editedFields?.includes(key)));
 }
 
@@ -389,7 +396,7 @@ function generalReferenceClause(number:number,key:string,adq:Adquisicion):string
     ? 'El servicio deberá cumplir el alcance y las características técnicas establecidos en el presente documento. El proveedor presentará la documentación técnica que permita verificar los materiales, equipos y resultados comprometidos, según corresponda a los requisitos solicitados.'
     : 'Los bienes deberán cumplir las características técnicas, cantidades y requisitos funcionales establecidos en el presente documento. La documentación técnica del proveedor deberá permitir verificar las características ofrecidas y su correspondencia con las especificaciones requeridas.';
   if(number===1 && key==='aceptacion')return 'El Área Solicitante y los responsables de recepción que correspondan verificarán el cumplimiento de las cantidades, características técnicas y demás condiciones establecidas. La conformidad se documentará mediante el formulario, acta o informe que corresponda al objeto y categoría de la adquisición. En caso de disconformidad, se elaborará el informe correspondiente para su atención.';
-  if(number===1 && key==='multas')return 'Ante el incumplimiento de los plazos u otras condiciones establecidas para la provisión, se aplicarán las multas debidamente especificadas en el documento contractual. La tasa, base de cálculo y condiciones de aplicación deberán establecerse en dicho documento.';
+  if(number===1 && key==='multas')return contractualPenaltyClause;
   if(number===2 && key==='garantias')return 'El Área Solicitante propondrá las garantías que correspondan según el objeto y las condiciones de esta adquisición, para su definición en el documento contractual conforme al reglamento de referencia.';
   return '';
 }

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import type { Adquisicion, Carpeta } from '@/types';
 import { DataStore } from '@/lib/store/dataStore';
 import { initialBrief } from '@/lib/docx/purchaseBrief';
-import { fixedModel, FixedDraft } from '@/lib/docx/fixedModels';
+import { compatibleFixedDraft, FixedDraft, upgradeFixedDraft } from '@/lib/docx/fixedModels';
 import { applySelection, assertPlan, awardLabels, AwardMode, initialSelection, maintenanceConditions, methodLabels, planFields, SelectionPlan } from '@/lib/procurement/selection';
 
 const input='w-full rounded-lg border border-slate-300 bg-white p-2 text-sm';
@@ -24,11 +24,11 @@ export function SelectionPanel({adquisicion,carpetas,onSaved,disabled=false}:{ad
     const current=DataStore.getAdquisicionById(adquisicion.id)||adquisicion,brief=initialBrief(current);
     const revision=crypto.randomUUID(),prepared={...current.borradores_ia};
     for(const number of [1,2]){
-      const model=fixedModel(number),latest=carpetas.find(c=>c.numero===number)?.documentos.filter(d=>d.metadata?.fixedDraft?.modelVersion===model.version).sort((a,b)=>b.fecha_creacion.localeCompare(a.fecha_creacion))[0];
+      const latest=carpetas.find(c=>c.numero===number)?.documentos.filter(d=>compatibleFixedDraft(number,d.metadata?.fixedDraft)).sort((a,b)=>b.fecha_creacion.localeCompare(a.fecha_creacion))[0];
       let draft:FixedDraft|undefined=prepared[number]?.draft;let time=Date.parse(prepared[number]?.updatedAt||'')||0;
       if(latest&&Date.parse(latest.fecha_creacion)>time){draft=latest.metadata!.fixedDraft;time=Date.parse(latest.fecha_creacion);}
-      try{const recovery=JSON.parse(localStorage.getItem(`fixed-draft:${adquisicion.id}:${number}`)||'null');if(recovery?.draft?.modelVersion===model.version&&recovery.updatedAt>time)draft=recovery.draft;}catch{}
-      if(draft)prepared[number]={draft:applySelection(draft,next,number),updatedAt:next.confirmedAt,briefRevision:revision};
+      try{const recovery=JSON.parse(localStorage.getItem(`fixed-draft:${adquisicion.id}:${number}`)||'null');if(compatibleFixedDraft(number,recovery?.draft)&&recovery.updatedAt>time)draft=recovery.draft;}catch{}
+      if(draft)prepared[number]={draft:applySelection(upgradeFixedDraft(number,draft),next,number),updatedAt:next.confirmedAt,briefRevision:revision};
     }
     const fields=planFields(next,1);
     const result=await DataStore.updateAdquisicion(adquisicion.id,{selection_plan:next,asistente_compra:{...brief,decisions:{...brief.decisions,...fields},revision},borradores_ia:prepared,

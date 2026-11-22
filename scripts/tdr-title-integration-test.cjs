@@ -10,7 +10,49 @@ async function main(){
  const normalized=normalizeFixedDraft(fixedModel(1),draft,adq);assert.equal(normalized.fields.objeto,adq.titulo_proceso);assert.equal(draft.fields.objeto,'Adquisición de los bienes detallados en el presente documento','No modificar la versión guardada');
  const output=await renderFixedWord(1,draft,adq),zip=await JSZip.loadAsync(output.buffer);
  for(const name of ['word/document.xml','word/header1.xml']){const xml=await zip.file(name).async('string');assert.ok(xml.includes(adq.titulo_proceso),name+' usa el mismo título concreto');assert.ok(!xml.includes('los bienes detallados en el presente documento'));}
+ const coverPurchase={...adq,fecha_inicio:'2026-11-01',items:[
+   {descripcion:'Botín dieléctrico',cantidad:100,unidad:'PAR',especificacionMinima:'Uso industrial\nCaña alta'},
+   {descripcion:'Botín dieléctrico',cantidad:150,unidad:'PAR',especificacionMinima:'Uso industrial\nCuero impermeable'},
+ ]};
+ coverPurchase.asistente_compra={preparedAt:'2026-11-01',details:{destino:'Personal administrativo (100 pares) y personal técnico (150 pares)'},items:coverPurchase.items.map(row=>({...row,cantidad:String(row.cantidad)}))};
+ const oldCover=seedFixedDraft(1,coverPurchase);
+ oldCover.fields.resumen='[PENDIENTE]';
+ oldCover.fields.mes_anio='____________';
+ const restored=await renderFixedWord(1,oldCover,coverPurchase);
+ const restoredXml=await (await JSZip.loadAsync(restored.buffer)).file('word/document.xml').async('string');
+ assert.equal(restored.draft.fields.resumen,
+   'Se requieren dos variantes de botín dieléctrico. El ítem 1 comprende 100 pares (caña alta). El ítem 2 comprende 150 pares (cuero impermeable). Los ítems 1 y 2 se destinan, respectivamente, al personal administrativo y al personal técnico.');
+ assert.ok(restoredXml.includes(restored.draft.fields.resumen),'Resumen insertado en la portada del Word');
+ assert.match(restored.draft.fields.mes_anio,/noviembre.*2026/i);
+ assert.equal(oldCover.fields.resumen,'[PENDIENTE]','Se conserva la versión guardada');
+ const changed={...restored.draft,items:restored.draft.items.map((row,i)=>i?row:{...row,cantidad:'95'})};
+ const revisedSummary=(await renderFixedWord(1,changed,coverPurchase)).draft.fields.resumen;
+ assert.match(revisedSummary,/95 pares/);
+ assert.ok(!revisedSummary.includes('100 pares'),'Las cantidades de destinatarios antiguos no pasan al nuevo resumen');
+ changed.fields.resumen='Resumen elegido por la unidad solicitante';
+ changed.editedFields=['resumen'];
+ assert.equal((await renderFixedWord(1,changed,coverPurchase)).draft.fields.resumen,changed.fields.resumen);
  const manual={...draft,fields:{...draft.fields,objeto:'Nombre elegido por el usuario'},editedFields:['objeto']};assert.equal((await renderFixedWord(1,manual,adq)).draft.fields.objeto,manual.fields.objeto);
+ const {completeTdrDraft}=require('../src/lib/docx/completeTdrDraft.ts');
+ const notes=[
+   'ANTECEDENTE DE ESTE EXPEDIENTE (TDR de botines.pdf):','ESPECIFICACIONES TÉCNICAS','Botines para ENDE DEORURO S.A.',
+   'Elaborado Revisado Aprobado','Ing. Ana Sol - Unidad solicitante','Lic. José Paz - Revisor','Ing. Eva Cruz - Gerencia',
+   'RESUMEN','Botines requeridos','7. VIGENCIA DE LA PROPUESTA','Mínimo 15 días desde la apertura.','8. CATEGORÍA','Bienes',
+   '13. FORMA DE PAGO','Contra entrega y presentación de factura.','14. APLICACIÓN DE MULTAS',
+ ].join('\n');
+ const referencePurchase={...coverPurchase,asistente_compra:{...coverPurchase.asistente_compra,notes}};
+ const withReference=completeTdrDraft(1,oldCover,referencePurchase);
+ assert.match(withReference.fields.elaborado,/Ana Sol/);
+ assert.match(withReference.fields.aprobado,/Eva Cruz/);
+ assert.equal(withReference.fields.vigencia,'Mínimo 15 días desde la apertura.');
+ assert.equal(withReference.fields.pago,'Contra entrega y presentación de factura.');
+ for(const unrelated of [notes.replaceAll('Botines','Cables'),notes+'\n'+notes]){
+   const independent=completeTdrDraft(1,oldCover,{...referencePurchase,asistente_compra:{...referencePurchase.asistente_compra,notes:unrelated}});
+   assert.doesNotMatch(independent.fields.aprobado,/Eva Cruz/);
+   assert.notEqual(independent.fields.vigencia,withReference.fields.vigencia);
+ }
+ const keepManual={...withReference,fields:{...withReference.fields,vigencia:'60 días desde recepción'},editedFields:['vigencia']};
+ assert.equal(completeTdrDraft(1,keepManual,referencePurchase).fields.vigencia,keepManual.fields.vigencia);
  const {POST}=require('../src/app/api/fixed-documents/route.ts');const form=new FormData();form.append('request',JSON.stringify({action:'export',number:1,adquisicion:adq,draft}));
  const response=await POST(new Request('http://test/api/fixed-documents',{method:'POST',body:form}));const result=await response.json();assert.equal(response.status,200,result.error);assert.equal(result.draft.fields.objeto,adq.titulo_proceso);assert.ok(result.docx);
  console.log('PASS TDR línea viva: título específico en portada y cabecera, reparación del borrador antiguo al exportar, siete ítems y edición manual conservados sin llamadas IA ni escrituras.');

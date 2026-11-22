@@ -50,6 +50,19 @@ async function main() {
   }
   console.log('PASS siete plantillas: mapping por placeholder, valores repetidos, referencias, logo, celdas combinadas y Word original intacto');
   const model = FIXED_MODELS[0];
+  const previous = seedFixedDraft(1, adq);
+  previous.modelVersion = '2026-09-10.1';
+  previous.editedItems = true;
+  delete previous.items[0].cumplimiento;
+  const upgraded = await renderFixedWord(1, previous);
+  assert.equal(upgraded.draft.items[0].cumplimiento, '☐ Cumple\n☐ No cumple');
+  assert.equal(upgraded.draft.items[0].especificaciones, previous.items[0].especificaciones);
+  upgraded.draft.items[0].cumplimiento = 'No cumple';
+  const evaluated = await renderFixedWord(1, upgraded.draft);
+  const table = (await require('../src/lib/docx/templateEditor.ts').inspectTemplate(evaluated.buffer)).tables.find(t => t.headers.includes('CANTIDAD'));
+  assert.equal(table.headers[5], 'CUMPLE O NO CUMPLE');
+  assert.equal(table.rows[0][5], 'No cumple');
+  assert.equal(previous.items[0].cumplimiento, undefined, 'Conservar el borrador histórico original');
   const unsafe = seedFixedDraft(1, adq);
   unsafe.fields.antecedentes = '<script>alert("inyección")</script>\nTexto & información';
   unsafe.items[0].descripcion = '<img src=x onerror=alert(1)>';

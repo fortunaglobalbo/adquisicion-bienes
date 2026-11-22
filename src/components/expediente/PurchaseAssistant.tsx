@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { UploadCloud } from 'lucide-react';
 import Swal, { type SweetAlertOptions } from 'sweetalert2';
 import type { Adquisicion, Carpeta } from '@/types';
-import { compatibleFixedDraft, fixedDocumentBelongsToModel, fixedModel, FixedDraft } from '@/lib/docx/fixedModels';
+import { compatibleFixedDraft, fixedDocumentBelongsToModel, fixedModel, FixedDraft, tdrComplianceOptions, upgradeFixedDraft } from '@/lib/docx/fixedModels';
 import { comparativeHistoryWithPrevious } from '@/lib/docx/comparativeHistory';
 import { initialBrief, briefProblems, briefUpdates, suggestedCurrentPurpose, PurchaseBrief } from '@/lib/docx/purchaseBrief';
 import { readPurchaseResponse } from '@/lib/ai/purchaseReadingResponse';
@@ -29,7 +29,7 @@ function latestDraft(adq: Adquisicion, carpetas: Carpeta[], number: number): Fix
   let draft = prepared && (!saved || prepared.updatedAt > saved.fecha_creacion) ? prepared.draft : saved?.metadata?.fixedDraft;
   const storedTime = Math.max(Date.parse(prepared?.updatedAt || '') || 0, Date.parse(saved?.fecha_creacion || '') || 0);
   try { const local = JSON.parse(localStorage.getItem(`fixed-draft:${adq.id}:${number}`) || 'null'); if (compatibleFixedDraft(number, local?.draft) && local.draft.companyId === company && local.updatedAt > storedTime) draft = local.draft; } catch {}
-  return draft;
+  return draft ? upgradeFixedDraft(number, draft) : undefined;
 }
 function startingBrief(adq: Adquisicion, carpetas: Carpeta[]): PurchaseBrief {
   const brief = initialBrief(adq); if (adq.asistente_compra) return brief;
@@ -161,7 +161,7 @@ export function PurchaseAssistant({ adquisicion, carpetas, onUpdated, onBusyChan
           const known:Record<string,string> = {objeto:working.titulo_proceso,area:working.unidad_solicitante,solicitante:working.responsable_proceso,lugar:saved.location,justificacion:saved.purpose,antecedentes:working.antecedentes_texto||''};
           const fallback:FixedDraft = previous ? {...previous, fields:{...previous.fields},items:previous.items.map(row=>({...row})),warnings:[...previous.warnings]} : {
             modelVersion:model.version,companyId:working.empresa_id||'ende',fields:Object.fromEntries(model.fields.map(field=>[field.key,known[field.key]?.trim()||'[PENDIENTE]'])),
-            items:!model.columns.length?[]:saved.items.map((item,index)=>Object.fromEntries(model.columns.map(column=>[column.key,({numero:String(index+1),descripcion:item.descripcion,cantidad:item.cantidad,unidad:item.unidad,especificaciones:item.especificaciones,precio:item.precio} as Record<string,string>)[column.key]||'[PENDIENTE]']))),
+            items:!model.columns.length?[]:saved.items.map((item,index)=>Object.fromEntries(model.columns.map(column=>[column.key,({numero:String(index+1),descripcion:item.descripcion,cantidad:item.cantidad,unidad:item.unidad,especificaciones:item.especificaciones,precio:item.precio,cumplimiento:tdrComplianceOptions} as Record<string,string>)[column.key]||'[PENDIENTE]']))),
             sourceIds:{},sources:[],warnings:[],consultedAt:null,normativeStatus:'pending',confirmedFields:[],
           };
           fallback.warnings=Array.from(new Set([...fallback.warnings,'Borrador provisional preparado con los datos disponibles porque la IA no completó la redacción. Revisa los campos marcados [PENDIENTE]; no constituye aprobación ni verificación normativa.']));

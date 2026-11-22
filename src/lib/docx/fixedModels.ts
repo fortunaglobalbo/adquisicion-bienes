@@ -30,16 +30,33 @@ export interface FixedDraft {
   proposals?: Record<string,{value:string;reason:string}>;
 }
 export const missingValue = "[PENDIENTE]";
+export const tdrComplianceOptions = "☐ Cumple\n☐ No cumple";
+
+export function newFixedItem(model: FixedModel, index: number | null, emptyValue = ''): Record<string, string> {
+  return Object.fromEntries(model.columns.map(({key}) => {
+    if (key === 'numero' && index !== null) return [key, String(index + 1)];
+    if (key === 'cumplimiento') return [key, tdrComplianceOptions];
+    return [key, key.endsWith('oferta') ? '' : emptyValue];
+  }));
+}
 
 // This revision changes presentation only; retain every field and manual edit in existing reports.
 export function compatibleFixedDraft(number: number, draft?: FixedDraft): boolean {
   const version = fixedModel(number).version;
-  return !!draft && (draft.modelVersion === version || (number === 6 && version === '2026-09-25.2' && draft.modelVersion === '2026-09-25.1'));
+  return !!draft && (draft.modelVersion === version
+    || (number === 1 && version === '2026-11-21.1' && draft.modelVersion === '2026-09-10.1')
+    || (number === 6 && version === '2026-09-25.2' && draft.modelVersion === '2026-09-25.1'));
 }
 export function fixedDocumentBelongsToModel(number: number, document: Documento): boolean {
   const modelNumber = document.metadata?.fixedModelNumber;
   return Number.isInteger(modelNumber) ? modelNumber === number : compatibleFixedDraft(number, document.metadata?.fixedDraft);
 }
 export function upgradeFixedDraft(number: number, draft: FixedDraft): FixedDraft {
-  return compatibleFixedDraft(number, draft) ? {...draft, modelVersion: fixedModel(number).version} : draft;
+  if (!compatibleFixedDraft(number, draft)) return draft;
+  const upgraded = {...draft, modelVersion: fixedModel(number).version};
+  if (number === 1 && Array.isArray(upgraded.items)) {
+    upgraded.items = upgraded.items.map(row => row && (row.cumplimiento === undefined || row.cumplimiento === '' || row.cumplimiento === missingValue)
+      ? {...row, cumplimiento: tdrComplianceOptions} : row);
+  }
+  return upgraded;
 }

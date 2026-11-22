@@ -28,6 +28,7 @@ function applicantFromTdr(adq: Adquisicion) {
     adq.responsables_oficiales?.['1']?.elaborado,
   ].find(hasAdministrativeValue);
   if (!authored) return {};
+  if (/^Cargo:\s*/i.test(authored)) return {role: authored.replace(/^Cargo:\s*/i, '').trim()};
   const parts = /^(.+?)(?:\r?\n+|\s+[-–—]\s+)([\s\S]+)$/.exec(authored.trim());
   return {
     name: (parts?.[1] || authored).trim(),

@@ -2,7 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { createHash, randomBytes } from 'crypto';
 import mammoth from 'mammoth';
-import type { FixedDraft, FixedModel } from '../docx/fixedModels';
+import { type FixedDraft, type FixedModel, missingValue, newFixedItem } from '../docx/fixedModels';
 import { fillTemplate, inspectTemplate, type DocumentChange, type TableChange } from '../docx/templateEditor';
 import { wordFormPreview } from './wordFormPreview';
 import { evaluationPreview, institutionalReportPreview } from './evaluationPreview';
@@ -74,7 +74,7 @@ export async function editableDocumentPreview(buffer: Buffer, draft: FixedDraft,
   if (itemTable) {
     // An empty row is an editable first item in the view; the client creates it
     // only after the user changes a cell, preserving the empty original draft.
-    const rows = draft.items.length ? draft.items : [Object.fromEntries(model.columns.map(column => [column.key, column.key.endsWith('oferta') ? '' : '[PENDIENTE]']))];
+    const rows = draft.items.length ? draft.items : [newFixedItem(model, 0, missingValue)];
     tables.push({ target: itemTable.id, label: 'Ítems editables', rows: rows.map((row, index) => model.columns.map(column => {
       const value = row[column.key] || '';
       const displayed = pending(value) ? '________' : value;

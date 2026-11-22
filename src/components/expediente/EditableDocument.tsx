@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
-import type { FixedDraft, FixedModel } from '@/lib/docx/fixedModels';
+import { type FixedDraft, type FixedModel, tdrComplianceOptions } from '@/lib/docx/fixedModels';
 import { editableDocumentFragment } from '@/lib/docx/editableDocumentHtml';
 
 export interface EditableDocumentProps {
@@ -114,6 +114,22 @@ export function EditableDocument(props: EditableDocumentProps) {
       const column = model.columns.find(item => item.key === element.dataset.fixedColumn);
       const row = Number(element.dataset.fixedRow ?? element.closest('[data-fixed-row]')?.getAttribute('data-fixed-row'));
       if (!column || !Number.isInteger(row) || row < 0 || row > draft.items.length) return;
+      if (column.key === 'cumplimiento') {
+        let select = element.querySelector('select');
+        if (!select) {
+          select = element.ownerDocument.createElement('select');
+          select.setAttribute('aria-label', `Cumplimiento del ítem ${row + 1}`);
+          select.add(new Option('☐ Cumple / ☐ No cumple', tdrComplianceOptions));
+          for (const result of ['Cumple', 'No cumple']) select.add(new Option(result, result));
+          select.onchange = event => current.current.onItemChange(row, column.key, (event.currentTarget as HTMLSelectElement).value);
+          element.replaceChildren(select);
+        }
+        const value = draft.items[row]?.cumplimiento || tdrComplianceOptions;
+        if (!Array.from(select.options).some(option => option.value === value)) select.add(new Option(value, value));
+        select.value = value;
+        select.disabled = disabled;
+        return;
+      }
       configure(element, `${column.label}, ${[3, 6].includes(model.number) ? 'proveedor' : 'ítem'} ${row + 1}`, draft.items[row]?.[column.key] || '', column.key !== 'numero');
     });
   }, [html, draft, model, disabled]);
@@ -150,8 +166,8 @@ export function EditableDocument(props: EditableDocumentProps) {
           }
         }}
         onFocus={event => {
-          const element = editableTarget(event.target);
-          const value = element?.dataset.fixedRow ?? element?.closest('[data-fixed-row]')?.getAttribute('data-fixed-row');
+          const element = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-fixed-row]') : null;
+          const value = element?.dataset.fixedRow;
           setSelectedRow(value !== null && value !== undefined ? Number(value) : null);
         }}
         onPaste={event => {
@@ -215,6 +231,7 @@ export function EditableDocument(props: EditableDocumentProps) {
       .institutional-document-editor [data-editor-zone="true"]:focus {background:#eff6ff;box-shadow:0 0 0 2px #2563eb;}
       .institutional-document-editor [data-editor-zone="true"]:empty:before {content:attr(data-placeholder);color:#64748b;font-style:italic;font-size:12px;pointer-events:none;}
       .institutional-document-editor [data-editor-choice="true"] {cursor:pointer;border-radius:2px;}
+      .institutional-document-editor [data-fixed-column="cumplimiento"] select {width:100%;min-width:6em;max-width:12em;border:1px solid #94a3b8;border-radius:3px;font:inherit;}
       .institutional-document-editor [data-editor-choice="true"]:focus {outline:2px solid #2563eb;outline-offset:2px;}
       .institutional-document-editor [aria-disabled="true"] {background:transparent;box-shadow:none;}
       @media print {.institutional-document-editor [data-editor-zone="true"] {background:transparent!important;box-shadow:none!important;}.institutional-document-editor [data-editor-zone="true"]:empty:before {content:none;}}

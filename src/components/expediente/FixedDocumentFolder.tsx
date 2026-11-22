@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Download, Loader2, Save, Sparkles, RefreshCw } from "lucide-react";
 import type { Adquisicion, Carpeta, Documento } from "@/types";
-import { fixedModel, FixedDraft, compatibleFixedDraft, upgradeFixedDraft, fixedDocumentBelongsToModel } from "@/lib/docx/fixedModels";
+import { fixedModel, FixedDraft, compatibleFixedDraft, upgradeFixedDraft, fixedDocumentBelongsToModel, newFixedItem } from "@/lib/docx/fixedModels";
 import { DataStore } from "@/lib/store/dataStore";
 import { officialPeople, officialPeopleKeys } from "@/lib/docx/officialPeople";
 import { initialBrief } from '@/lib/docx/purchaseBrief';
@@ -137,7 +137,7 @@ export function FixedDocumentFolder({ adquisicion, carpeta, modelNumber=carpeta.
   function changeItem(row:number,key:string,value:string){
     setDraft(previous=>{
       if(!previous)return previous;
-      const items=previous.items.length?previous.items:[Object.fromEntries(model.columns.map(c=>[c.key,c.key==='numero'?'1':'']))];
+      const items=previous.items.length?previous.items:[newFixedItem(model,0)];
       return {...previous,editedItems:true,items:items.map((item,index)=>index===row?{...item,[key]:value}:item)};
     });
     setDirty(true);setStale(true);setMessage('');
@@ -294,7 +294,7 @@ export function FixedDocumentFolder({ adquisicion, carpeta, modelNumber=carpeta.
       <h3 className="font-semibold text-lg">{edit?'Documento editable':'Vista previa del documento'}</h3>
       {edit&&draft ? editableHtml ? <EditableDocument html={editableHtml} draft={draft} model={model} disabled={busy||assistantBusy}
         onFieldChange={changeField} onItemChange={changeItem}
-        onAddItem={()=>replaceItems([...draft.items,Object.fromEntries(model.columns.map(c=>[c.key,c.key==='numero'?String(draft.items.length+1):'']))])}
+        onAddItem={()=>replaceItems([...draft.items,newFixedItem(model,draft.items.length)])}
         onRemoveItem={row=>replaceItems(draft.items.filter((_,index)=>index!==row))}/>
         : !busy&&<div role="status" className="rounded-lg border p-4">No se cargó el documento editable. <button className={action} onClick={()=>refresh()}>Cargar documento</button></div>
         : pdf ? <iframe title="Vista previa del Word en PDF" src={pdf} className="w-full min-h-[900px] rounded-lg border bg-white" /> : html ? <iframe title="Vista de contenido del Word" sandbox="" srcDoc={documentFrame(html)} className="w-full min-h-[900px] rounded-lg border bg-white" /> : !busy && <div role="status" className="border rounded-lg p-5"><p>No se cargó la vista del documento. Puedes volver a cargarla sin generar con IA.</p><button className={action} onClick={() => refresh()}>Mostrar documento</button></div>}

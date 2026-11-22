@@ -3,7 +3,7 @@
     "number": 1,
     "title": "Especificaciones técnicas",
     "file": "01.docx",
-    "version": "2026-09-10.1",
+    "version": "2026-11-21.1",
     "fields": [
       {
         "key": "objeto",
@@ -146,10 +146,14 @@
       {
         "key": "especificaciones",
         "label": "CARACTERÍSTICAS TÉCNICAS REQUERIDAS"
+      },
+      {
+        "key": "cumplimiento",
+        "label": "CUMPLE O NO CUMPLE"
       }
     ],
     "source": "1TDR/TDR_ENDE.docx",
-    "sha256": "f852d3735d39f5f8fda337cc1561714bf6f51c8bc351dc5ced5522cfa8b19e2c"
+    "sha256": "dcf72ea749b2fe4c307761552f29197bc5d019ae0894b2168de8eb1ec5a4c7cd"
   },
   {
     "number": 2,
