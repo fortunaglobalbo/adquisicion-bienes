@@ -3,8 +3,8 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronRight, Trash2, AlertTriangle, CheckCircle2 } from "lucide-react";
-import { Adquisicion } from "@/types";
+import { ChevronRight, Trash2, AlertTriangle } from "lucide-react";
+import type { Adquisicion, CategoriaAdquisicion } from "@/types";
 import { formatCurrencyBs } from "@/lib/docx/formatters";
 import { Modal } from "../ui/Modal";
 import { EstadoEditable } from '../ui/EstadoEditable';
@@ -14,18 +14,34 @@ import { adquisicionesRecientes } from '@/lib/adquisicionOrder';
 interface AcquisitionsTableProps {
   adquisiciones: Adquisicion[];
   searchTerm?: string;
+  activeGroup: ProcessGroup;
+  onGroupChange: (group: ProcessGroup) => void;
   onAdquisicionDeleted?: (id: string) => void;
   onUpdateEstado: (id:string, estado:string) => Promise<void>;
+}
+
+const processGroups = {
+  compras: { title: "Compras", description: "Bienes y obras", categories: ["Bienes", "Obras"] },
+  servicios: { title: "Servicios", description: "Servicios y consultorías", categories: ["Servicios", "Consultorías"] },
+} satisfies Record<string, { title: string; description: string; categories: CategoriaAdquisicion[] }>;
+
+export type ProcessGroup = keyof typeof processGroups;
+const groupKeys: ProcessGroup[] = ["compras", "servicios"];
+
+export function acquisitionProcessGroup(category: CategoriaAdquisicion): ProcessGroup {
+  return category === "Servicios" || category === "Consultorías" ? "servicios" : "compras";
 }
 
 export const AcquisitionsTable: React.FC<AcquisitionsTableProps> = ({
   adquisiciones,
   searchTerm = "",
+  activeGroup,
+  onGroupChange,
   onAdquisicionDeleted,
   onUpdateEstado,
 }) => {
   const router = useRouter();
-  const [categoriaFilter, setCategoriaFilter] = useState<string>("ALL");
+  const [categoryFilters, setCategoryFilters] = useState<Record<ProcessGroup, string>>({ compras: "ALL", servicios: "ALL" });
   const [estadoFilter, setEstadoFilter] = useState<string>("");
   const [deletingItem, setDeletingItem] = useState<Adquisicion | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -33,20 +49,29 @@ export const AcquisitionsTable: React.FC<AcquisitionsTableProps> = ({
   const safeList = adquisicionesRecientes(Array.isArray(adquisiciones) ? adquisiciones : []);
   const estados=Array.from(new Set([...safeList.filter(Boolean).map(estadoAdquisicion),estadoFilter])).filter(Boolean).sort((a,b)=>a.localeCompare(b,'es'));
 
-  const filtered = safeList.filter((item) => {
-    if (!item) return false;
-    const matchSearch =
-      searchTerm.trim() === "" ||
-      (item.codigo || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.titulo_proceso || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.partida_presupuestaria || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      estadoAdquisicion(item).toLowerCase().includes(searchTerm.toLowerCase());
+  const groups: Record<ProcessGroup, Adquisicion[]> = { compras: [], servicios: [] };
+  for (const item of safeList) {
+    if (!item) continue;
+    groups[acquisitionProcessGroup(item.categoria)].push(item);
+  }
 
-    const matchCategoria = categoriaFilter === "ALL" || item.categoria === categoriaFilter;
+  const search = searchTerm.trim().toLowerCase();
+  const matching = (group: ProcessGroup) => groups[group].filter((item) => {
+    const matchSearch =
+      !search ||
+      (item.codigo || "").toLowerCase().includes(search) ||
+      (item.titulo_proceso || "").toLowerCase().includes(search) ||
+      (item.partida_presupuestaria || "").toLowerCase().includes(search) ||
+      estadoAdquisicion(item).toLowerCase().includes(search);
+
+    const matchCategoria = categoryFilters[group] === "ALL" || item.categoria === categoryFilters[group];
     const matchEstado = estadoFilter === "" || estadoAdquisicion(item) === estadoFilter;
 
     return matchSearch && matchCategoria && matchEstado;
   });
+  const matches = { compras: matching("compras"), servicios: matching("servicios") };
+  const filtered = matches[activeGroup];
+  const group = processGroups[activeGroup];
 
 
   const handleDeleteConfirm = () => {
@@ -62,30 +87,53 @@ export const AcquisitionsTable: React.FC<AcquisitionsTableProps> = ({
 
   return (
     <>
+      <div role="group" aria-label="Tipo de proceso" className="mb-4 grid grid-cols-2 gap-2 sm:gap-3">
+        {groupKeys.map((key) => {
+          const selected = key === activeGroup;
+          const view = processGroups[key];
+          return (
+            <button
+              type="button"
+              key={key}
+              onClick={() => onGroupChange(key)}
+              aria-pressed={selected}
+              aria-controls="lista-procesos"
+              className={`flex min-w-0 items-start justify-between gap-2 rounded-lg border px-3 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 sm:px-4 ${selected ? "border-primary bg-primary text-on-primary" : "border-outline-variant bg-surface-container-lowest text-on-surface hover:border-primary hover:bg-surface-container-low"}`}
+            >
+              <span>
+                <span className="block text-sm font-bold sm:text-base">{view.title}</span>
+                <span className={`block text-xs ${selected ? "text-on-primary" : "text-on-surface-variant"}`}>{view.description}</span>
+              </span>
+              <span className={`rounded px-2 py-0.5 text-xs tabular-nums ${selected ? "bg-white/20" : "bg-surface-container-high"}`}>{matches[key].length}</span>
+            </button>
+          );
+        })}
+      </div>
       <div className="bg-surface-container-lowest border border-outline-variant rounded-lg flex flex-col shadow-institutional">
         {/* Table Header & Filters */}
         <div className="p-4 border-b border-outline-variant flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-surface-bright rounded-t-lg">
           <div>
             <h3 className="font-headline-md text-lg font-bold text-on-surface">
-              Expedientes de Adquisición
+              Expedientes de {group.title.toLowerCase()}
             </h3>
             <p className="font-sans text-xs text-on-surface-variant">
-              {filtered.length} de {adquisiciones.length} procesos listados
+              {filtered.length} de {groups[activeGroup].length} procesos listados
             </p>
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto">
             {/* Categoria Selector */}
             <select
-              value={categoriaFilter}
-              onChange={(e) => setCategoriaFilter(e.target.value)}
+              aria-label="Filtrar expedientes por categoría"
+              value={categoryFilters[activeGroup]}
+              onChange={(event) => {
+                const value = event.target.value;
+                setCategoryFilters((filters) => ({ ...filters, [activeGroup]: value }));
+              }}
               className="border border-outline-variant rounded bg-surface text-on-surface font-mono text-xs py-1.5 px-3 focus:border-primary focus:ring-0 focus:border-b-2"
             >
               <option value="ALL">Categoría: Todas</option>
-              <option value="Bienes">Bienes</option>
-              <option value="Servicios">Servicios</option>
-              <option value="Obras">Obras</option>
-              <option value="Consultorías">Consultorías</option>
+              {group.categories.map((category) => <option key={category} value={category}>{category}</option>)}
             </select>
 
             {/* Estado Selector */}
@@ -103,7 +151,7 @@ export const AcquisitionsTable: React.FC<AcquisitionsTableProps> = ({
 
         {/* Table */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table id="lista-procesos" aria-label={`Expedientes de ${group.title.toLowerCase()}`} className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-outline-variant bg-surface-container-low font-mono text-[11px] text-on-surface-variant uppercase tracking-wider">
                 <th className="p-3.5 font-semibold whitespace-nowrap">Código</th>

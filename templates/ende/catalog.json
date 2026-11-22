@@ -408,7 +408,7 @@
       }
     ],
     "source": "CUADRO COMPARATIVO.docx aportado por el usuario. Se conservan su encabezado, logotipo, formato A6-N014 y estructura; los datos del ejemplo se sustituyen por campos editables.",
-    "sha256": "c26352f876cc00e605f09c644a5a025adea5bc5c43a27f73208b1346a85e245e"
+    "sha256": "11fc7ff3103818a25cef84265c0f8cbd3573fbab973f91600d7554424c934970"
   },
   {
     "number": 4,
@@ -519,8 +519,8 @@
       }
     ],
     "columns": [],
-    "source": "5SOL DE INICIO DE PROCESO/fotografía",
-    "sha256": "ed427916e645df4800511eec4d4321361acc4ad0a5c6d643325d609cffb7d38d"
+    "source": "SOLICITUD DE INICIO DE PROCESO.docx",
+    "sha256": "23c1a161c8d4cb633a281e9cc494f943c85a8a757582792c8eb5de4411bceeae"
   },
   {
     "number": 6,
@@ -624,7 +624,7 @@
       }
     ],
     "source": "Ejemplo aportado: PROCESO ADQUISICIÓN DE CORREAS DE SUJECIÓN Y AMORTIGUADOR DE IMPACTO (PDF). Se conserva el encabezado institucional INFORME DE CONFORMIDAD (CONTRATACIONES), FORMULARIO A6-N014, por indicación del usuario.",
-    "sha256": "ac1f386e71f45c45c45a57d0a75d424aea9f386db042b9a89e7a0bf831e3c250"
+    "sha256": "d6808044ae04efa42ce39d7f8ff52e7a95b6b0e3d9aee463950641e7f34af2ee"
   },
   {
     "number": 7,
@@ -706,6 +706,96 @@
       }
     ],
     "source": "7INFORME DE CONFORMIDAD/105 -INFORME de conformidad trepaderas.docx",
-    "sha256": "cc31381a03d7cdc4b6c3b68c19bdd162b023a455fe4001e89c7cae269c3df414"
+    "sha256": "69835216fcfabe6825af4d06af3324e1ef976e4d29c811011ce8d86d90622725"
+  },
+  {
+    "number": 9,
+    "title": "Informe técnico de justificación",
+    "file": "09.docx",
+    "version": "2026-11-21.1",
+    "source": "INFORME TECNICO.docx",
+    "fields": [
+      {
+        "key": "fecha",
+        "label": "Fecha",
+        "hint": "",
+        "normative": false
+      },
+      {
+        "key": "numero",
+        "label": "Número / referencia del informe",
+        "hint": "",
+        "normative": false
+      },
+      {
+        "key": "solicitante",
+        "label": "Responsable informante y cargo",
+        "hint": "",
+        "normative": false
+      },
+      {
+        "key": "destinatario",
+        "label": "Destinatario y cargo",
+        "hint": "",
+        "normative": false
+      },
+      {
+        "key": "objeto",
+        "label": "Asunto",
+        "hint": "",
+        "normative": false
+      },
+      {
+        "key": "antecedentes",
+        "label": "Antecedentes",
+        "hint": "",
+        "normative": false
+      },
+      {
+        "key": "objetivos",
+        "label": "Objetivos",
+        "hint": "",
+        "normative": false
+      },
+      {
+        "key": "justificacion",
+        "label": "Justificación técnica y normativa",
+        "hint": "",
+        "normative": false
+      },
+      {
+        "key": "conclusiones",
+        "label": "Conclusiones y recomendaciones",
+        "hint": "",
+        "normative": false
+      }
+    ],
+    "columns": [
+      {
+        "key": "numero",
+        "label": "N.º"
+      },
+      {
+        "key": "ubicacion",
+        "label": "ÁREA / UBICACIÓN"
+      },
+      {
+        "key": "especificaciones",
+        "label": "CARACTERÍSTICAS TÉCNICAS"
+      },
+      {
+        "key": "descripcion",
+        "label": "BIEN O SERVICIO"
+      },
+      {
+        "key": "cantidad",
+        "label": "CANTIDAD"
+      },
+      {
+        "key": "justificacion_operativa",
+        "label": "JUSTIFICACIÓN OPERATIVA"
+      }
+    ],
+    "sha256": "2450cd12fa52bc1a5bb1ae114929358e43f90036a962e9d5757f576a9784e877"
   }
 ]

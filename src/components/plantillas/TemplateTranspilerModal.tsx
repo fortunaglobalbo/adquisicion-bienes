@@ -57,10 +57,10 @@ export const TemplateTranspilerModal: React.FC<TemplateTranspilerModalProps> = (
   const carpetasNombres: Record<number, string> = {
     1: "1. TDR (Términos de Referencia)",
     2: "2. Form S1-N014 (Solicitud de Adquisición)",
-    3: "3. Cuadro comparativo",
-    4: "4. Solicitud de Cotización a Empresas",
+    3: "4. Cuadro comparativo",
+    4: "3. Solicitud de Cotización a Empresas",
     5: "5. Solicitud de Inicio de Proceso",
-    6: "6. Form S2-N014 (Solicitud de Cotización)",
+    6: "6. Informe técnico de evaluación",
     7: "7. Informe de Conformidad",
     8: "8. Memo Solicitud de Pago",
   };
@@ -222,7 +222,7 @@ export const TemplateTranspilerModal: React.FC<TemplateTranspilerModalProps> = (
             }}
             className="w-full text-xs p-2.5 rounded-lg border border-outline-variant bg-surface text-on-surface font-bold font-sans"
           >
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
+            {[1, 2, 4, 3, 5, 6, 7, 8].map((num) => (
               <option key={num} value={num}>
                 {carpetasNombres[num]}
               </option>

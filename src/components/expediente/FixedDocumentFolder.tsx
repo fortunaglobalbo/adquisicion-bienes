@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Download, Loader2, Save, Sparkles, RefreshCw } from "lucide-react";
 import type { Adquisicion, Carpeta, Documento } from "@/types";
-import { fixedModel, FixedDraft, compatibleFixedDraft, upgradeFixedDraft } from "@/lib/docx/fixedModels";
+import { fixedModel, FixedDraft, compatibleFixedDraft, upgradeFixedDraft, fixedDocumentBelongsToModel } from "@/lib/docx/fixedModels";
 import { DataStore } from "@/lib/store/dataStore";
 import { officialPeople, officialPeopleKeys } from "@/lib/docx/officialPeople";
 import { initialBrief } from '@/lib/docx/purchaseBrief';
@@ -10,6 +10,7 @@ import { comparativeSnapshot } from '@/lib/procurement/comparativeReport';
 import { EditableDocument } from './EditableDocument';
 import { appendPurchaseAttachments, cleanupPurchaseAttachmentUploads } from '@/lib/uploads/attachmentClient';
 import { ATTACHMENT_HELP_TEXT, validateAttachmentSelection } from '@/lib/uploads/attachmentPolicy';
+import { displayFolderNumber, TECHNICAL_JUSTIFICATION_MODEL } from '@/lib/store/folderOrder';
 
 const control = "w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-900 focus:ring-2 focus:ring-blue-600";
 const action = "inline-flex items-center gap-2 rounded-lg border border-amber-500 bg-amber-400 hover:bg-amber-500 text-slate-950 shadow-sm px-4 py-2 text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer";
@@ -17,16 +18,24 @@ const purchaseSnapshot = (adq: Adquisicion) => JSON.stringify({ title: adq.titul
 function documentFrame(html: string) {
   return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'"><style>body{max-width:760px;margin:0 auto;padding:20px;font:14px Arial;color:#151515;background:white;line-height:1.45}img{display:block;max-width:180px;max-height:100px;width:auto;height:auto;object-fit:contain;margin:0 auto 16px}table{border-collapse:collapse;width:100%;margin:18px 0;table-layout:auto}td,th{border:1px solid #888;padding:7px;overflow-wrap:anywhere}p{white-space:pre-wrap}h1,h2{text-align:center}a{color:inherit}</style></head><body>${html}</body></html>`;
 }
-export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBusy=false }: { adquisicion: Adquisicion; carpeta: Carpeta; onSaved: () => void; assistantBusy?:boolean }) {
-  const model = fixedModel(carpeta.numero);
-  const latest = [...carpeta.documentos].sort((a,b)=>b.fecha_creacion.localeCompare(a.fecha_creacion)).find(d => compatibleFixedDraft(model.number,d.metadata?.fixedDraft));
+export function FixedDocumentFolder({ adquisicion, carpeta, modelNumber=carpeta.numero, onSaved, assistantBusy=false }: { adquisicion: Adquisicion; carpeta: Carpeta; modelNumber?: number; onSaved: () => void; assistantBusy?:boolean }) {
+  const model = fixedModel(modelNumber);
+  const modelDocuments = carpeta.documentos.filter(document => {
+    if (modelNumber !== carpeta.numero) return fixedDocumentBelongsToModel(modelNumber, document);
+    if (carpeta.numero === 5 && fixedDocumentBelongsToModel(TECHNICAL_JUSTIFICATION_MODEL, document)) return false;
+    return !Number.isInteger(document.metadata?.fixedModelNumber) || document.metadata?.fixedModelNumber === modelNumber;
+  });
+  const latest = modelDocuments
+    .filter(document => fixedDocumentBelongsToModel(modelNumber, document) && compatibleFixedDraft(modelNumber, document.metadata?.fixedDraft))
+    .sort((a,b)=>b.fecha_creacion.localeCompare(a.fecha_creacion))[0];
+  const recoveryKey = `fixed-draft:${adquisicion.id}:${modelNumber}`;
   const purchaseChanged = ![1,3].includes(model.number) && ((latest?.metadata?.purchaseSnapshot && latest.metadata.purchaseSnapshot !== purchaseSnapshot(adquisicion)) || (adquisicion.borradores_ia?.[model.number] && adquisicion.borradores_ia[model.number].briefRevision !== adquisicion.asistente_compra?.revision));
   const prepared = adquisicion.borradores_ia?.[model.number];
   const storedInitial = compatibleFixedDraft(model.number,prepared?.draft) && prepared && (!latest || prepared.updatedAt > latest.fecha_creacion) ? prepared.draft : latest?.metadata?.fixedDraft;
   const initial = storedInitial ? upgradeFixedDraft(model.number,storedInitial) : undefined;
   const [recovery] = useState(() => {
     try {
-      const value = JSON.parse(localStorage.getItem(`fixed-draft:${adquisicion.id}:${carpeta.numero}`) || 'null');
+      const value = JSON.parse(localStorage.getItem(recoveryKey) || 'null');
       const storedAt = Math.max(Date.parse(prepared?.updatedAt || '') || 0, Date.parse(latest?.fecha_creacion || '') || 0);
       return compatibleFixedDraft(model.number,value?.draft) && value.draft.companyId === (adquisicion.empresa_id || 'ende') && value.updatedAt > storedAt ? {...value,draft:upgradeFixedDraft(model.number,value.draft)} : null;
     } catch { return null; }
@@ -78,6 +87,14 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
       const result = await (await request(kind,selectedDraft,controller.signal)).json();
       if (!mounted.current || version !== requestVersion.current) return;
       if (result.question) { setClarification(result.question); setPendingInstruction(result.instruction || context); setContext(''); setAiEdit(true); return; }
+      const assigned = result.solicitudNumeroAsignado;
+      if (modelNumber === 2 && typeof assigned === 'string' && assigned === result.draft?.fields.numero) {
+        const current = DataStore.getAdquisicionById(adquisicion.id);
+        if (current && current.solicitud_numero !== assigned && current.solicitud_numero === adquisicion.solicitud_numero) {
+          await DataStore.updateAdquisicion(adquisicion.id, { solicitud_numero: assigned });
+        }
+        if (!mounted.current || version !== requestVersion.current) return;
+      }
       if (kind === 'complete' || kind === 'revise' || kind === 'refresh-evaluation' || kind === 'refresh-comparative') {setUndoDraft(draft);setClarification('');setPendingInstruction('');}
       setDraft(result.draft); setHtml(result.html);setEditableHtml(result.editableHtml||''); setPreviewWarning(result.previewWarning); setStale(false);
       if (pdfUrl.current) URL.revokeObjectURL(pdfUrl.current);
@@ -101,12 +118,12 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
   // Persist the draft locally on edits; server-backed versioning occurs only on explicit Save.
   useEffect(() => {
     if (!dirty || !draft) return;
-    const key = `fixed-draft:${adquisicion.id}:${carpeta.numero}`;
+    const key = recoveryKey;
     try { localStorage.setItem(key, JSON.stringify({ draft, context, updatedAt: Date.now() })); } catch { setMessage("No se pudo guardar la recuperación local. Guarda el borrador antes de salir."); }
-  }, [draft, context, dirty, adquisicion.id, carpeta.numero]);
+  }, [draft, context, dirty, recoveryKey]);
   async function recover() {
     try {
-      const value = JSON.parse(localStorage.getItem(`fixed-draft:${adquisicion.id}:${carpeta.numero}`) || "null");
+      const value = JSON.parse(localStorage.getItem(recoveryKey) || "null");
       if (!compatibleFixedDraft(model.number,value?.draft)) { setMessage("No hay cambios locales de esta versión para recuperar."); return; }
       const recovered=upgradeFixedDraft(model.number,value.draft);
       setDraft(recovered); setContext(value.context || ""); setDirty(true); setStale(true); setEdit(true);
@@ -143,14 +160,16 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
       const blob = new Blob([Uint8Array.from(atob(exported.docx), c => c.charCodeAt(0))], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
       if (JSON.stringify(savedDraft.fields) !== JSON.stringify(draft.fields)) setStale(true);
       setDraft(savedDraft);
-      const fileName = `${adquisicion.codigo}_${model.number}_v${carpeta.documentos.length + 1}.docx`;
+      const fileLabel = modelNumber === TECHNICAL_JUSTIFICATION_MODEL ? 'informe_tecnico' : displayFolderNumber(modelNumber);
+      const version = modelDocuments.length + 1;
+      const fileName = `${adquisicion.codigo}_${fileLabel}_v${version}.docx`;
       if (save) {
         const form = new FormData(); form.append("file", blob, fileName); form.append("adquisicion_id", adquisicion.id);
         const res = await fetch("/api/files", { method: "POST", body: form });
         const data = await res.json(); if (!res.ok) throw Error("No se pudo guardar el Word en el expediente. Tu borrador se conserva; puedes descargarlo e intentar guardar después.");
         const doc: Documento = { id: crypto.randomUUID(), carpeta_id: carpeta.id, adquisicion_id: adquisicion.id, tipo: "GENERADO_DOCX", nombre_original: fileName,
-          ruta_storage: data.path, mime: blob.type, tamano: blob.size, estado: "Borrador", version: carpeta.documentos.length + 1, creado_por: "Operador", fecha_creacion: new Date().toISOString(),
-          contenido_texto: Object.entries(savedDraft.fields).map(([k,v]) => `${k}: ${v}`).join("\n"), metadata: { fixedDraft: savedDraft, templateVersion: model.version, companyId: savedDraft.companyId, purchaseSnapshot: purchaseSnapshot(adquisicion), generatedWith: savedDraft.consultedAt ? "OpenCode GO / edición del usuario" : "Datos del expediente / edición del usuario" } };
+          ruta_storage: data.path, mime: blob.type, tamano: blob.size, estado: "Borrador", version, creado_por: "Operador", fecha_creacion: new Date().toISOString(),
+          contenido_texto: Object.entries(savedDraft.fields).map(([k,v]) => `${k}: ${v}`).join("\n"), metadata: { fixedModelNumber: model.number, fixedDraft: savedDraft, templateVersion: model.version, companyId: savedDraft.companyId, purchaseSnapshot: purchaseSnapshot(adquisicion), generatedWith: savedDraft.consultedAt ? "OpenCode GO / edición del usuario" : "Datos del expediente / edición del usuario" } };
         if (!DataStore.getCarpetasByAdquisicion(adquisicion.id).some(c => c.id === carpeta.id)) throw Error("No se encontró la carpeta para registrar el documento.");
         await DataStore.addDocumentToCarpeta(carpeta.id, doc, false); await DataStore.flushPending();
         if (model.number === 1) {
@@ -190,7 +209,7 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
         await DataStore.flushPending();
         await refresh('preview',savedDraft);
         setDirty(false); setSaveOfficial(false); setEdit(false); setMessage(DataStore.pendingCount() ? "Archivo guardado; el registro tiene cambios pendientes de sincronización." : saveOfficial ? "Documento y responsables oficiales guardados para próximos expedientes." : "Cambios guardados. Esta es la versión actual del documento.");
-        if (!DataStore.pendingCount()) localStorage.removeItem(`fixed-draft:${adquisicion.id}:${carpeta.numero}`);
+        if (!DataStore.pendingCount()) localStorage.removeItem(recoveryKey);
         onSaved();
       } else {
         const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = fileName; a.click(); setTimeout(() => URL.revokeObjectURL(url), 60000);
@@ -235,9 +254,9 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
     {purchaseChanged && <p role="status" className="rounded-lg bg-amber-50 p-3 text-sm">El TDR o los datos de la compra cambiaron desde esta versión. Revisa el objeto y los ítems en «Editar documento» antes de utilizar este documento.</p>}
     <fieldset disabled={busy || assistantBusy} className="space-y-4 min-w-0">
       {!!suggestedKeys.length&&<details className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm"><summary className="cursor-pointer font-semibold">Condiciones sugeridas ya incluidas en el documento</summary><p className="mt-2">Puedes usarlas o cambiarlas en «Editar documento». Son propuestas para esta compra.</p><div className="my-3 space-y-3">{suggestedKeys.map(key=><div key={key}><strong>{model.fields.find(f=>f.key===key)?.label||key}</strong><p className="whitespace-pre-wrap">{draft!.fields[key]}</p><p className="text-slate-600">{draft!.proposals![key].reason}</p></div>)}</div><button className={action} onClick={confirmSuggestions}>Usar estas condiciones para esta compra</button></details>}
-      {model.number===2&&<p className="text-sm text-slate-600">El número se propone desde el código del expediente. Cargo, área y responsable de recepción se completan con los datos oficiales disponibles. Todo se puede editar.</p>}
+      {model.number===2&&<p className="text-sm text-slate-600">La solicitud usa un número correlativo. El nombre y el cargo se completan con los datos del TDR y puedes editarlos en el formulario.</p>}
       {model.number===3&&comparativeChanged&&<div className="rounded-lg bg-amber-50 p-3 text-sm"><p>Las cotizaciones o el requerimiento cambiaron desde esta versión. Tus correcciones manuales se conservarán.</p><button className={action} onClick={()=>refresh('refresh-comparative')}>Actualizar cuadro desde cotizaciones</button></div>}
-      {model.number===6&&<div className="rounded-lg border border-blue-200 bg-blue-50 p-3 space-y-2 text-sm"><p>Informe técnico de evaluación basado en el modelo aportado. Puedes editar libremente los párrafos y el cuadro de proveedores.</p>{evaluationChanged&&<p className="font-semibold">Las cotizaciones cambiaron desde esta versión del informe.</p>}{adquisicion.quote_evaluation?.quotes.length||adquisicion.comparative_report?<button className={action} onClick={()=>refresh('refresh-evaluation')}>Actualizar cuadro y conclusiones desde cotizaciones</button>:<p>Sube las cotizaciones en la carpeta 3 para preparar el cuadro comparativo, o guarda una evaluación de ofertas en la carpeta 4.</p>}</div>}
+      {model.number===6&&<div className="rounded-lg border border-blue-200 bg-blue-50 p-3 space-y-2 text-sm"><p>Informe técnico de evaluación basado en el modelo aportado. Puedes editar libremente los párrafos y el cuadro de proveedores.</p>{evaluationChanged&&<p className="font-semibold">Las cotizaciones cambiaron desde esta versión del informe.</p>}{adquisicion.quote_evaluation?.quotes.length||adquisicion.comparative_report?<button className={action} onClick={()=>refresh('refresh-evaluation')}>Actualizar cuadro y conclusiones desde cotizaciones</button>:<p>Sube las cotizaciones y guarda la comparación en la carpeta {displayFolderNumber(3)} para incorporarlas al informe.</p>}</div>}
       {model.number>4&&(adquisicion.asistente_compra?.confirmedAt||adquisicion.asistente_compra?.preparedAt)&&<button className={action} onClick={()=>refresh('complete')}><Sparkles size={16}/>Redactar con los datos de esta compra</button>}
       <div className="flex flex-wrap gap-2">
         <button className={action} onClick={toggleEditing}>
@@ -259,7 +278,7 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
         <label className="block space-y-2"><span>Antecedentes de esta compra (opcional)</span><input className={control} type="file" multiple accept=".pdf,.docx,.txt,.jpg,.jpeg,.png,.webp" onChange={e => { const selected = Array.from(e.target.files || []); setFiles(selected); setError(validateAttachmentSelection(selected) || ''); }} /><span className="text-sm text-slate-600">{ATTACHMENT_HELP_TEXT} PDF con texto o escaneado. La IA lee las imágenes con visión. No se incorporan a la biblioteca normativa.</span></label>
         <button className={action} onClick={() => refresh(context.trim() || pendingInstruction ? "revise" : "complete")}><Sparkles size={16} />{clarification ? "Responder al asistente" : "Aplicar cambios con IA"}</button>
       </div>}
-      {edit && draft && !!officialPeopleKeys[model.number]?.length && <details className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm">
+      {edit && draft && model.number !== TECHNICAL_JUSTIFICATION_MODEL && !!officialPeopleKeys[model.number]?.length && <details className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm">
           <summary className="cursor-pointer font-semibold">Responsables para próximos expedientes</summary>
           <label className="flex gap-2 items-start"><input type="checkbox" checked={saveOfficial} onChange={e=>setSaveOfficial(e.target.checked)} className="mt-1"/><span className="font-semibold">Usar estos responsables como datos oficiales en próximos expedientes</span></label>
           <p className="mt-2">Se guardan al pulsar «Guardar cambios», para esta empresa y este formulario. Los expedientes anteriores conservan sus datos.</p>
@@ -280,7 +299,7 @@ export function FixedDocumentFolder({ adquisicion, carpeta, onSaved, assistantBu
         : !busy&&<div role="status" className="rounded-lg border p-4">No se cargó el documento editable. <button className={action} onClick={()=>refresh()}>Cargar documento</button></div>
         : pdf ? <iframe title="Vista previa del Word en PDF" src={pdf} className="w-full min-h-[900px] rounded-lg border bg-white" /> : html ? <iframe title="Vista de contenido del Word" sandbox="" srcDoc={documentFrame(html)} className="w-full min-h-[900px] rounded-lg border bg-white" /> : !busy && <div role="status" className="border rounded-lg p-5"><p>No se cargó la vista del documento. Puedes volver a cargarla sin generar con IA.</p><button className={action} onClick={() => refresh()}>Mostrar documento</button></div>}
       {draft && <details className="text-sm border rounded-lg p-3"><summary className="cursor-pointer font-semibold">Fuentes y observaciones</summary><div className="mt-3 space-y-3">{draft.warnings.map((w,i)=><p key={i}>{w}</p>)}{draft.sources.map(s=><div key={s.id}><strong>{s.id} · {s.title}</strong><p>Página {s.page} · versión {s.version}</p><p className="whitespace-pre-wrap mt-1">{s.excerpt}</p></div>)}<p>{draft.consultedAt?`Consulta: ${new Date(draft.consultedAt).toLocaleString('es-BO')}`:'Aún no se han consultado las normas.'}</p></div></details>}
-      <details className="text-sm"><summary className="cursor-pointer">Versiones y recuperación</summary><button className="underline my-3" onClick={recover}>Recuperar últimos cambios de este equipo</button>{carpeta.documentos.filter(d=>d.ruta_storage).map(d=><p key={d.id} className="py-1"><a className="text-primary underline" href={`/api/files?path=${encodeURIComponent(d.ruta_storage!)}`}>{d.nombre_original} · {d.estado}</a></p>)}</details>
+      <details className="text-sm"><summary className="cursor-pointer">Versiones y recuperación</summary><button className="underline my-3" onClick={recover}>Recuperar últimos cambios de este equipo</button>{modelDocuments.filter(d=>d.ruta_storage).map(d=><p key={d.id} className="py-1"><a className="text-primary underline" href={`/api/files?path=${encodeURIComponent(d.ruta_storage!)}`}>{d.nombre_original} · {d.estado}</a></p>)}</details>
     </fieldset>
   </section>;
 }

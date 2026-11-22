@@ -1,15 +1,15 @@
-import { Document, Packer, Paragraph, Table, TableCell, TableLayoutType, TableRow, TextRun, WidthType } from 'docx';
+import { AlignmentType, Document, Footer, Packer, PageNumber, Paragraph, Table, TableCell, TableLayoutType, TableRow, TextRun, WidthType } from 'docx';
 import { evaluateQuotes, methodLabels, QuoteEvaluation } from '../procurement/selection';
 
 export async function evaluationReport(title:string,evaluation:QuoteEvaluation) {
   const {plan,quotes}=evaluation,rows=evaluateQuotes(plan,quotes);
-  const p=(text:string,bold=false)=>new Paragraph({children:[new TextRun({text,bold,font:'Arial',size:20})],spacing:{after:120},keepNext:bold});
+  const p=(text:string,bold=false)=>new Paragraph({children:[new TextRun({text,bold,font:'Tahoma',size:20})],spacing:{after:120},keepNext:bold});
   const table=(data:string[][])=>{
     const widths=data[0].length===6?[1700,1000,800,1300,800,3760]:[3300,1300,4760];
     return new Table({width:{size:9360,type:WidthType.DXA},columnWidths:widths,layout:TableLayoutType.FIXED,
       rows:data.map((cells,i)=>new TableRow({tableHeader:i===0,cantSplit:true,children:cells.map((text,j)=>new TableCell({
         width:{size:widths[j],type:WidthType.DXA},margins:{top:70,bottom:70,left:70,right:70},shading:i===0?{fill:'E8EEF5'}:undefined,
-        children:text.split('\n').map(line=>new Paragraph({children:[new TextRun({text:line,bold:i===0,font:'Arial',size:19})],spacing:{after:70}}))
+        children:text.split('\n').map(line=>new Paragraph({children:[new TextRun({text:line,bold:i===0,font:'Tahoma',size:19})],spacing:{after:70}}))
       }))}))});
   };
   const children:(Paragraph|Table)[]=[p('ENDE DEORURO S.A.',true),p('CUADRO COMPARATIVO DE COTIZACIONES',true),p(title),p(`Método: ${methodLabels[plan.method]}. Reglas confirmadas: ${plan.confirmedAt||'Sin confirmar'}.`),p('Resultado de apoyo a la evaluación. Requiere revisión del responsable; no constituye adjudicación automática.')];
@@ -25,5 +25,9 @@ export async function evaluationReport(title:string,evaluation:QuoteEvaluation) 
     table([['Criterio adicional','Ponderación','Escala fijada'],...plan.criteria.map(c=>[c.label,`${c.weight} %`,c.levels.map(l=>`${l.label}: ${l.score} puntos`).join('\n')])])
   );
   else children.push(p('Se ordenan por menor precio las ofertas revisadas que cumplen los requisitos mínimos. Los empates requieren resolución documentada.'));
-  return Packer.toBuffer(new Document({sections:[{children}]}));
+  const footer = new Footer({children: [new Paragraph({
+    alignment: AlignmentType.RIGHT,
+    children: [new TextRun({font:'Tahoma', children:['Página ', PageNumber.CURRENT, ' de ', PageNumber.TOTAL_PAGES]})],
+  })]});
+  return Packer.toBuffer(new Document({sections:[{children, footers:{default:footer}}]}));
 }

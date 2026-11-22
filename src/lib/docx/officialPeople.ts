@@ -7,6 +7,7 @@ export const officialPeopleKeys: Record<number, string[]> = {
   5: ['destinatario', 'via', 'solicitante'],
   6: ['destinatario', 'via', 'solicitante'],
   7: ['destinatario', 'via', 'solicitante'],
+  9: ['destinatario', 'solicitante'],
 };
 export function officialPeople(number: number, fields: Record<string, string> = {}) {
   return Object.fromEntries((officialPeopleKeys[number] || []).filter(key => typeof fields[key] === 'string' && fields[key].trim() && !/PENDIENTE|_{3,}/i.test(fields[key])).map(key => [key, fields[key].trim()]));

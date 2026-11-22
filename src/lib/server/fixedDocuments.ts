@@ -30,6 +30,11 @@ export function seedFixedDraft(number: number, adq: Adquisicion): FixedDraft {
   const model = fixedModel(number);
   companyKnowledge(adq.empresa_id || "ende");
   const people = officialPeople(number, adq.responsables_oficiales?.[number]);
+  const brief = availablePurchaseBrief(adq);
+  const administrative = [5,9].includes(number) ? administrativeDefaults(adq) : {};
+  const applicant = [administrative.solicitante, administrative.cargo].filter(Boolean).join('\n');
+  const reportDate = new Intl.DateTimeFormat('es-BO', {timeZone:'America/La_Paz', day:'numeric', month:'long', year:'numeric'}).format(new Date());
+  const scope = adq.titulo_proceso;
   const values: Record<string, string> = {
     objeto: adq.titulo_proceso, solicitante: adq.responsable_proceso, area: adq.unidad_solicitante,
     lugar: adq.lugar_entrega,
@@ -51,10 +56,24 @@ export function seedFixedDraft(number: number, adq: Adquisicion): FixedDraft {
     ...(number === 6 ? technicalEvaluationData(adq).fields : {}),
     ...(number === 3 ? comparativeReportData(adq).fields : {}),
     ...(number === 1 ? {objeto:currentPurchaseTitle({title:adq.titulo_proceso,category:adq.categoria,items:availablePurchaseBrief(adq)?.items||adq.items||[]})} : {}),
+    ...(number === 5 ? {
+      fecha:reportDate, solicitante:people.solicitante || applicant,
+      cuerpo:`Solicito considerar el inicio del proceso «${scope}» y disponer la revisión de sus antecedentes y requisitos para continuar el trámite correspondiente.`,
+      anexos:'1. Formulario S1-N014.\n2. Informe técnico de justificación.\n3. Especificaciones técnicas o términos de referencia.\n4. Cotizaciones de referencia o previsión de precio, cuando corresponda.',
+    } : {}),
+    ...(number === 9 ? {
+      fecha:reportDate, solicitante:people.solicitante || applicant,
+      antecedentes:adq.antecedentes_texto || `La unidad solicitante presenta el requerimiento «${scope}». El presente informe documenta su necesidad y el alcance técnico previsto.`,
+      objetivos:brief?.purpose || `Definir el alcance de «${scope}» y las características que permitan atender el requerimiento de la unidad solicitante.`,
+      justificacion:adq.justificacion_texto || brief?.purpose || 'Las características y cantidades del cuadro técnico delimitan el requerimiento para que las propuestas puedan responder a la misma necesidad.',
+      conclusiones:'Se recomienda revisar el requerimiento técnico y sus respaldos para considerar el inicio del trámite de contratación.',
+    } : {}),
   };
   // Receiving a new good is a fact to confirm; previous item quantities are not evidence of receipt.
   const items = number === 3 ? comparativeReportData(adq).items : number === 6 ? technicalEvaluationData(adq).items : number === 7 || !model.columns.length ? [] : (adq.items || []).map((item, i) => Object.fromEntries(model.columns.map(c => [c.key,
     ({ numero: String(i + 1), descripcion: item.descripcion, unidad: item.unidad,
+      ubicacion: adq.lugar_entrega || adq.unidad_solicitante,
+      justificacion_operativa: brief?.purpose || missingValue,
       cantidad: item.cantidad > 0 ? String(item.cantidad) : missingValue,
       especificaciones: item.especificacionMinima || item.caracteristicasTecnicas || missingValue,
       precio: item.precioUnitarioEstimado > 0 ? String(item.precioUnitarioEstimado) : missingValue,
@@ -103,7 +122,7 @@ export async function renderFixedWord(number: number, input: FixedDraft, adq?: A
   const changes: DocumentChange[] = [];
   const tables: TableChange[] = [];
   const referenceFields: Record<string,string> = {};
-  if([3,6].includes(number)) for(const key of ['destinatario','via','solicitante']) {
+  if([3,5,6,9].includes(number)) for(const key of ['destinatario','via','solicitante']) {
     const [name,...role] = (draft.fields[key] || '').split(/\r?\n/);
     referenceFields[`${key}_nombre`] = name;
     referenceFields[`${key}_cargo`] = role.join('\n');

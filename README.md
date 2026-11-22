@@ -32,9 +32,11 @@ En Mis compras y dentro del expediente, el estado admite texto libre y se guarda
 
 ## Informe técnico de evaluación y datos automáticos del S1
 
-La carpeta 3 es el **Cuadro comparativo**, basado directamente en `CUADRO COMPARATIVO.docx` aportado por el usuario. Conserva el logotipo, la cabecera **INFORME DE CONFORMIDAD (CONTRATACIONES), FORMULARIO A6-N014**, fecha y referencia, destinatario, vía, informante con sus cargos y las cinco secciones del Word original. La tabla contiene empresa, cotización/evaluación, precio y respaldo. Se retiraron los proveedores, importes, equipos y referencias a la tercera versión del reglamento del ejemplo; no se reutilizan como hechos de otra compra.
+La carpeta 3 contiene la **Solicitud de cotización**. La carpeta 4 contiene el **Cuadro comparativo**, basado en `CUADRO COMPARATIVO.docx`. Conserva el logotipo, la cabecera **INFORME DE CONFORMIDAD (CONTRATACIONES), FORMULARIO A6-N014**, fecha y referencia, destinatario, vía, informante con sus cargos y las cinco secciones del Word original. La tabla contiene empresa, cotización/evaluación, precio y respaldo. El orden visible conserva los documentos y borradores asociados a cada modelo.
 
-El asistente general prepara un informe provisional en la carpeta 3 sin presumir ofertas recibidas; si ya existe un comparativo, lo conserva. Dentro de esa carpeta se pueden subir las solicitudes y cotizaciones de los proveedores para preparar el informe con sus antecedentes reales. Una invitación a cotizar se distingue de una oferta recibida: no se transforma en precio cero, descalificación o cumplimiento sin respaldo. Los párrafos y celdas siguen editables; los cambios conservan su historial. Este informe documental se distingue del cálculo de evaluación de la carpeta 4.
+El asistente general prepara un informe provisional en la carpeta 4 con las ofertas disponibles. Si ya existe un comparativo, lo conserva. En esa carpeta se pueden subir las solicitudes y cotizaciones de los proveedores para preparar el informe, y abrir «Comparar cotizaciones y calcular resultados» para efectuar la evaluación. Los párrafos y celdas se editan en el documento y los cambios conservan su historial.
+
+En la carpeta 5, las pestañas **Solicitud de inicio de proceso** e **Informe técnico de justificación** ofrecen dos documentos Word con borradores, archivos y versiones independientes.
 
 La plantilla 3 se genera con `scripts/build-comparative-template.py` desde una copia del Word original y se registra como versión `2026-10-20.1`. El constructor general valida y preserva esa plantilla y su catálogo; no vuelve a reconstruir el antiguo cuadro de justificación. Cabecera, pie, imagen, estilos y relaciones se conservan como partes originales del paquete; el contenido y la tabla se completan para cada expediente.
 
@@ -42,7 +44,7 @@ La carpeta 6 utiliza el **Informe técnico de evaluación de ofertas**, reconstr
 
 Cuando existe una comparación guardada en la carpeta 4, el informe incorpora sus ofertas y resultados. Si cambia esa comparación, aparece un aviso y el botón «Actualizar cuadro y conclusiones desde cotizaciones». Las ediciones manuales se conservan durante la redacción con IA; esa actualización explícita sustituye el cuadro y las conclusiones por los datos guardados y se puede deshacer. Una evaluación incompleta, un empate o reglas desactualizadas no producen una recomendación automática de adjudicación.
 
-El S1 propone su número desde el código del expediente (`ENDE-D-2026-066` → `66/2026`); no es un correlativo institucional independiente. Un número escrito por el usuario se conserva y alimenta la referencia del informe. Cargo, área y responsable de recepción se completan con datos confirmados u oficiales disponibles, sin inventar cargos ni asignar automáticamente al solicitante como receptor. Los datos faltantes de expedientes anteriores pueden tomar los valores oficiales guardados, manteniendo los valores propios ya consignados. Todos siguen editables.
+El S1 asigna un correlativo por gestión al preparar la solicitud, mediante el registro de Supabase. Un número institucional previamente guardado se conserva y alimenta la referencia del informe. La aplicación toma el nombre y el cargo del elaborador del TDR, y completa el área y el responsable de recepción con los datos del expediente y los valores oficiales disponibles.
 
 Prueba: `npm run test:evaluation-template` comprueba autollenado y correcciones del S1, datos de ofertas, empates, pendientes, conservación de ediciones y ambos Word.
 
@@ -129,9 +131,9 @@ Cada proceso de adquisición se organiza cronológica y normativamente en **8 ca
 📦 EXPEDIENTE DE ADQUISICIÓN
  ├── 📁 Carpeta 1: TDR (Términos de Referencia / Especificaciones Técnicas) [IA / 7 Páginas Oficiales]
  ├── 📁 Carpeta 2: Form S1-N014 (Solicitud de Adquisición y Partida Presupuestaria) [Documento Respaldatorio]
- ├── 📁 Carpeta 3: Cuadro comparativo e informe técnico (modelo Word institucional) [IA / editable]
- ├── 📁 Carpeta 4: Solicitud de Cotización a Empresas (Proformas, Proveedores y NIT) [Documento Respaldatorio]
- ├── 📁 Carpeta 5: Solicitud de Inicio de Proceso (Autorización y Memorándum Formal) [IA]
+ ├── 📁 Carpeta 3: Solicitud de cotización a empresas [Word editable]
+ ├── 📁 Carpeta 4: Cuadro comparativo y evaluación de cotizaciones [IA / Word editable]
+ ├── 📁 Carpeta 5: Solicitud de inicio e informe técnico de justificación [IA / Word editable]
  ├── 📁 Carpeta 6: Informe técnico de evaluación (formato institucional A6-N014) [IA]
  ├── 📁 Carpeta 7: Informe de Conformidad (Formulario A6-N014 / Comisión de Recepción) [IA]
  └── 📁 Carpeta 8: Memo Solicitud de Pago (Desembolso Financiero y Trámite de Factura) [IA]

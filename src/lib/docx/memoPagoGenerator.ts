@@ -7,6 +7,8 @@ import {
   TableCell,
   WidthType,
   AlignmentType,
+  Footer,
+  PageNumber,
   Packer,
   BorderStyle,
   ImageRun,
@@ -84,7 +86,7 @@ export async function generateMemoPagoDocx(
   }
 
   // Consistent, elegant typography & line spacing
-  const FONT_FAMILY = "Calibri";
+  const FONT_FAMILY = "Tahoma";
   const FONT_TITLE = 26; // 13 pt
   const FONT_HEADER = 24; // 12 pt
   const FONT_BODY = 22; // 11 pt
@@ -403,6 +405,14 @@ export async function generateMemoPagoDocx(
   const doc = new Document({
     sections: [
       {
+        footers: {
+          default: new Footer({ children: [
+            new Paragraph({
+              alignment: AlignmentType.RIGHT,
+              children: [new TextRun({font: FONT_FAMILY, children: ['Página ', PageNumber.CURRENT, ' de ', PageNumber.TOTAL_PAGES]})],
+            }),
+          ] }),
+        },
         properties: {
           page: {
             size: { width: 12240, height: 15840 }, // Tamaño Carta (Letter: 8.5" x 11")

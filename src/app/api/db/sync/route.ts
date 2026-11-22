@@ -18,13 +18,17 @@ export async function GET() {
   try {
     const db = database();
     const tables = ["adquisiciones", "plantillas", "carpetas", "documentos", "logs_proceso"];
-    const results = await Promise.all(tables.map(table => table === 'adquisiciones'
-      ? db.from(table).select('*').order('fecha_creacion', { ascending: false }).limit(10000)
-      : db.from(table).select('*').limit(10000)));
+    const [results, numbers] = await Promise.all([
+      Promise.all(tables.map(table => table === 'adquisiciones'
+        ? db.from(table).select('*').order('fecha_creacion', { ascending: false }).limit(10000)
+        : db.from(table).select('*').limit(10000))),
+      db.from('s1_correlativos').select('adquisicion_id,gestion,correlativo').limit(10000),
+    ]);
     results.forEach(result => check(result.error));
     const [adquisiciones, plantillas, carpetas, documents, logs] = results.map(r => r.data || []);
     const states = documents.filter(d => d.metadata?.kind === stateKind).map(d => d.metadata);
-    return NextResponse.json({ success: true, adquisiciones, plantillas, carpetas,
+    const requestNumbers = new Map((numbers.data || []).map(row => [row.adquisicion_id, `${row.correlativo}/${row.gestion}`]));
+    return NextResponse.json({ success: true, adquisiciones: adquisiciones.map(row => ({ ...row, solicitud_numero: requestNumbers.get(row.id) })), plantillas, carpetas,
       documentos: documents.filter(d => d.metadata?.kind !== stateKind), logs, states });
   } catch (error) { return fail(error instanceof Error ? error.message : "No se pudo cargar la base de datos.", 503); }
 }

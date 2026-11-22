@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { UploadCloud } from 'lucide-react';
 import Swal, { type SweetAlertOptions } from 'sweetalert2';
 import type { Adquisicion, Carpeta } from '@/types';
-import { compatibleFixedDraft, fixedModel, FixedDraft } from '@/lib/docx/fixedModels';
+import { compatibleFixedDraft, fixedDocumentBelongsToModel, fixedModel, FixedDraft } from '@/lib/docx/fixedModels';
 import { comparativeHistoryWithPrevious } from '@/lib/docx/comparativeHistory';
 import { initialBrief, briefProblems, briefUpdates, suggestedCurrentPurpose, PurchaseBrief } from '@/lib/docx/purchaseBrief';
 import { readPurchaseResponse } from '@/lib/ai/purchaseReadingResponse';
@@ -11,17 +11,19 @@ import { DataStore } from '@/lib/store/dataStore';
 import { appendPurchaseAttachments, cleanupPurchaseAttachmentUploads } from '@/lib/uploads/attachmentClient';
 import { completeTdrDraft } from '@/lib/docx/completeTdrDraft';
 import { ATTACHMENT_HELP_TEXT, validateAttachmentSelection } from '@/lib/uploads/attachmentPolicy';
+import { PURCHASE_ASSISTANT_MODELS, storageFolderNumber } from '@/lib/store/folderOrder';
 
-const initialFolders = [1, 2, 3, 4, 5];
+const initialFolders = PURCHASE_ASSISTANT_MODELS;
 const readyMessage = 'Documentos preparados. Edita el texto directamente en cada documento.';
 const cancelledMessage = 'Proceso cancelado. Los archivos y los documentos preparados se conservan.';
 type RetryAction = 'read' | 'prepare' | 'sync' | null;
 type Work = { token: string; controller: AbortController; phase: 'reading' | 'question' | 'generating' | 'sync'; remaining: number[]; reread: boolean };
 
 function latestDraft(adq: Adquisicion, carpetas: Carpeta[], number: number): FixedDraft | undefined {
-  const model = fixedModel(number);
   const company = adq.empresa_id || 'ende';
-  const saved = carpetas.find(folder => folder.numero === number)?.documentos.filter(document => compatibleFixedDraft(number, document.metadata?.fixedDraft) && document.metadata?.fixedDraft?.companyId === company).sort((a,b) => b.fecha_creacion.localeCompare(a.fecha_creacion))[0];
+  const saved = carpetas.find(folder => folder.numero === storageFolderNumber(number))?.documentos
+    .filter(document => fixedDocumentBelongsToModel(number, document) && compatibleFixedDraft(number, document.metadata?.fixedDraft) && document.metadata?.fixedDraft?.companyId === company)
+    .sort((a,b) => b.fecha_creacion.localeCompare(a.fecha_creacion))[0];
   const candidate = adq.borradores_ia?.[number];
   const prepared = compatibleFixedDraft(number, candidate?.draft) && candidate?.draft.companyId === company ? candidate : undefined;
   let draft = prepared && (!saved || prepared.updatedAt > saved.fecha_creacion) ? prepared.draft : saved?.metadata?.fixedDraft;
@@ -148,7 +150,7 @@ export function PurchaseAssistant({ adquisicion, carpetas, onUpdated, onBusyChan
       if (number === 3 && working.comparative_report) { work.remaining = work.remaining.filter(value => value !== number); continue; }
       try {
         const form = new FormData(); form.append('request', JSON.stringify({ action: 'complete', draftOnly: true, number, adquisicion: working, draft: latestDraft(working, props.carpetas, number), context: '' }));
-        let result: {draft:FixedDraft};
+        let result: {draft:FixedDraft; solicitudNumeroAsignado?: string};
         try {
           const response = await fetch('/api/fixed-documents', { method: 'POST', body: form, signal: work.controller.signal }); const received = await response.json(); checkCurrent(work);
           if (!response.ok || !received?.draft) throw Error('La redacción no se completó.');
@@ -167,8 +169,10 @@ export function PurchaseAssistant({ adquisicion, carpetas, onUpdated, onBusyChan
         }
         result.draft=completeTdrDraft(number,result.draft,working);
         const history = number === 3 ? comparativeHistoryWithPrevious(DataStore.getAdquisicionById(props.adquisicion.id) || working, props.carpetas) : undefined;
-        working = { ...working, ...(history ? { comparative_report_history: history } : {}), borradores_ia: { ...working.borradores_ia, [number]: { draft: result.draft, briefRevision: saved.revision, updatedAt: new Date().toISOString() } } };
-        checkCurrent(work); const storedDraft = await DataStore.updateAdquisicion(props.adquisicion.id, { borradores_ia: working.borradores_ia, ...(history ? { comparative_report_history: history } : {}) }); if (!storedDraft.success) throw Error(storedDraft.error || 'No se pudo conservar el borrador.');
+        const solicitud = number === 2 && result.solicitudNumeroAsignado === result.draft.fields.numero && result.solicitudNumeroAsignado
+          ? { solicitud_numero: result.solicitudNumeroAsignado } : {};
+        working = { ...working, ...solicitud, ...(history ? { comparative_report_history: history } : {}), borradores_ia: { ...working.borradores_ia, [number]: { draft: result.draft, briefRevision: saved.revision, updatedAt: new Date().toISOString() } } };
+        checkCurrent(work); const storedDraft = await DataStore.updateAdquisicion(props.adquisicion.id, { ...solicitud, borradores_ia: working.borradores_ia, ...(history ? { comparative_report_history: history } : {}) }); if (!storedDraft.success) throw Error(storedDraft.error || 'No se pudo conservar el borrador.');
         work.remaining = work.remaining.filter(value => value !== number);
       } catch { checkCurrent(work); failed.push(number); }
     }

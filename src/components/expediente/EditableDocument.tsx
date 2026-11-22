@@ -187,7 +187,7 @@ export function EditableDocument(props: EditableDocumentProps) {
       .institutional-document-editor ul,.institutional-document-editor ol {padding-left:24px;}
       .institutional-document-editor ul {list-style:disc;}
       .institutional-document-editor ol {list-style:decimal;}
-      .institutional-document-editor .evaluation-preview {font:11pt Arial,sans-serif;line-height:1.2;}
+      .institutional-document-editor .evaluation-preview {font:11pt Tahoma,sans-serif;line-height:1.2;}
       .institutional-document-editor .evaluation-preview img {width:140px;max-width:140px;max-height:none;margin:0 0 28px 0;}
       .institutional-document-editor .evaluation-preview .evaluation-title {text-align:center;font-weight:bold;margin:0;}
       .institutional-document-editor .evaluation-preview .evaluation-form {text-align:center;margin:0 0 22px;}
@@ -200,7 +200,11 @@ export function EditableDocument(props: EditableDocumentProps) {
       .institutional-document-editor .evaluation-preview table:nth-of-type(2) td:first-child {width:14.2%;white-space:nowrap;}
       .institutional-document-editor .evaluation-preview table:nth-of-type(2) p {margin:0;}
       .institutional-document-editor .evaluation-preview table:nth-of-type(2) .evaluation-name {font-weight:bold;}
-      .institutional-document-editor .evaluation-preview table:nth-of-type(2) .evaluation-role {font-weight:bold;color:#808080;margin-top:16px;}
+      .institutional-document-editor .evaluation-preview table:nth-of-type(2) .evaluation-role {font-weight:bold;color:#808080;margin:0;}
+      .institutional-document-editor .evaluation-preview table:nth-of-type(2) tr:not(:last-child) td {padding-bottom:6px;}
+      .institutional-document-editor .institutional-report {font-family:Tahoma,sans-serif;line-height:1.3;}
+      .institutional-document-editor .institutional-report .report-logo {width:160px;margin:0 0 14px;}
+      .institutional-document-editor .institutional-report table:first-of-type p {margin:0;}
       .institutional-document-editor .evaluation-preview table:nth-of-type(2) tr:last-child td {padding-top:20px;padding-bottom:24px;}
       .institutional-document-editor .evaluation-preview .evaluation-process {font-weight:bold;text-align:justify;}
       .institutional-document-editor .evaluation-preview .evaluation-section {font-weight:bold;margin-top:20px;}

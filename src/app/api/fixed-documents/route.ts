@@ -10,9 +10,10 @@ import { analyzePurchaseBrief } from '@/lib/server/purchaseAssistant';
 import { wordFormPreview } from '@/lib/server/wordFormPreview';
 
 import { reviseFixedDocument, RevisionClarification } from "@/lib/server/reviseFixedDocument";
-import { fillAdministrativeBlanks } from '@/lib/docx/administrativeDefaults';
+import { fillAdministrativeBlanks, registeredRequestNumber } from '@/lib/docx/administrativeDefaults';
+import { reserveS1Number } from '@/lib/server/requestNumber';
 import { updateTechnicalEvaluation, fillEvaluationReferences } from '@/lib/server/technicalEvaluation';
-import { evaluationPreview } from '@/lib/server/evaluationPreview';
+import { evaluationPreview, institutionalReportPreview } from '@/lib/server/evaluationPreview';
 import { editableDocumentPreview } from '@/lib/server/editableDocumentPreview';
 import { updateComparativeReport } from '@/lib/server/comparativeReport';
 import { readPurchaseAttachments, cleanupPurchaseAttachments } from '@/lib/server/attachmentUploads';
@@ -21,6 +22,7 @@ import { MAX_VISION_IMAGES } from '@/lib/uploads/attachmentPolicy';
 
 export const runtime = "nodejs";
 export const maxDuration = 180;
+const s1ReservationWarning = 'No se pudo asignar el correlativo de la solicitud. Vuelve a abrir el formulario cuando se restablezca la conexión.';
 
 export async function POST(req: NextRequest) {
   let attachmentForm:FormData|undefined,attachmentAcquisition='';
@@ -35,6 +37,19 @@ export async function POST(req: NextRequest) {
     attachmentAcquisition=adq?.id||'';
     if (!adq?.id || !adq?.titulo_proceso || !Array.isArray(adq.items)) throw Error("Selecciona un expediente válido.");
     const company = companyKnowledge(adq.empresa_id || "ende");
+    let numberWarning = false;
+    let solicitudNumeroAsignado: string | undefined;
+    if (number === 2 && !registeredRequestNumber(adq)) {
+      try {
+        const reserved = await reserveS1Number(adq);
+        if (reserved) {
+          adq.solicitud_numero = reserved;
+          solicitudNumeroAsignado = reserved;
+        }
+      } catch {
+        numberWarning = true;
+      }
+    }
     let draft = upgradeFixedDraft(number,body.draft || seedFixedDraft(number, adq));
     draft = fillAdministrativeBlanks(draft, adq, number);
     if(number===6) draft = fillEvaluationReferences(draft,adq);
@@ -78,7 +93,22 @@ export async function POST(req: NextRequest) {
         revisionSummary = model.fields.filter(f=>draft.fields[f.key]!==previous.fields[f.key]).map(f=>f.label);
         if (JSON.stringify(draft.items)!==JSON.stringify(previous.items)) revisionSummary.push('Ítems del documento');
         revised = true;
-      } else draft = await completeFixedDocument(number, adq, draft, context, images);
+      } else {
+        try {
+          draft = await completeFixedDocument(number, adq, draft, context, images);
+        } catch (error) {
+          if (req.signal.aborted || body.draftOnly !== true || ![5,9].includes(number)) throw error;
+          const base = seedFixedDraft(number, adq);
+          draft = {
+            ...draft,
+            fields: Object.fromEntries(Object.entries(draft.fields).map(([key, value]) => [
+              key, draft.editedFields?.includes(key) || (value && value !== '[PENDIENTE]') ? value : base.fields[key],
+            ])),
+            items: draft.editedItems || draft.items.length ? draft.items : base.items,
+            warnings: Array.from(new Set([...draft.warnings, 'Se preparó el borrador con los datos del expediente porque la redacción con IA no se completó.'])),
+          };
+        }
+      }
     } else if (body.action === 'refresh-evaluation' && number === 6) {
       validateFixedDraft(model,draft);
       draft=updateTechnicalEvaluation(draft,adq);
@@ -87,7 +117,11 @@ export async function POST(req: NextRequest) {
       draft=updateComparativeReport(draft,adq);
     } else if (!["preview", "download", "export"].includes(body.action)) throw Error("Acción desconocida.");
     draft=completeTdrDraft(number,draft,adq);
-    if (body.draftOnly === true && body.action === 'complete') return NextResponse.json({ draft }, { headers: { 'Cache-Control': 'no-store' } });
+    if (number === 2) {
+      const warnings = draft.warnings.filter(warning => warning !== s1ReservationWarning);
+      draft = { ...draft, warnings: numberWarning ? [...warnings, s1ReservationWarning] : warnings };
+    }
+    if (body.draftOnly === true && body.action === 'complete') return NextResponse.json({ draft, solicitudNumeroAsignado }, { headers: { 'Cache-Control': 'no-store' } });
     const output = await renderFixedWord(number, draft, adq);
     if (body.action === "export") return NextResponse.json({ draft: output.draft, docx: output.buffer.toString("base64") }, { headers: { "Cache-Control": "no-store" } });
     if (body.action === "download") return new Response(new Uint8Array(output.buffer), { headers: {
@@ -111,9 +145,12 @@ export async function POST(req: NextRequest) {
       } catch { previewWarning = "El convertidor PDF no respondió. Se muestra el contenido; el Word sigue disponible."; }
     }
     const mammoth = await import("mammoth");
-    const html = number===2 ? await wordFormPreview(output.buffer) : [3,6].includes(number) ? await evaluationPreview(output.buffer) : (await mammoth.convertToHtml({ buffer: output.buffer })).value;
+    const html = number===2 ? await wordFormPreview(output.buffer)
+      : [3,6].includes(number) ? await evaluationPreview(output.buffer)
+      : [5,7,9].includes(number) ? await institutionalReportPreview(output.buffer,number)
+      : (await mammoth.convertToHtml({ buffer: output.buffer })).value;
     const editableHtml=await editableDocumentPreview(output.buffer,output.draft,model,html);
-    return NextResponse.json({ draft: output.draft, html, editableHtml, pdf, previewWarning, revised, revisionSummary, modelVersion: model.version }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ draft: output.draft, html, editableHtml, pdf, previewWarning, revised, revisionSummary, solicitudNumeroAsignado, modelVersion: model.version }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     console.error("[fixed-documents]", e instanceof Error ? e.stack : "Error al preparar documento");
     return NextResponse.json({ error: e instanceof Error&&e.name==='TimeoutError' ? 'La preparación de los archivos tardó demasiado. Los archivos seleccionados y el borrador se conservan; vuelve a intentar.' : e instanceof Error ? e.message : "No se pudo preparar el documento." }, { status: 400 });

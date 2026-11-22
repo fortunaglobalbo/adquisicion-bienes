@@ -5,13 +5,14 @@ import Link from "next/link";
 import { Plus, RefreshCw, AlertCircle, Database, CheckCircle2 } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { MetricCards } from "@/components/dashboard/MetricCards";
-import { AcquisitionsTable } from "@/components/dashboard/AcquisitionsTable";
+import { AcquisitionsTable, acquisitionProcessGroup, type ProcessGroup } from "@/components/dashboard/AcquisitionsTable";
 import { NewAcquisitionModal } from "@/components/dashboard/NewAcquisitionModal";
 import { DataStore } from "@/lib/store/dataStore";
 import { Adquisicion } from "@/types";
 
 export default function DashboardPage() {
   const [adquisiciones, setAdquisiciones] = useState<Adquisicion[]>([]);
+  const [activeGroup, setActiveGroup] = useState<ProcessGroup>("compras");
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -40,6 +41,7 @@ export default function DashboardPage() {
     const res = await DataStore.createAdquisicion(newAdqData);
     if (res.success) {
       setAdquisiciones(DataStore.getAdquisiciones());
+      setActiveGroup(acquisitionProcessGroup(newAdqData.categoria));
       setIsModalOpen(false);
     } else {
       alert(`Error al guardar en base de datos: ${res.error}`);
@@ -165,6 +167,8 @@ export default function DashboardPage() {
             ) : (
               <AcquisitionsTable
                 adquisiciones={adquisiciones}
+                activeGroup={activeGroup}
+                onGroupChange={setActiveGroup}
                 searchTerm={searchTerm}
                 onAdquisicionDeleted={handleDeleteAdquisicion}
                 onUpdateEstado={handleUpdateEstado}

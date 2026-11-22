@@ -21,6 +21,7 @@ import {
 import { Carpeta, Adquisicion } from "@/types";
 import { DataStore } from "@/lib/store/dataStore";
 import { Modal } from "@/components/ui/Modal";
+import { displayFolderNumber } from "@/lib/store/folderOrder";
 
 interface FolderManagerModalProps {
   isOpen: boolean;
@@ -75,16 +76,16 @@ export const FolderManagerModal: React.FC<FolderManagerModalProps> = ({
     3: {
       queHace: "Cuadro comparativo de solicitudes y ofertas documentadas, con informe técnico editable.",
       deQuienDepende: "Carpeta 1 (TDR) y Carpeta 2 (S1-N014).",
-      pasos: ["1. Subir informe de justificación", "2. Comprobar monto referencial en Bs."],
+      pasos: ["1. Añadir las cotizaciones", "2. Revisar los datos de los proveedores", "3. Guardar el cuadro comparativo"],
     },
     4: {
-      queHace: "Registro y extracción OCR de proformas/cotizaciones presentadas por proveedores con NIT.",
+      queHace: "Prepara la solicitud de cotización que se remitirá a los proveedores.",
       deQuienDepende: "Carpeta 1 (TDR con lista de ítems a cotizar).",
-      pasos: ["1. Subir cotizaciones", "2. OCR extrae precios y NIT", "3. Seleccionar menor costo"],
+      pasos: ["1. Revisar los ítems del TDR", "2. Completar destinatario y condiciones", "3. Guardar o descargar la solicitud"],
     },
     5: {
-      queHace: "Memorándum formal de Solicitud de Inicio dirigido a Contrataciones.",
-      deQuienDepende: "Carpeta 1 (TDR), Carpeta 2 (Partida) y Carpeta 3 (Justificación).",
+      queHace: "Contiene la Solicitud de Inicio y el Informe Técnico de Justificación.",
+      deQuienDepende: "Carpeta 1 (TDR), Carpeta 2 (Solicitud de adquisición) y antecedentes de la compra.",
       pasos: ["1. Presionar Generar con IA", "2. Revisar borrador", "3. Descargar documento"],
     },
     6: {
@@ -168,7 +169,7 @@ export const FolderManagerModal: React.FC<FolderManagerModalProps> = ({
 
   const handleDelete = (folder: Carpeta) => {
     if (folder.numero <= 8) { alert("Las ocho carpetas oficiales forman parte del expediente y no se eliminan. Puedes cambiar su nombre y orden."); return; }
-    if (confirm(`¿Estás seguro de eliminar la carpeta "${folder.numero}. ${folder.nombre}"?`)) {
+    if (confirm(`¿Estás seguro de eliminar la carpeta "${displayFolderNumber(folder.numero)}. ${folder.nombre}"?`)) {
       DataStore.deleteCarpeta(folder.id);
       const updated = DataStore.getCarpetasByAdquisicion(adquisicion.id);
       onCarpetasUpdated(updated);
@@ -243,7 +244,7 @@ export const FolderManagerModal: React.FC<FolderManagerModalProps> = ({
 
       const updated = DataStore.getCarpetasByAdquisicion(adquisicion.id);
       onCarpetasUpdated(updated);
-      setSuccessMsg(`✨ Plantilla "${file.name}" analizada con IA y asignada a la Carpeta ${targetUploadCarpeta.numero}.`);
+      setSuccessMsg(`✨ Plantilla "${file.name}" analizada con IA y asignada a la Carpeta ${displayFolderNumber(targetUploadCarpeta.numero)}.`);
       setTimeout(() => setSuccessMsg(null), 6000);
     } catch (err: any) {
       alert("Error al procesar plantilla: " + err.message);
@@ -453,9 +454,7 @@ export const FolderManagerModal: React.FC<FolderManagerModalProps> = ({
 
         {/* Lista Reordenable de Carpetas */}
         <div className="space-y-3 max-h-[440px] overflow-y-auto pr-1">
-          {carpetas
-            .slice().sort((a, b) => (a.orden || a.numero) - (b.orden || b.numero))
-            .map((folder, index) => {
+          {carpetas.map((folder, index) => {
               const isEditing = editingId === folder.id;
               const isFirst = index === 0;
               const isLast = index === carpetas.length - 1;
@@ -472,7 +471,7 @@ export const FolderManagerModal: React.FC<FolderManagerModalProps> = ({
                     {/* Número y Controles de Orden (Subir/Bajar) */}
                     <div className="flex items-center gap-2 shrink-0">
                       <div className="w-8 h-8 rounded-lg bg-surface-container-high border border-outline-variant flex items-center justify-center font-bold text-xs text-primary font-mono">
-                        {folder.numero}
+                        {displayFolderNumber(folder.numero)}
                       </div>
 
                       <div className="flex flex-col gap-0.5">

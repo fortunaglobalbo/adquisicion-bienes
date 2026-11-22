@@ -3,6 +3,7 @@
 import React from "react";
 import { Check, Sparkles } from "lucide-react";
 import { Carpeta } from "@/types";
+import { displayFolderNumber } from "@/lib/store/folderOrder";
 
 interface FolderProgressBarProps {
   carpetas?: Carpeta[];
@@ -24,9 +25,7 @@ export const FolderProgressBar: React.FC<FolderProgressBarProps> = ({
         <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-outline-variant -translate-y-1/2 z-0" />
 
         {/* Dynamic Stages */}
-        {safeCarpetas
-          .slice().sort((a, b) => (a.orden || a.numero) - (b.orden || b.numero))
-          .map((folder, index) => {
+        {safeCarpetas.map((folder, index) => {
             const num = folder.numero || index + 1;
             const isActive = num === activeNumero;
             const docsCount = Array.isArray(folder.documentos) ? folder.documentos.length : 0;
@@ -44,6 +43,7 @@ export const FolderProgressBar: React.FC<FolderProgressBarProps> = ({
             <button
               key={folder.id || `folder-${num}`}
               onClick={() => onSelectNumero(num)}
+              aria-label={`${displayFolderNumber(num)}. ${folder.nombre}`}
               className="relative z-10 flex flex-col items-center gap-1.5 bg-surface-container-lowest px-2 py-1 rounded transition-all group"
             >
               <div
@@ -52,7 +52,7 @@ export const FolderProgressBar: React.FC<FolderProgressBarProps> = ({
                 {isCompleted && !isActive ? (
                   <Check className="w-4 h-4 text-on-primary stroke-[3]" />
                 ) : (
-                  <span>{num}</span>
+                  <span>{displayFolderNumber(num)}</span>
                 )}
               </div>
 

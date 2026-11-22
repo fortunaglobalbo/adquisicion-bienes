@@ -3,7 +3,9 @@
 import { Adquisicion, Carpeta, Documento, CampoExtraido, Firma, LogProceso, Plantilla } from "@/types";
 import { createInitialFolders, FOLDER_TEMPLATES } from "./initialData";
 import { officialPeople } from '../docx/officialPeople';
+import { registeredRequestNumber } from '../docx/administrativeDefaults';
 import { cambiosEstadoAdquisicion } from '../adquisicionEstado';
+import { exchangeQuotationAndComparison, workflowFolders } from './folderOrder';
 
 const KEYS = { adq: "ende_adquisiciones_v2026", folders: "ende_carpetas_v2026", fields: "ende_campos_extraidos_v2026", logs: "ende_logs_v2026", signs: "ende_firmas_v2026", templates: "ende_plantillas_v2026", pending: "ende_pending_v1", revisions: "ende_revisions_v1", templatePending: "ende_templates_pending_v1" };
 type Result = { success: boolean; error?: string };
@@ -92,7 +94,12 @@ export class DataStore {
       const snapshots: Snapshot[] = result.adquisiciones.map((row: Adquisicion) => {
         if (pending[row.id] || revisions[row.id] !== revisionsBeforeRead[row.id]) return this.snapshot(row.id);
         const state = result.states.find((s: any) => s.snapshot?.adquisicion?.id === row.id);
-        if (state) { revisions[row.id] = state.revision; return state.snapshot; }
+        if (state) {
+          revisions[row.id] = state.revision;
+          const snapshot: Snapshot = state.snapshot;
+          const solicitud_numero = registeredRequestNumber(snapshot.adquisicion) || row.solicitud_numero;
+          return { ...snapshot, adquisicion: { ...snapshot.adquisicion, solicitud_numero } };
+        }
         // Preserve extended legacy browser fields on first migration.
         const local = localAdqs.find(a => a.id === row.id);
         const folders = result.carpetas.filter((c: Carpeta) => c.adquisicion_id === row.id).map((c: Carpeta) => {
@@ -100,7 +107,7 @@ export class DataStore {
           const docs = [...(previous?.documentos || []), ...result.documentos.filter((d: Documento) => d.carpeta_id === c.id)];
           return { ...previous, ...c, documentos: Array.from(new Map(docs.map(d => [d.id, d])).values()) };
         });
-        return { adquisicion: { ...local, ...row, items: local?.items || row.items || [], plazo_entrega_dias: local?.plazo_entrega_dias ?? 30, multa_diaria_porcentaje: local?.multa_diaria_porcentaje ?? 0.25, lugar_entrega: local?.lugar_entrega || "Almacenes ENDE DEORURO S.A., Oruro" },
+        return { adquisicion: { ...local, ...row, solicitud_numero: (local && registeredRequestNumber(local)) || row.solicitud_numero, items: local?.items || row.items || [], plazo_entrega_dias: local?.plazo_entrega_dias ?? 30, multa_diaria_porcentaje: local?.multa_diaria_porcentaje ?? 0.25, lugar_entrega: local?.lugar_entrega || "Almacenes ENDE DEORURO S.A., Oruro" },
           carpetas: folders, campos: this.getCamposExtraidos(row.id), firmas: this.getFirmas(row.id), logs: [...this.getLogs(row.id), ...result.logs.filter((l: LogProceso) => l.adquisicion_id === row.id)] };
       });
       // Pending records must survive even when absent from the response.
@@ -129,10 +136,15 @@ export class DataStore {
       const defaults=officialPeople(template.fk_carpeta,template.datos_completos?.officialPeopleByCompany?.[adq.empresa_id||'ende']?.fields);
       people[template.fk_carpeta]={...defaults,...officialPeople(template.fk_carpeta,people[template.fk_carpeta])};
     }
-    const latestS1=this.getAllCarpetas().find(c=>c.adquisicion_id===adq.id&&c.numero===2)?.documentos
-      .filter(d=>d.metadata?.fixedDraft?.fields).sort((a,b)=>b.fecha_creacion.localeCompare(a.fecha_creacion))[0];
     const prepared={...adq.borradores_ia};
-    if(latestS1&&(!prepared['2']||latestS1.fecha_creacion>prepared['2'].updatedAt))prepared['2']={draft:latestS1.metadata!.fixedDraft!,updatedAt:latestS1.fecha_creacion,briefRevision:''};
+    const folders = this.getAllCarpetas().filter(c => c.adquisicion_id === adq.id);
+    for (const number of [1, 2]) {
+      const latest = folders.find(c => c.numero === number)?.documentos.filter(d => d.metadata?.fixedDraft?.fields)
+        .sort((a,b) => b.fecha_creacion.localeCompare(a.fecha_creacion))[0];
+      if (latest && (!prepared[number] || latest.fecha_creacion > prepared[number].updatedAt)) {
+        prepared[number] = { draft: latest.metadata!.fixedDraft!, updatedAt: latest.fecha_creacion, briefRevision: prepared[number]?.briefRevision || '' };
+      }
+    }
     return {...adq,responsables_oficiales:people,borradores_ia:prepared};
   }
   static saveAdquisiciones(list: Adquisicion[]) {
@@ -184,7 +196,7 @@ export class DataStore {
     return this.read<Carpeta[]>(KEYS.folders, []).map(c=>c.numero===3?{...c,nombre:'Cuadro comparativo',tipo_generacion:'IA',descripcion:'Informe y cuadro comparativo basado en solicitudes y ofertas disponibles.'}:c.numero===6?{...c,nombre:'Informe técnico de evaluación',descripcion:'Evaluación técnica y económica de cotizaciones, cuadro comparativo, conclusiones y recomendaciones.'}:c);
   }
   static getCarpetasByAdquisicion(id: string): Carpeta[] {
-    return this.getAllCarpetas().filter(c => c.adquisicion_id === id).sort((a,b) => (a.orden || a.numero) - (b.orden || b.numero));
+    return workflowFolders(this.getAllCarpetas().filter(c => c.adquisicion_id === id));
   }
   static saveAllCarpetas(list: Carpeta[]) {
     const old = this.getAllCarpetas(); this.write(KEYS.folders, list);
@@ -213,7 +225,7 @@ export class DataStore {
     const index = folders.findIndex(c => c.id === id); const next = index + step;
     if (index >= 0 && next >= 0 && next < folders.length) {
       [folders[index], folders[next]] = [folders[next], folders[index]];
-      folders.forEach((c,i) => { all.find(f => f.id === c.id)!.orden = i + 1; });
+      exchangeQuotationAndComparison(folders).forEach((c,i) => { all.find(f => f.id === c.id)!.orden = i + 1; });
       this.saveAllCarpetas(all);
     }
     return this.getCarpetasByAdquisicion(adqId);

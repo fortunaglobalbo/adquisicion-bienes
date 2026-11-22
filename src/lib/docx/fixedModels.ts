@@ -1,4 +1,5 @@
 import catalogData from "../../../templates/ende/catalog.json";
+import type { Documento } from "@/types";
 
 export interface FixedField { key: string; label: string; normative: boolean; hint: string }
 export interface FixedModel { number: number; title: string; file: string; version: string; sha256: string; fields: FixedField[]; columns: { key: string; label: string }[]; source: string }
@@ -34,6 +35,10 @@ export const missingValue = "[PENDIENTE]";
 export function compatibleFixedDraft(number: number, draft?: FixedDraft): boolean {
   const version = fixedModel(number).version;
   return !!draft && (draft.modelVersion === version || (number === 6 && version === '2026-09-25.2' && draft.modelVersion === '2026-09-25.1'));
+}
+export function fixedDocumentBelongsToModel(number: number, document: Documento): boolean {
+  const modelNumber = document.metadata?.fixedModelNumber;
+  return Number.isInteger(modelNumber) ? modelNumber === number : compatibleFixedDraft(number, document.metadata?.fixedDraft);
 }
 export function upgradeFixedDraft(number: number, draft: FixedDraft): FixedDraft {
   return compatibleFixedDraft(number, draft) ? {...draft, modelVersion: fixedModel(number).version} : draft;

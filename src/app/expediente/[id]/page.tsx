@@ -31,6 +31,7 @@ import { EstadoEditable } from '@/components/ui/EstadoEditable';
 import { estadoAdquisicion } from '@/lib/adquisicionEstado';
 import { DataStore } from "@/lib/store/dataStore";
 import { createInitialFolders } from "@/lib/store/initialData";
+import { PURCHASE_REQUEST_FOLDER, TECHNICAL_JUSTIFICATION_MODEL, workflowFolders } from "@/lib/store/folderOrder";
 import {
   Adquisicion,
   Carpeta,
@@ -48,6 +49,7 @@ export default function ExpedienteDetailPage() {
   const [adquisicion, setAdquisicion] = useState<Adquisicion | null>(null);
   const [carpetas, setCarpetas] = useState<Carpeta[]>([]);
   const [activeFolderNum, setActiveFolderNum] = useState<number>(1);
+  const [purchaseRequestModel, setPurchaseRequestModel] = useState(PURCHASE_REQUEST_FOLDER);
   const [camposExtraidos, setCamposExtraidos] = useState<CampoExtraido[]>([]);
   const [firmas, setFirmas] = useState<Firma[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,7 +81,7 @@ export default function ExpedienteDetailPage() {
 
     setAdquisicion(adq);
     const folders = DataStore.getCarpetasByAdquisicion(adq.id);
-    const safeFolders = Array.isArray(folders) && folders.length > 0 ? folders : createInitialFolders(adq.id);
+    const safeFolders = Array.isArray(folders) && folders.length > 0 ? folders : workflowFolders(createInitialFolders(adq.id));
     setCarpetas(safeFolders);
     const fields = DataStore.getCamposExtraidos(adq.id);
     setCamposExtraidos(Array.isArray(fields) ? fields : []);
@@ -117,8 +119,9 @@ export default function ExpedienteDetailPage() {
     );
   }
 
-  const safeCarpetas = carpetas.length > 0 ? carpetas : createInitialFolders(adquisicion.id);
+  const safeCarpetas = carpetas.length > 0 ? carpetas : workflowFolders(createInitialFolders(adquisicion.id));
   const activeFolder = safeCarpetas.find((c) => c.numero === activeFolderNum) || safeCarpetas[0];
+  const activeModel = activeFolder.numero === PURCHASE_REQUEST_FOLDER ? purchaseRequestModel : activeFolder.numero;
 
   const handleDocumentAdded = (newDoc: Documento, newCampos?: CampoExtraido[]) => {
     if (activeFolder?.id) {
@@ -220,7 +223,7 @@ export default function ExpedienteDetailPage() {
 
           {/* 8-Stage Progress Tracker */}
           <FolderProgressBar
-            carpetas={carpetas}
+            carpetas={safeCarpetas}
             activeNumero={activeFolderNum}
             onSelectNumero={setActiveFolderNum}
           />
@@ -230,7 +233,7 @@ export default function ExpedienteDetailPage() {
             {/* Left 3 Columns: Dynamic Folders Selector */}
             <div className="col-span-12 lg:col-span-3">
               <FolderSidebar
-                carpetas={carpetas}
+                carpetas={safeCarpetas}
                 activeNumero={activeFolderNum}
                 onSelectNumero={setActiveFolderNum}
                 onOpenManager={() => setIsManagerOpen(true)}
@@ -244,8 +247,33 @@ export default function ExpedienteDetailPage() {
                   {activeFolder.numero === 3
                     ? <ComparativeReportPanel key={adquisicion.id} adquisicion={adquisicion} carpetas={safeCarpetas} onSaved={() => void loadData(true)} onBusyChange={setAssistantBusy} />
                     : <PurchaseAssistant key={adquisicion.id} adquisicion={adquisicion} carpetas={safeCarpetas} onUpdated={() => void loadData(true)} onBusyChange={setAssistantBusy} />}
-                  {activeFolder.numero===4&&<QuoteEvaluationPanel key={`${adquisicion.id}:${adquisicion.selection_plan?.revision||''}`} adquisicion={adquisicion} onSaved={()=>void loadData(true)}/>}
-                  <FixedDocumentFolder key={`${adquisicion.id}:${activeFolder.numero}:${adquisicion.selection_plan?.revision||''}:${adquisicion.borradores_ia?.[activeFolder.numero]?.updatedAt || ''}`} adquisicion={adquisicion} carpeta={activeFolder} onSaved={() => void loadData(true)} assistantBusy={assistantBusy} />
+                  {activeFolder.numero === 3 && (
+                    <details className="mb-5 rounded-lg border border-outline-variant px-4 py-3">
+                      <summary className="cursor-pointer text-sm font-semibold">Comparar cotizaciones y calcular resultados</summary>
+                      <div className="mt-3">
+                        <QuoteEvaluationPanel key={`${adquisicion.id}:${adquisicion.selection_plan?.revision || ''}`} adquisicion={adquisicion} onSaved={() => void loadData(true)} />
+                      </div>
+                    </details>
+                  )}
+                  {activeFolder.numero === PURCHASE_REQUEST_FOLDER && (
+                    <div role="group" aria-label="Documentos de inicio de proceso" className="mb-4 flex flex-wrap gap-2">
+                      {[
+                        { model: PURCHASE_REQUEST_FOLDER, label: "Solicitud de inicio de proceso" },
+                        { model: TECHNICAL_JUSTIFICATION_MODEL, label: "Informe técnico de justificación" },
+                      ].map(({ model, label }) => (
+                        <button
+                          key={model}
+                          type="button"
+                          aria-pressed={purchaseRequestModel === model}
+                          onClick={() => setPurchaseRequestModel(model)}
+                          className={`rounded-lg border px-4 py-2 text-sm font-semibold ${purchaseRequestModel === model ? 'border-primary bg-primary text-white' : 'border-outline-variant hover:bg-surface-container'}`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <FixedDocumentFolder key={`${adquisicion.id}:${activeModel}:${adquisicion.selection_plan?.revision || ''}:${adquisicion.borradores_ia?.[activeModel]?.updatedAt || ''}`} adquisicion={adquisicion} carpeta={activeFolder} modelNumber={activeModel} onSaved={() => void loadData(true)} assistantBusy={assistantBusy} />
                 </>
               ) : activeFolder && (activeFolder.tipo_generacion === "IA" || !activeFolder.tipo_generacion) ? (
                 <FolderViewAi

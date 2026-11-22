@@ -15,6 +15,14 @@ const quote=(id,price,reviewed=true)=>({id,provider:`Proveedor ${id}`,groupId:'o
  const s1=seedFixedDraft(2,adq);assert.equal(s1.fields.numero,'66/2026');assert.equal(s1.fields.cargo,'Cargo oficial');assert.equal(s1.fields.area,'Área oficial');assert.equal(s1.fields.responsable_recepcion,'Responsable oficial');
  const manual={...s1,fields:{...s1.fields,numero:'90/2026',cargo:'Otro cargo'},editedFields:['numero','cargo']};assert.equal(fillAdministrativeBlanks(manual,adq,2).fields.numero,'90/2026');assert.equal(fillAdministrativeBlanks(manual,adq,2).fields.cargo,'Otro cargo');
  const old={...s1,fields:{...s1.fields,numero:'[PENDIENTE]',cargo:'[PENDIENTE]'},editedFields:[]};assert.equal(fillAdministrativeBlanks(old,adq,2).fields.numero,'66/2026');assert.equal(fillAdministrativeBlanks(old,adq,2).fields.cargo,'Cargo oficial');
+ const withTdr={...adq,codigo:'ENDE-D-2026-20260935',solicitud_numero:'84/2026',borradores_ia:{1:{draft:{fields:{elaborado:'Ing. Solicitante TDR\nApoyo a Gerencia en Seguridad Industrial'}}}}};
+ const inherited=fillAdministrativeBlanks({...old,fields:{...old.fields,numero:'20260935/2026'},editedFields:['numero']},withTdr,2);
+ assert.equal(inherited.fields.numero,'84/2026');
+ assert.equal(inherited.fields.solicitante,'Ing. Solicitante TDR');
+ assert.equal(inherited.fields.cargo,'Apoyo a Gerencia en Seguridad Industrial');
+ assert.equal(fillAdministrativeBlanks(manual,withTdr,2).fields.cargo,'Otro cargo');
+ assert.equal(requestNumber({...withTdr,solicitud_numero:'20260935/2026'}),'');
+ assert.equal(seedFixedDraft(2,withTdr).fields.solicitante,'Ing. Solicitante TDR');
  const empty=seedFixedDraft(6,adq);assert.equal(empty.items.length,0);assert.equal(empty.fields.solicitud,'66/2026');assert.match(empty.fields.solicitante,/Cargo oficial/);assert.ok(!Object.values(empty.fields).join(' ').includes('ARIOL'));
  assert.match(empty.fields.destinatario,/VICENTE PAUL VEGA RAMIREZ\nSUPERINTENDENCIA/);assert.match(empty.fields.via,/RAÚL ALBERTO TORRICO GÓMEZ\nGERENTE GENERAL/);
  const blankReferences={...empty,fields:{...empty.fields,destinatario:'[PENDIENTE]',via:''},editedFields:['via']};const filledReferences=fillEvaluationReferences(blankReferences,adq);assert.match(filledReferences.fields.destinatario,/VICENTE PAUL/);assert.equal(filledReferences.fields.via,'');

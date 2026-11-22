@@ -11,6 +11,7 @@ import {
   FolderOpen,
 } from "lucide-react";
 import { Carpeta } from "@/types";
+import { displayFolderNumber } from "@/lib/store/folderOrder";
 
 interface FolderSidebarProps {
   carpetas?: Carpeta[];
@@ -62,9 +63,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
       </div>
 
       <div className="flex flex-col gap-1">
-        {safeCarpetas
-          .slice().sort((a, b) => (a.orden || a.numero) - (b.orden || b.numero))
-          .map((folder, index) => {
+        {safeCarpetas.map((folder, index) => {
             const num = folder.numero || index + 1;
             const isActive = num === activeNumero;
             const isAI = folder.tipo_generacion === "IA";
@@ -98,7 +97,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
                       isActive ? "text-primary font-bold" : "text-on-surface-variant"
                     }`}
                   >
-                    {folder.numero}. {folder.nombre}
+                    {displayFolderNumber(num)}. {folder.nombre}
                   </span>
                 </div>
 
