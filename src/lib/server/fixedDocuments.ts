@@ -1,4 +1,5 @@
 import { completeTdrDraft } from '../docx/completeTdrDraft';
+import { buildTdrNarrative } from '../docx/tdrNarrative';
 import { contractualPenaltyClause, tdrPenaltyProposal } from '../docx/tdrPenalty';
 import fs from "fs/promises";
 import path from "path";
@@ -13,7 +14,8 @@ import type { Adquisicion } from "@/types";
 import { extractDocumentEvidence, verifiedQuotes } from './documentEvidence';
 import { fixedDocumentPrompt } from './fixedDocumentPrompt';
 
-import { officialPeople } from "../docx/officialPeople";
+import { isInstitutionalRole, officialPeople, officialPeopleKeys } from "../docx/officialPeople";
+import { fillDossierPeople } from '../docx/dossierPeople';
 import { applySelection, assertPlan } from '../procurement/selection';
 import { addSelectionTables } from './selectionWord';
 import { administrativeDefaults, fillAdministrativeBlanks } from '../docx/administrativeDefaults';
@@ -52,6 +54,8 @@ export function seedFixedDraft(number: number, adq: Adquisicion): FixedDraft {
     pago: adq.forma_pago_texto || "",
     multas: adq.multas_texto || "",
     ...(availablePurchaseBrief(adq)?.details || {}),
+    // A supplier is the addressee of the quotation request only.
+    ...(number !== 4 ? {destinatario:''} : {}),
     ...people,
     ...(number === 2 ? administrativeDefaults(adq) : {}),
     ...(number === 6 ? technicalEvaluationData(adq).fields : {}),
@@ -83,10 +87,10 @@ export function seedFixedDraft(number: number, adq: Adquisicion): FixedDraft {
   const confirmedNorms = model.fields.filter(f => f.normative && text(values[f.key]) && text(values[f.key]) !== missingValue).map(f => f.key);
   const draft:FixedDraft = { modelVersion: model.version, companyId: adq.empresa_id || "ende", fields: Object.fromEntries(model.fields.map(f => [f.key, text(values[f.key]) || missingValue])),
     confirmedFields: confirmedNorms,
-    editedFields: Object.keys(people), items, sourceIds: {}, sources: [], warnings: [], consultedAt: null, normativeStatus: "pending" };
-  const prepared = fillAdministrativeBlanks(draft,adq,number);
+    editedFields: Object.keys(people).filter(key=>key==='cargo' || key==='area' || !isInstitutionalRole(people[key])), items, sourceIds: {}, sources: [], warnings: [], consultedAt: null, normativeStatus: "pending" };
+  const prepared = fillDossierPeople(number,fillAdministrativeBlanks(draft,adq,number),adq);
   if(number===2) prepared.editedFields=Array.from(new Set([...(prepared.editedFields||[]),...Object.keys(administrativeDefaults(adq)).filter(k=>values[k]&&values[k]!==missingValue)]));
-  if(number===6){const data=technicalEvaluationData(adq);prepared.evaluationRevision=data.revision;prepared.warnings=data.warnings;prepared.editedFields=Array.from(new Set([...(prepared.editedFields||[]),...['fecha','numero','solicitud','destinatario','via','solicitante'].filter(k=>values[k]&&values[k]!==missingValue)]));}
+  if(number===6){const data=technicalEvaluationData(adq);prepared.evaluationRevision=data.revision;prepared.warnings=data.warnings;prepared.editedFields=Array.from(new Set([...(prepared.editedFields||[]),...['fecha','numero','solicitud'].filter(k=>values[k]&&values[k]!==missingValue)]));}
   if(number===3){const data=comparativeReportData(adq);prepared.evaluationRevision=data.revision;prepared.comparativeSnapshot=comparativeSnapshot(adq);prepared.warnings=data.warnings;prepared.normativeStatus='not_applicable';}
   return adq.selection_plan?.confirmedAt ? applySelection(prepared,adq.selection_plan,number) : prepared;
 }
@@ -111,7 +115,7 @@ export function normalizeFixedDraft(model: FixedModel, draft: FixedDraft, adq?: 
   validateFixedDraft(model, draft);
   const result: FixedDraft = { ...draft, fields: { ...draft.fields }, items: draft.items.map((r, i) => ({ ...r, numero: String(i + 1) })) };
   if(model.number===1)result.fields.objeto=repairAutomaticPurchaseTitle(result.fields.objeto,{title:adq?.titulo_proceso||result.fields.objeto,category:adq?.categoria,items:result.items.length?result.items.map(item=>({descripcion:item.descripcion||''})):adq?.items||[]},result.editedFields?.includes('objeto'));
-  return result;
+  return adq ? fillDossierPeople(model.number,result,adq) : result;
 }
 
 export async function renderFixedWord(number: number, input: FixedDraft, adq?: Adquisicion) {
@@ -124,7 +128,7 @@ export async function renderFixedWord(number: number, input: FixedDraft, adq?: A
   const tables: TableChange[] = [];
   const referenceFields: Record<string,string> = {};
   if([3,5,6,9].includes(number)) for(const key of ['destinatario','via','solicitante']) {
-    const [name,...role] = (draft.fields[key] || '').split(/\r?\n/);
+    const [name,...role] = (draft.fields[key] || '').split(/\r?\n|\s+[-–—]\s+/);
     referenceFields[`${key}_nombre`] = name;
     referenceFields[`${key}_cargo`] = role.join('\n');
   }
@@ -157,7 +161,8 @@ export async function completeFixedDocument(number: number, adq: Adquisicion, cu
   const company = companyKnowledge(adq.empresa_id || "ende"), model = fixedModel(number);
   validateFixedDraft(model, current);
   if (current.companyId !== company.id) throw Error("El borrador corresponde a otra empresa.");
-  if(number===3)return normalizeFixedDraft(model,updateComparativeReport(current,adq));
+  current=fillDossierPeople(number,current,adq);
+  if(number===3)return normalizeFixedDraft(model,updateComparativeReport(current,adq),adq);
   const session = `ende-document-${createHash('sha256').update(`${company.id}:${adq.id}:${number}`).digest('hex').slice(0,32)}`;
   const hasNormativeFields=model.fields.some(f=>f.normative);
   let sources: FixedDraft["sources"] = [], answer = "", status: FixedDraft["normativeStatus"] = hasNormativeFields ? "unavailable" : "not_applicable", partialSearch = false;
@@ -196,7 +201,7 @@ export async function completeFixedDocument(number: number, adq: Adquisicion, cu
   const brief = availableBrief && staleMention(availableBrief.purpose)
     ? {...availableBrief,purpose:suggestedCurrentPurpose(availableBrief.items,adq.unidad_solicitante),scopeChanged:true}
     : availableBrief;
-  const narrative = brief ? currentPurchaseNarrative(company.name,adq,brief,number) : null;
+  const narrative = brief ? currentPurchaseNarrative(adq,brief,number) : null;
   const contextFields = Object.fromEntries(Object.entries(current.fields).map(([key,value])=>[key,
     !current.editedFields?.includes(key) && (staleMention(value) || (number===1&&['antecedentes','justificacion'].includes(key))) ? missingValue : value]));
   const { borradores_ia: _prepared, asistente_compra: _brief, ...storedPurchase } = adq;
@@ -326,6 +331,9 @@ export async function completeFixedDocument(number: number, adq: Adquisicion, cu
     }
   }
   // User-authored paragraphs remain editable and survive subsequent automatic completion.
+  for (const key of officialPeopleKeys[number] || []) {
+    if (key !== 'area') fields[key]=current.fields[key];
+  }
   for(const key of current.editedFields || []) if(model.fields.some(f=>f.key===key)) {
     fields[key]=current.fields[key];sourceIds[key]=[];sourceQuotes[key]=[];
     if(staleMention(current.fields[key])) reviewWarnings.push(`${model.fields.find(f=>f.key===key)!.label}: se conservó tu corrección manual; menciona bienes distintos de los ítems actuales. Puedes corregirla directamente en el documento.`);
@@ -350,28 +358,14 @@ function purchaseItemsDiffer(previous:Record<string,string>[],current:PurchaseBr
 }
 
 /** Conservative wording used only to repair a quotation summary or a superseded product. */
-function currentPurchaseNarrative(company:string,adq:Adquisicion,brief:PurchaseBrief,number:number):Record<string,string> {
+function currentPurchaseNarrative(adq:Adquisicion,brief:PurchaseBrief,number:number):Record<string,string> {
   const epp=isProtectiveEquipment(brief.items);
-  const descriptions=brief.items.map(i=>i.descripcion).join(' ');
-  const protection=[
-    /casco|barbiquejo/i.test(descriptions)?'la cabeza':'',
-    /guante/i.test(descriptions)?'las manos':'',
-    /lente|gafa/i.test(descriptions)?'los ojos':'',
-    /botin|bota/i.test(descriptions)?'los pies':'',
-  ].filter(Boolean);
-  const height=/arn[eé]s|amortiguador/i.test(descriptions);
-  const protectionText=protection.length?`elementos de protección para ${protection.join(', ')}${height?' y componentes para trabajos en altura':''}`:height?'componentes de protección para trabajos en altura':'los elementos de protección requeridos';
   const objeto=currentPurchaseTitle({title:adq.titulo_proceso,category:adq.categoria,items:brief.items});
-  const antecedentes=epp
-    ? `${company}, como empresa del sector eléctrico, requiere equipos de protección personal adecuados para las labores de operación y mantenimiento de sus redes de distribución. Según la tarea asignada, estas actividades demandan medidas de prevención frente a riesgos mecánicos${/lente|gafa/i.test(descriptions)?', proyección de partículas':''}${height?' y caídas durante trabajos en altura':''}. En este contexto, se plantea la dotación de ${protectionText}, conforme a las cantidades y características establecidas en el presente documento.`
-    : `${company} requiere atender las necesidades operativas de ${adq.unidad_solicitante || 'la unidad solicitante'} mediante la provisión de los bienes o servicios descritos en este documento. La compra se orienta a la siguiente finalidad: ${brief.purpose.replace(/[.\s]+$/,'')}. Las cantidades, unidades y características aportadas se detallan en las especificaciones, para permitir una comparación de las propuestas y una posterior verificación de su cumplimiento.`;
-  const justificacion=epp
-    ? `La adquisición tiene por finalidad disponer de equipos de protección personal que contribuyan al desarrollo seguro de las labores del personal de ${company}. La dotación de ${protectionText} atiende las necesidades de prevención asociadas a las tareas que correspondan. Se requieren las cantidades y características detalladas en la tabla de especificaciones; la selección y utilización de cada producto deberán corresponder a la tarea y al riesgo identificado, previa verificación de su documentación técnica.`
-    : `La adquisición permitirá ${brief.purpose.charAt(0).toLowerCase()+brief.purpose.slice(1).replace(/[.\s]+$/,'')}. Contar con los bienes o servicios en las cantidades y condiciones descritas contribuirá a atender las necesidades de ${adq.unidad_solicitante || 'la unidad solicitante'}, con requisitos concretos para comparar las propuestas y verificar su cumplimiento.`;
+  const {antecedentes,justificacion,ambito}=buildTdrNarrative(adq,objeto,brief.items,brief.purpose);
   return {objeto,antecedentes,justificacion:number===2?`${brief.purpose.replace(/[.\s]+$/,'')}. Se requieren las cantidades y características detalladas en las especificaciones técnicas para atender esta necesidad.`:justificacion,
     resumen:`Se requiere la provisión de ${brief.items.length} ítems${epp?' de equipos de protección personal':''}, en las cantidades, unidades y características detalladas en la tabla de especificaciones técnicas.`,
     especificacion:'A continuación se describen los bienes requeridos, sus cantidades, unidades de medida y características técnicas mínimas, conforme a la información aportada para esta adquisición.',
-    ambito:'El presente documento corresponde a los ítems detallados en la tabla de especificaciones, desde la solicitud de propuestas hasta la verificación de su entrega a conformidad.',
+    ambito,
     asunto:`Solicitud de cotización — ${objeto}`,cuerpo:`Señores proveedores:\n\nSolicitamos remitir su cotización para los ítems descritos en las especificaciones técnicas adjuntas, indicando precio unitario y total, impuestos, plazo y lugar de entrega, condiciones de pago y vigencia de la oferta. La propuesta deberá permitir verificar las características de cada producto ofrecido.\n\nAtentamente.`};
 }
 

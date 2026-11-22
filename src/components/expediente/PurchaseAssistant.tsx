@@ -10,6 +10,7 @@ import { readPurchaseResponse } from '@/lib/ai/purchaseReadingResponse';
 import { DataStore } from '@/lib/store/dataStore';
 import { appendPurchaseAttachments, cleanupPurchaseAttachmentUploads } from '@/lib/uploads/attachmentClient';
 import { completeTdrDraft } from '@/lib/docx/completeTdrDraft';
+import { fillDossierPeople } from '@/lib/docx/dossierPeople';
 import { ATTACHMENT_HELP_TEXT, validateAttachmentSelection } from '@/lib/uploads/attachmentPolicy';
 import { PURCHASE_ASSISTANT_MODELS, storageFolderNumber } from '@/lib/store/folderOrder';
 
@@ -167,7 +168,7 @@ export function PurchaseAssistant({ adquisicion, carpetas, onUpdated, onBusyChan
           fallback.warnings=Array.from(new Set([...fallback.warnings,'Borrador provisional preparado con los datos disponibles porque la IA no completó la redacción. Revisa los campos marcados [PENDIENTE]; no constituye aprobación ni verificación normativa.']));
           result={draft:completeTdrDraft(number,fallback,working)};
         }
-        result.draft=completeTdrDraft(number,result.draft,working);
+        result.draft=fillDossierPeople(number,completeTdrDraft(number,result.draft,working),working);
         const history = number === 3 ? comparativeHistoryWithPrevious(DataStore.getAdquisicionById(props.adquisicion.id) || working, props.carpetas) : undefined;
         const solicitud = number === 2 && result.solicitudNumeroAsignado === result.draft.fields.numero && result.solicitudNumeroAsignado
           ? { solicitud_numero: result.solicitudNumeroAsignado } : {};
@@ -180,7 +181,7 @@ export function PurchaseAssistant({ adquisicion, carpetas, onUpdated, onBusyChan
     const sync = await DataStore.flushPending(); checkCurrent(work); props.onUpdated();
     if (failed.length) { setRetryAction('prepare'); setStatus('No se completaron todos los documentos. Lo preparado se conservó.'); await notice(work, failed.length === 1 ? 'Quedó un documento por preparar' : 'Quedaron documentos por preparar', 'Lo preparado se conservó. Pulsa «Volver a intentar» para completar lo que falta.', 'warning'); }
     else if (!sync.success) { setRetryAction('sync'); setStatus('Documentos preparados en este equipo. Falta sincronizarlos.'); await notice(work, 'Documentos preparados en este equipo', 'Falta sincronizarlos. Pulsa «Volver a intentar» cuando tengas conexión.', 'warning'); }
-    else { setRetryAction(null); setStatus(readyMessage); await notice(work, 'Documentos preparados', 'Todas las carpetas tienen un borrador editable. Algunos pueden ser provisionales: revisa sus advertencias y los campos [PENDIENTE].', 'success'); }
+    else { setRetryAction(null); setStatus(readyMessage); await notice(work, 'Documentos preparados', 'Ya puedes abrir y editar los documentos de las carpetas preparadas.', 'success'); }
   }
   async function run(selected: File[], resume: boolean) {
     if (active.current) return;
@@ -223,13 +224,6 @@ export function PurchaseAssistant({ adquisicion, carpetas, onUpdated, onBusyChan
       {files.map((file,index) => <div key={`${file.name}-${index}`} className="flex items-center justify-between gap-3 rounded border bg-white px-3 py-2 text-sm"><span className="break-all">{file.name}</span><button type="button" disabled={busy} className="text-red-700" onClick={() => { setFiles(previous => previous.filter((_,position) => position !== index)); pendingBrief.current=null; setRetryAction(null); }}>Quitar</button></div>)}
       <button type="button" disabled={busy} className="rounded-lg bg-primary px-4 py-2 font-bold text-white disabled:opacity-50" onClick={() => void run(files,false)}>Procesar archivos</button>
     </div>}
-    {!!adquisicion.asistente_compra?.conflicts?.length && adquisicion.asistente_compra.provisionalWithConflicts && <aside className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm" aria-label="Sugerencias para revisar el borrador">
-      <p className="font-bold">Borrador provisional: sugerencias para completar</p>
-      <p>Como propuesta, usa la nota de solicitud para la cantidad y finalidad, y la ficha técnica para las características. Confirma cualquier diferencia antes de utilizar el documento.</p>
-      <ul className="mt-2 list-disc pl-5">{adquisicion.asistente_compra.conflicts.map((conflict,index) => <li key={index}>{conflict}</li>)}</ul>
-      <p className="mt-2">Texto sugerido: «Las características se basan en la ficha técnica adjunta. La cantidad y el alcance definitivo se confirmarán con la unidad solicitante».</p>
-      <p>Puedes corregir estos datos directamente en los documentos. Las discrepancias no se consideran resueltas ni aprobadas.</p>
-    </aside>}
     {status && <p role="status" className="mt-3 text-sm text-primary">{status}</p>}
     {error && <p role="alert" className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
     {retryAction && <button type="button" disabled={busy} className="mt-3 rounded-lg border border-amber-500 bg-amber-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-amber-500 disabled:opacity-50" onClick={() => void run(files,true)}>Volver a intentar</button>}

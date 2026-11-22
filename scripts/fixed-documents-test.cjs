@@ -17,7 +17,8 @@ const adq={id:'test',empresa_id:'ende',codigo:'PRUEBA',titulo_proceso:'COMPRA DE
 async function main(){
  const official=seedFixedDraft(2,{...adq,responsables_oficiales:{2:{solicitante:'Nombre oficial',cargo:'Cargo oficial',objeto:'No corresponde'}}});
  assert.equal(official.fields.solicitante,'Nombre oficial');assert.ok(official.editedFields.includes('solicitante'));assert.equal(official.fields.objeto,adq.titulo_proceso);
- assert.equal(seedFixedDraft(2,adq).fields.solicitante,'Responsable');
+ assert.equal(seedFixedDraft(2,{...adq,responsable_proceso:'Ana Vargas'}).fields.solicitante,'Ana Vargas');
+ assert.equal(seedFixedDraft(2,adq).fields.solicitante,'[PENDIENTE]','Un cargo solo no identifica al solicitante');
  assert.equal(seedFixedDraft(4,{...adq,responsables_oficiales:{4:{destinatario:'Proveedor anterior'}}}).fields.destinatario,'[PENDIENTE]');
  console.log('PASS responsables por formulario; expedientes anteriores y proveedores separados');
  fs.mkdirSync('test-results/fixed-models/filled',{recursive:true});

@@ -193,6 +193,7 @@ export interface Adquisicion {
   memo_pago_a_cargo?: string; // ej. "SUPERINTENDENTE DE ADMINISTRACIÓN Y FINANZAS a.i."
   memo_pago_de_nombre?: string; // ej. "ING. TATIANA TORRES ANDRADE"
   memo_pago_de_cargo?: string; // ej. "SUPERVISOR DE SEGURIDAD INDUSTRIAL a.i."
+  memo_pago_personas_editadas?: string[];
   memo_pago_objeto?: string;
   memo_pago_nro_factura?: string; // ej. "2"
   memo_pago_proveedor?: string; // ej. "MOVICLEAN S.R.L."

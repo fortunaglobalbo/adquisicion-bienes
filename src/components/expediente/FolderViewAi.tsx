@@ -1,9 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import Link from "next/link";
 import {
-  Sparkles,
   Download,
   FileText,
   RefreshCw,
@@ -17,8 +15,6 @@ import { SolicitudInicioViewer } from "./SolicitudInicioViewer";
 import { FormS2Viewer } from "./FormS2Viewer";
 import { InformeConformidadViewer } from "./InformeConformidadViewer";
 import { MemoPagoViewer } from "./MemoPagoViewer";
-import { FolderAiGuideBanner } from "./FolderAiGuideBanner";
-import { TemplateTranspilerModal } from "@/components/plantillas/TemplateTranspilerModal";
 import { DataStore } from "@/lib/store/dataStore";
 
 interface FolderViewAiProps {
@@ -43,9 +39,6 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
   const [manualUploadName, setManualUploadName] = useState<string | null>(null);
   const [manualUploadSuccess, setManualUploadSuccess] = useState(false);
   const manualFileRef = useRef<HTMLInputElement | null>(null);
-
-  // Modal para Maquetar en Código cualquier plantilla DOCX (Libre para las 8 carpetas)
-  const [showTranspileModal, setShowTranspileModal] = useState(false);
 
   // Determinar tipo de documento a generar
   const getDocType = (): "TDR" | "SOLICITUD_INICIO" | "FORM_S2" | "INFORME_CONFORMIDAD" | "MEMO_PAGO" => {
@@ -254,34 +247,13 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
 
   return (
     <div className="flex flex-col h-full space-y-4 w-full">
-      {/* Barra Superior Unificada de Carpeta */}
-      <div className="no-print flex justify-between items-center gap-3 text-sm">
-        <span className="text-slate-600">Borrador editable. Revisa datos, montos y responsables antes de su emisión.</span>
+      <div className="no-print flex items-center justify-between gap-3">
+        <h2 className="font-semibold text-primary">{carpeta.nombre}</h2>
         <button className="shrink-0 underline text-blue-800" onClick={() => void handleDownloadPdf()}>Imprimir / guardar PDF</button>
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-surface-container-low p-2.5 px-4 rounded-xl border border-outline-variant text-xs">
-        <div className="flex items-center gap-2">
-          <span className="font-bold text-on-surface font-sans">
-            📁 Carpeta {carpeta.numero}: {carpeta.nombre}
-          </span>
-          <span className="text-[11px] text-on-surface-variant font-mono hidden sm:inline">
-            • {carpeta.plantilla_asociada_nombre ? `Plantilla: ${carpeta.plantilla_asociada_nombre}` : "Plantilla Oficial ENDE"}
-          </span>
-        </div>
-
-        <Link href={`/plantillas?expediente=${encodeURIComponent(adquisicion.id)}&documento=${encodeURIComponent(({ 1: "TDR", 5: "Solicitud de inicio", 6: "Solicitud de cotización", 7: "Informe de conformidad", 8: "Solicitud de pago" } as Record<number, string>)[carpeta.numero] || "Otro documento")}`} className="rounded-lg bg-primary px-4 py-2 text-base font-semibold text-white">Preparar con el asistente</Link>
-        <details className="text-sm"><summary className="cursor-pointer text-slate-600">Opciones del modelo</summary><button
-          type="button"
-          onClick={() => setShowTranspileModal(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 rounded-lg font-bold font-sans transition-all active:scale-95"
-          title={`Configurar o maquetar plantilla Word (.docx) para la Carpeta ${carpeta.numero}`}
-        >
-          <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-          <span>Editar modelo</span>
-        </button></details>
-      </div>
-
-      {carpeta.documentos.some(d => d.metadata?.assistant && d.ruta_storage) && <section className="rounded-xl border border-outline-variant p-4 space-y-3"><h3 className="font-semibold text-primary">Documentos preparados con el asistente</h3>{carpeta.documentos.filter(d => d.metadata?.assistant && d.ruta_storage).map(d => <div key={d.id} className="space-y-2 border-t pt-3"><a className="text-primary underline" href={`/api/files?path=${encodeURIComponent(d.ruta_storage!)}`}>{d.nombre_original} · versión {d.version}</a><p className="text-sm text-slate-600">Borrador para revisión · {new Date(d.fecha_creacion).toLocaleDateString("es-BO")}</p><details className="text-sm"><summary className="cursor-pointer">Ver fundamento guardado</summary>{(d.metadata?.warnings || []).map((w: string, i: number) => <p key={i} className="mt-2">{w}</p>)}{(d.metadata?.sources || []).map((s: { id: string; title: string; excerpt: string; version: string }) => <p key={s.id} className="mt-3 whitespace-pre-wrap"><strong>{s.title} · {s.version}</strong><br />{s.excerpt}</p>)}</details></div>)}</section>}
+      {carpeta.documentos.filter(d => d.metadata?.assistant && d.ruta_storage).map(doc => (
+        <a key={doc.id} className="text-sm text-primary underline" href={`/api/files?path=${encodeURIComponent(doc.ruta_storage!)}`}>{doc.nombre_original}</a>
+      ))}
       {/* For Carpeta 1: Full-Screen Direct Document Editor & Viewer (TDR) */}
       {carpeta.numero === 1 ? (
         <TdrDocumentViewer
@@ -405,11 +377,6 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
                   <p className="text-blue-700 dark:text-blue-300">
                     <strong>Descripción:</strong> {meta?.hint}
                   </p>
-                  {carpeta.plantilla_asociada_nombre && (
-                    <p className="text-emerald-700 dark:text-emerald-300 font-bold mt-1">
-                      📄 Plantilla oficial activa: {carpeta.plantilla_asociada_nombre}
-                    </p>
-                  )}
                 </div>
               </div>
 
@@ -491,26 +458,6 @@ export const FolderViewAi: React.FC<FolderViewAiProps> = ({
           );
         })()
       )}
-      {/* Modal para Maquetar en Código y Plantillas Libres */}
-      <TemplateTranspilerModal
-        isOpen={showTranspileModal}
-        onClose={() => setShowTranspileModal(false)}
-        fkCarpetaDefault={carpeta.numero}
-        adquisicionActual={adquisicion}
-        onTemplateSaved={(tplId) => {
-          const list = DataStore.getPlantillas();
-          const tpl = list.find((p) => p.id === tplId);
-          if (tpl) {
-            const allC = DataStore.getAllCarpetas();
-            const target = allC.find((c) => c.id === carpeta.id);
-            if (target) {
-              target.plantilla_asociada_id = tpl.id;
-              target.plantilla_asociada_nombre = tpl.nombre;
-              DataStore.saveAllCarpetas(allC);
-            }
-          }
-        }}
-      />
     </div>
   );
 };

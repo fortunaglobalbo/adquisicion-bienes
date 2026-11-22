@@ -113,7 +113,7 @@ export default function ExpedienteDetailPage() {
           href="/"
           className="px-4 py-2 bg-primary text-on-primary rounded font-mono text-xs"
         >
-          Volver al Dashboard
+          Volver a mis compras
         </Link>
       </div>
     );
@@ -171,7 +171,7 @@ export default function ExpedienteDetailPage() {
             <div className="flex items-center gap-2 text-on-surface-variant font-mono text-xs">
               <Link href="/" className="hover:text-primary transition-colors flex items-center gap-1">
                 <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Dashboard</span>
+                <span>Mis compras</span>
               </Link>
               <ChevronRight className="w-3.5 h-3.5" />
               <span className="text-primary font-bold bg-surface-container-high px-2 py-0.5 rounded">

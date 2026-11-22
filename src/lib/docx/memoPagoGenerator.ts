@@ -17,6 +17,7 @@ import {
 import fs from "fs";
 import path from "path";
 import { Adquisicion } from "@/types";
+import { memoPeople } from './dossierPeople';
 
 export async function generateMemoPagoDocx(
   adquisicion: Adquisicion,
@@ -24,10 +25,11 @@ export async function generateMemoPagoDocx(
 ): Promise<Buffer> {
   const cite = adquisicion.memo_pago_cite || "[PENDIENTE DE COMPLETAR Y VERIFICAR]";
   const fecha = adquisicion.memo_pago_fecha || "[PENDIENTE DE COMPLETAR Y VERIFICAR]";
-  const aNombre = adquisicion.memo_pago_a_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]";
-  const aCargo = adquisicion.memo_pago_a_cargo || "SUPERINTENDENTE DE ADMINISTRACIÓN Y FINANZAS a.i.";
-  const deNombre = adquisicion.memo_pago_de_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]";
-  const deCargo = adquisicion.memo_pago_de_cargo || "SUPERVISOR DE SEGURIDAD INDUSTRIAL a.i.";
+  const people = memoPeople(adquisicion);
+  const aNombre = people.memo_pago_a_nombre;
+  const aCargo = people.memo_pago_a_cargo;
+  const deNombre = people.memo_pago_de_nombre;
+  const deCargo = people.memo_pago_de_cargo;
 
   const proveedor =
     adquisicion.memo_pago_proveedor ||

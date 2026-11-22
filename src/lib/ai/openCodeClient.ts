@@ -188,7 +188,7 @@ export async function callOpenCodeGo(
       const content = typeof choice?.message?.content === "string" ? choice.message.content.trim() : "";
       if (options.strict && (!content || choice?.finish_reason === "length")) {
         console.warn("[GO incomplete]", JSON.stringify({ finishReason: choice?.finish_reason, completionTokens: data?.usage?.completion_tokens }));
-        if(choice?.finish_reason==='length')throw new OpenCodeError('incomplete','OpenCode GO alcanzó su límite de respuesta sin terminar. El documento anterior se conserva. Intenta un cambio por vez o utiliza «Editar documento».');
+        if(choice?.finish_reason==='length')throw new OpenCodeError('incomplete','La IA alcanzó su límite de respuesta. Puedes pedir un cambio más breve o escribir directamente en el documento.');
         throw new TransientOpenCodeError(new OpenCodeError('incomplete','OpenCode GO devolvió una respuesta vacía. Vuelve a intentar; el borrador se conserva.'));
       }
       return content;

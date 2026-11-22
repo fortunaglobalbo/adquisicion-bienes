@@ -9,7 +9,7 @@ const plain = (value: string) => compact(value).normalize('NFD').replace(/[\u030
 
 // Only use an identifiable TDR for this requirement. An attached quotation, a TDR
 // for other goods, or competing versions cannot establish the document's signatories.
-function attachedTdr(adq: Adquisicion, draft: FixedDraft): string | undefined {
+export function attachedTdr(adq: Adquisicion, draft: Pick<FixedDraft, 'items'|'editedItems'>): string | undefined {
   const brief = availablePurchaseBrief(adq);
   if (!brief?.notes || draft.editedItems) return;
   const rows = draft.items.length ? draft.items : brief.items;
@@ -28,7 +28,7 @@ function attachedTdr(adq: Adquisicion, draft: FixedDraft): string | undefined {
   return matches.length === 1 ? matches[0] : undefined;
 }
 
-function coverPeople(body: string): string[] {
+export function coverPeople(body: string): string[] {
   const block = /\belaborado(?:\s+por)?\s+revisado(?:\s+por)?\s+aprobado(?:\s+por)?\s+([\s\S]{1,700}?)\s+resumen\b/i.exec(body)?.[1];
   if (!block) return [];
   const people = compact(block).split(/\s+(?=(?:Ing|Lic|Arq|T[eé]c|Dr|Dra)\.\s+)/i);

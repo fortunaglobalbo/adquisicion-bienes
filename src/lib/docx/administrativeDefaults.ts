@@ -1,6 +1,7 @@
 import type { Adquisicion } from '@/types';
 import type { FixedDraft } from './fixedModels';
 import { availablePurchaseBrief } from './purchaseBrief';
+import { isInstitutionalRole } from './officialPeople';
 
 export const hasAdministrativeValue = (value: unknown): value is string =>
   typeof value === 'string' && !!value.trim() && !/PENDIENTE|_{3,}/i.test(value);
@@ -22,13 +23,14 @@ export function requestNumber(adq: Adquisicion): string {
 }
 
 function applicantFromTdr(adq: Adquisicion) {
+  const tdr=adq.borradores_ia?.['1']?.draft;
   const authored = [
-    adq.borradores_ia?.['1']?.draft.fields.elaborado,
+    (!tdr?.companyId || tdr.companyId===(adq.empresa_id||'ende')) ? tdr?.fields.elaborado : undefined,
     adq.elaborado_por,
     adq.responsables_oficiales?.['1']?.elaborado,
   ].find(hasAdministrativeValue);
   if (!authored) return {};
-  if (/^Cargo:\s*/i.test(authored)) return {role: authored.replace(/^Cargo:\s*/i, '').trim()};
+  if (isInstitutionalRole(authored)) return {role: authored.replace(/^Cargo:\s*/i, '').trim()};
   const parts = /^(.+?)(?:\r?\n+|\s+[-–—]\s+)([\s\S]+)$/.exec(authored.trim());
   return {
     name: (parts?.[1] || authored).trim(),
@@ -39,10 +41,12 @@ function applicantFromTdr(adq: Adquisicion) {
 export function administrativeDefaults(adq: Adquisicion): Record<string, string> {
   const people = adq.responsables_oficiales?.['2'] || {};
   const details = availablePurchaseBrief(adq)?.details || {};
-  const previous = adq.borradores_ia?.['2']?.draft.fields || {};
+  const s1=adq.borradores_ia?.['2']?.draft;
+  const sameCompany=!s1?.companyId || s1.companyId===(adq.empresa_id||'ende');
+  const previous = sameCompany && s1?.fields || {};
   const first = (...values: unknown[]) => values.find(hasAdministrativeValue)?.trim() || '';
   const applicant = applicantFromTdr(adq);
-  const edited = adq.borradores_ia?.['2']?.draft.editedFields || [];
+  const edited = sameCompany && s1?.editedFields || [];
   const solicitante = first(edited.includes('solicitante') ? previous.solicitante : '', applicant.name, previous.solicitante, people.solicitante, adq.responsable_proceso);
   return {
     numero: requestNumber(adq), solicitante,

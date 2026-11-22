@@ -13,11 +13,9 @@ import {
   Trash2,
   CheckCircle2,
   CreditCard,
-  Building,
-  ReceiptText,
-  FileDown,
 } from "lucide-react";
 import { getFechaTextoActual } from "@/lib/utils/dateUtils";
+import { memoPeople } from '@/lib/docx/dossierPeople';
 
 interface MemoPagoViewerProps {
   adquisicion: Adquisicion;
@@ -29,25 +27,17 @@ interface MemoPagoViewerProps {
 export const MemoPagoViewer: React.FC<MemoPagoViewerProps> = ({
   adquisicion,
   onDownloadDocx,
-  onDownloadPdf,
   onAdquisicionUpdated,
 }) => {
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [savedFeedback, setSavedFeedback] = useState(false);
   const [isAiProcessing, setIsAiProcessing] = useState(false);
 
-  const [docData, setDocData] = useState<Adquisicion>({
+  const [docData, setDocData] = useState<Adquisicion>(()=>({
     ...adquisicion,
     memo_pago_cite: adquisicion.memo_pago_cite || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
     memo_pago_fecha: adquisicion.memo_pago_fecha || getFechaTextoActual(),
-    memo_pago_a_nombre:
-      adquisicion.memo_pago_a_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
-    memo_pago_a_cargo:
-      adquisicion.memo_pago_a_cargo || "SUPERINTENDENTE DE ADMINISTRACIÓN Y FINANZAS a.i.",
-    memo_pago_de_nombre:
-      adquisicion.memo_pago_de_nombre || "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
-    memo_pago_de_cargo:
-      adquisicion.memo_pago_de_cargo || "SUPERVISOR DE SEGURIDAD INDUSTRIAL a.i.",
+    ...memoPeople(adquisicion),
     memo_pago_proveedor:
       adquisicion.memo_pago_proveedor ||
       adquisicion.informe_conf_empresa_ganadora ||
@@ -85,10 +75,11 @@ export const MemoPagoViewer: React.FC<MemoPagoViewerProps> = ({
     memo_pago_conformidad_texto:
       adquisicion.memo_pago_conformidad_texto ||
       "[PENDIENTE DE COMPLETAR Y VERIFICAR]",
-  });
+  }));
 
   const handleFieldChange = (field: keyof Adquisicion, value: any) => {
-    setDocData((prev) => ({ ...prev, [field]: value }));
+    setDocData((prev) => ({ ...prev, [field]: value,
+      ...(/^memo_pago_(?:a|de)_(?:nombre|cargo)$/.test(field) ? {memo_pago_personas_editadas:Array.from(new Set([...(prev.memo_pago_personas_editadas || []),field]))} : {}) }));
   };
 
   const handleItemChange = (index: number, field: string, value: any) => {
@@ -164,7 +155,6 @@ export const MemoPagoViewer: React.FC<MemoPagoViewerProps> = ({
     setTimeout(() => setSavedFeedback(false), 2500);
   };
 
-  const isDocumentGenerated = !!docData.memo_pago_objeto || !!docData.memo_pago_monto_total || (docData.items && docData.items.length > 0);
 
   return (
     <div
@@ -191,7 +181,7 @@ export const MemoPagoViewer: React.FC<MemoPagoViewerProps> = ({
             ) : (
               <>
                 <Sparkles className="w-4 h-4 text-yellow-300 fill-yellow-300" />
-                <span>Generar con IA (1-Clic)</span>
+                <span>Redactar con IA</span>
               </>
             )}
           </button>
@@ -199,18 +189,16 @@ export const MemoPagoViewer: React.FC<MemoPagoViewerProps> = ({
           {/* Direct Word Export Button */}
           <button
             onClick={() => onDownloadDocx(docData)}
-            disabled={!isDocumentGenerated}
             className="flex items-center gap-1.5 px-3 py-2 bg-surface-container-high border border-outline-variant hover:border-primary text-on-surface font-sans text-xs font-semibold rounded-lg shadow-sm transition-all disabled:opacity-40"
             title="Descargar memorándum en Word (.docx) oficial"
           >
             <Download className="w-4 h-4 text-primary" />
-            <span>Descargar Word (.docx)</span>
+            <span>Descargar Word</span>
           </button>
 
           {/* Save Button */}
           <button
             onClick={handleSave}
-            disabled={!isDocumentGenerated}
             className="flex items-center gap-1.5 px-3.5 py-2 bg-surface-container hover:bg-surface-container-high text-on-surface font-sans text-xs font-medium rounded-lg border border-outline-variant transition-colors disabled:opacity-40"
             title="Guardar cambios realizados en el memorándum"
           >
@@ -224,7 +212,7 @@ export const MemoPagoViewer: React.FC<MemoPagoViewerProps> = ({
             ) : (
               <>
                 <Save className="w-4 h-4 text-on-surface-variant" />
-                <span>Guardar Cambios</span>
+                <span>Guardar cambios</span>
               </>
             )}
           </button>
@@ -244,37 +232,6 @@ export const MemoPagoViewer: React.FC<MemoPagoViewerProps> = ({
 
       {/* Central Workbench with Realistic Carta Sheet */}
       <div className="flex-1 bg-surface-container-low p-4 md:p-8 rounded-xl border border-outline-variant/60 overflow-x-auto flex justify-center shadow-inner">
-        {!isDocumentGenerated ? (
-          <div className="w-full max-w-[816px] bg-white border border-outline-variant/60 shadow-md rounded-xl p-16 min-h-[550px] flex flex-col items-center justify-center text-center space-y-4">
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-              <FileDown className="w-8 h-8 opacity-60" />
-            </div>
-            <div className="max-w-md space-y-1.5">
-              <h4 className="font-bold text-on-surface text-lg">Vista Previa en Blanco</h4>
-              <p className="text-xs text-on-surface-variant leading-relaxed">
-                El Memorándum de Solicitud de Pago aún no ha sido redactado para este expediente. Haz clic en el botón para generarlo automáticamente con la IA.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={handleGenerateWithAi}
-              disabled={isAiProcessing}
-              className="flex items-center gap-2 px-6 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-lg shadow-sm hover:opacity-90 transition-all disabled:opacity-50"
-            >
-              {isAiProcessing ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Generando con IA...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4 text-yellow-300 fill-yellow-300" />
-                  <span>✨ Generar Memorándum de Pago con IA</span>
-                </>
-              )}
-            </button>
-          </div>
-        ) : (
           <div className="print-document w-full max-w-[816px] min-h-[1056px] bg-white text-slate-900 shadow-2xl p-[48px] md:p-[64px] font-sans text-[13px] leading-relaxed border border-slate-300 relative rounded-sm flex flex-col justify-between">
             <div>
               {/* Header Document & Logo */}
@@ -539,7 +496,6 @@ export const MemoPagoViewer: React.FC<MemoPagoViewerProps> = ({
             />
           </div>
         </div>
-      )}
     </div>
   </div>
   );

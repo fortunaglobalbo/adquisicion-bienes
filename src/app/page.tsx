@@ -1,8 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import Link from "next/link";
-import { Plus, RefreshCw, AlertCircle, Database, CheckCircle2 } from "lucide-react";
+import { Plus, RefreshCw, AlertCircle, Database } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { MetricCards } from "@/components/dashboard/MetricCards";
 import { AcquisitionsTable, acquisitionProcessGroup, type ProcessGroup } from "@/components/dashboard/AcquisitionsTable";
@@ -131,10 +130,10 @@ export default function DashboardPage() {
             </div>
 
             <div className="flex items-center gap-2">
-              <Link href="/plantillas" className="rounded-lg border border-primary px-4 py-2 text-base font-semibold text-primary">Ver modelos Word</Link>
               <button
                 onClick={fetchDatabaseData}
-                title="Refrescar base de datos"
+                aria-label="Actualizar lista de expedientes"
+                title="Actualizar lista de expedientes"
                 className="p-2.5 bg-surface-variant/40 hover:bg-surface-variant border border-outline-variant/30 text-on-surface rounded transition-colors"
               >
                 <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
@@ -158,11 +157,8 @@ export default function DashboardPage() {
               <div className="bg-surface-variant/10 border border-outline-variant/30 rounded-lg p-12 text-center space-y-3">
                 <RefreshCw className="w-8 h-8 mx-auto animate-spin text-primary" />
                 <div className="font-mono text-xs text-on-surface font-bold uppercase tracking-wider">
-                  Consultando Base de Datos Supabase PostgreSQL...
+                  Cargando expedientes…
                 </div>
-                <p className="text-xs text-on-surface-variant">
-                  Cargando registros oficiales desde la nube.
-                </p>
               </div>
             ) : (
               <AcquisitionsTable

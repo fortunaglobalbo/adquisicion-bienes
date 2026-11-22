@@ -5,10 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
-  FolderKanban,
   FileSpreadsheet,
   LogOut,
-  ShieldCheck,
 } from "lucide-react";
 import { InstitutionalLogo } from "./InstitutionalLogo";
 import { useModuleAuth } from "@/lib/auth/moduleAuthContext";
@@ -19,17 +17,10 @@ export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
 
   const allNavItems = [
     {
-      name: "Modelos Word",
-      href: "/plantillas",
-      icon: FolderKanban,
-      active: pathname === "/plantillas",
-      module: "adquisiciones",
-    },
-    {
       name: "Mis compras",
       href: "/",
       icon: LayoutDashboard,
-      active: pathname === "/",
+      active: pathname === "/" || pathname.startsWith("/expediente/"),
       module: "adquisiciones",
     },
     {
@@ -38,13 +29,6 @@ export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
       icon: FileSpreadsheet,
       active: pathname.startsWith("/hoja-ruta") || pathname.startsWith("/hoja_ruta"),
       module: "hoja_ruta",
-    },
-    {
-      name: "Biblioteca y revisión",
-      href: "/configuracion/plantillas",
-      icon: FolderKanban,
-      active: pathname.startsWith("/configuracion"),
-      module: "adquisiciones",
     },
   ];
 

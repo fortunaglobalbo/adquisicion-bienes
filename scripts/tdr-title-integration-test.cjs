@@ -46,6 +46,28 @@ async function main(){
  assert.match(withReference.fields.aprobado,/Eva Cruz/);
  assert.equal(withReference.fields.vigencia,'Mínimo 15 días desde la apertura.');
  assert.equal(withReference.fields.pago,'Contra entrega y presentación de factura.');
+ const referenceText='La unidad requiere botines para el personal que realiza inspecciones en subestaciones y visitas técnicas a las instalaciones de la empresa.';
+ const source=notes.replace('Botines requeridos','100 pares y 150 pares de botines.\n1. ANTECEDENTES\n'+referenceText+'\n2. JUSTIFICACIÓN / NECESIDAD\nUso en campo.');
+ const narrativePurchase={...referencePurchase,titulo_proceso:'Botines',asistente_compra:{...referencePurchase.asistente_compra,purpose:'Proteger al personal en campo.',notes:source}};
+ const older={...oldCover,fields:{...oldCover.fields,antecedentes:'Se requieren los bienes descritos.',justificacion:narrativePurchase.asistente_compra.purpose},
+   proposals:{antecedentes:{value:'Se requieren los bienes descritos.',reason:'Redacción propuesta para completar el borrador.'}}};
+ const expanded=completeTdrDraft(1,older,narrativePurchase);
+ assert.equal(expanded.fields.antecedentes,referenceText);
+ assert.match(expanded.fields.justificacion,/personal en campo/i);
+ assert.match(expanded.fields.justificacion,/Caña alta/i);
+ assert.match(expanded.fields.justificacion,/Cuero impermeable/i);
+ assert.ok(expanded.fields.justificacion.split(/\s+/).length>40);
+ assert.equal(completeTdrDraft(1,{...older,editedFields:['justificacion']},narrativePurchase).fields.justificacion,older.fields.justificacion);
+ const shortAI={...older,consultedAt:'2026-01-02',fields:{...older.fields,justificacion:'Se requiere uniformar la dotación entre turnos.'}};
+ const enriched=completeTdrDraft(1,shortAI,narrativePurchase);
+ assert.match(enriched.fields.justificacion,/uniformar la dotación entre turnos/);
+ assert.equal(completeTdrDraft(1,enriched,narrativePurchase).fields.justificacion,enriched.fields.justificacion);
+ const service={...adq,titulo_proceso:'Mantenimiento de medidores',categoria:'Servicios',items:[{...adq.items[0],descripcion:'Mantenimiento de medidores',especificacionMinima:'Inspección mensual'}]};
+ const serviceDraft=completeTdrDraft(1,seedFixedDraft(1,service),service);
+ assert.match(serviceDraft.fields.antecedentes,/medidores/);
+ assert.match(serviceDraft.fields.justificacion,/mensual/);
+ assert.match(serviceDraft.fields.aceptacion,/prestaciones verificadas/);
+ assert.doesNotMatch(serviceDraft.fields.antecedentes+serviceDraft.fields.justificacion+serviceDraft.fields.aceptacion,/botines|subestaciones|orden de compra|recibir.*bienes/i);
  for(const unrelated of [notes.replaceAll('Botines','Cables'),notes+'\n'+notes]){
    const independent=completeTdrDraft(1,oldCover,{...referencePurchase,asistente_compra:{...referencePurchase.asistente_compra,notes:unrelated}});
    assert.doesNotMatch(independent.fields.aprobado,/Eva Cruz/);

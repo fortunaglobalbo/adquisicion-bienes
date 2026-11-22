@@ -3,9 +3,10 @@
 import { Adquisicion, Carpeta, Documento, CampoExtraido, Firma, LogProceso, Plantilla } from "@/types";
 import { createInitialFolders, FOLDER_TEMPLATES } from "./initialData";
 import { officialPeople } from '../docx/officialPeople';
+import { FIXED_MODELS, fixedDocumentBelongsToModel } from '../docx/fixedModels';
 import { registeredRequestNumber } from '../docx/administrativeDefaults';
 import { cambiosEstadoAdquisicion } from '../adquisicionEstado';
-import { exchangeQuotationAndComparison, workflowFolders } from './folderOrder';
+import { exchangeQuotationAndComparison, storageFolderNumber, workflowFolders } from './folderOrder';
 
 const KEYS = { adq: "ende_adquisiciones_v2026", folders: "ende_carpetas_v2026", fields: "ende_campos_extraidos_v2026", logs: "ende_logs_v2026", signs: "ende_firmas_v2026", templates: "ende_plantillas_v2026", pending: "ende_pending_v1", revisions: "ende_revisions_v1", templatePending: "ende_templates_pending_v1" };
 type Result = { success: boolean; error?: string };
@@ -138,8 +139,9 @@ export class DataStore {
     }
     const prepared={...adq.borradores_ia};
     const folders = this.getAllCarpetas().filter(c => c.adquisicion_id === adq.id);
-    for (const number of [1, 2]) {
-      const latest = folders.find(c => c.numero === number)?.documentos.filter(d => d.metadata?.fixedDraft?.fields)
+    for (const {number} of FIXED_MODELS) {
+      const latest = folders.find(c => c.numero === storageFolderNumber(number))?.documentos.filter(d =>
+        d.metadata?.fixedDraft?.fields && d.metadata.fixedDraft.companyId === (adq.empresa_id || 'ende') && fixedDocumentBelongsToModel(number,d))
         .sort((a,b) => b.fecha_creacion.localeCompare(a.fecha_creacion))[0];
       if (latest && (!prepared[number] || latest.fecha_creacion > prepared[number].updatedAt)) {
         prepared[number] = { draft: latest.metadata!.fixedDraft!, updatedAt: latest.fecha_creacion, briefRevision: prepared[number]?.briefRevision || '' };

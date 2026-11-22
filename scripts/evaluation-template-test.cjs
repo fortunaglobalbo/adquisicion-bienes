@@ -24,8 +24,47 @@ const quote=(id,price,reviewed=true)=>({id,provider:`Proveedor ${id}`,groupId:'o
  assert.equal(requestNumber({...withTdr,solicitud_numero:'20260935/2026'}),'');
  assert.equal(seedFixedDraft(2,withTdr).fields.solicitante,'Ing. Solicitante TDR');
  const empty=seedFixedDraft(6,adq);assert.equal(empty.items.length,0);assert.equal(empty.fields.solicitud,'66/2026');assert.match(empty.fields.solicitante,/Cargo oficial/);assert.ok(!Object.values(empty.fields).join(' ').includes('ARIOL'));
- assert.match(empty.fields.destinatario,/VICENTE PAUL VEGA RAMIREZ\nSUPERINTENDENCIA/);assert.match(empty.fields.via,/RAÚL ALBERTO TORRICO GÓMEZ\nGERENTE GENERAL/);
- const blankReferences={...empty,fields:{...empty.fields,destinatario:'[PENDIENTE]',via:''},editedFields:['via']};const filledReferences=fillEvaluationReferences(blankReferences,adq);assert.match(filledReferences.fields.destinatario,/VICENTE PAUL/);assert.equal(filledReferences.fields.via,'');
+ assert.equal(empty.fields.destinatario,'\nSUPERINTENDENCIA DE ADMINISTRACIÓN & FINANZAS');assert.equal(empty.fields.via,'\nGERENTE GENERAL');
+ const blankReferences={...empty,fields:{...empty.fields,destinatario:'[PENDIENTE]',via:''},editedFields:['via']};const filledReferences=fillEvaluationReferences(blankReferences,adq);assert.match(filledReferences.fields.destinatario,/SUPERINTENDENCIA/);assert.equal(filledReferences.fields.via,'');
+ const {dossierPersonFields,fillDossierPeople,memoPeople}=require('../src/lib/docx/dossierPeople.ts');
+ const saved=(fields,companyId='ende')=>({draft:{companyId,fields,items:[],editedFields:[]}});
+ const peopleDossier={...adq,responsable_proceso:'',responsables_oficiales:{},borradores_ia:{
+  1:saved({elaborado:'Ing. Ana Vargas - Supervisor de Seguridad Industrial A.I.',revisado:'Ing. Luis Pinto - Gerente General A.I.'}),
+  5:saved({destinatario:'Lic. Julia Paredes\nSuperintendente de Administración y Finanzas A.I.'}),
+  4:saved({destinatario:'Pedro Vendedor\nGERENTE GENERAL'}),
+ }};
+ for(const number of [1,2,3,4,5,6,7,9]) {
+  const fields=seedFixedDraft(number,peopleDossier).fields;
+  assert.match(fields[number===1?'elaborado':number===4?'remitente':'solicitante'],/Ana Vargas/,`Solicitante del modelo ${number}`);
+  if(number===2)assert.match(fields.cargo,/Supervisor de Seguridad Industrial A.I./);
+  if([3,5,6,7].includes(number)) {
+   assert.match(fields.via,/Luis Pinto/,`Gerencia en modelo ${number}`);assert.match(fields.destinatario,/Julia Paredes/,`Finanzas en modelo ${number}`);
+  }
+  if(number===9)assert.match(fields.destinatario,/Luis Pinto/);
+  assert.doesNotMatch(Object.values(fields).join(' '),/Pedro Vendedor/);
+ }
+ assert.equal(memoPeople(peopleDossier).memo_pago_a_nombre,'Lic. Julia Paredes');
+ assert.equal(memoPeople(peopleDossier).memo_pago_de_nombre,'Ing. Ana Vargas');
+ const separate={...peopleDossier,solicitud_inicio_via_nombre:'Ernesto Vidal',solicitud_inicio_via_cargo:'Gerente General'};
+ const refs=dossierPersonFields(5,{via:'Ernesto Vidal'},separate);
+ assert.equal(refs.via,'Ernesto Vidal\nGerente General');
+ const structuredWord=await renderFixedWord(5,{...seedFixedDraft(5,separate),fields:{...seedFixedDraft(5,separate).fields,via:'Ernesto Vidal'}},separate);
+ assert.match((await mammoth.extractRawText({buffer:structuredWord.buffer})).value,/Ernesto Vidal\s+Gerente General/i);
+ assert.equal(memoPeople({...peopleDossier,memo_pago_a_nombre:'',memo_pago_personas_editadas:['memo_pago_a_nombre']}).memo_pago_a_nombre,'');
+ const twoManagers={...peopleDossier,borradores_ia:{...peopleDossier.borradores_ia,7:saved({via:'Rosa Molina\nGerente General A.I.'})}};
+ assert.doesNotMatch(dossierPersonFields(6,{via:'Gerente General A.I.'},twoManagers).via,/Pinto|Molina/);
+ assert.equal(fillDossierPeople(6,{...empty,fields:{...empty.fields,via:'Ana Durán\nGerente General'},editedFields:['via']},twoManagers).fields.via,'Ana Durán\nGerente General');
+ assert.equal(fillDossierPeople(6,{...empty,fields:{...empty.fields,via:''},editedFields:['via']},twoManagers).fields.via,'');
+ const foreignManager={...adq,responsables_oficiales:{},borradores_ia:{1:saved({revisado:'Elena Montes - Gerente General'},'empresa-ajena')}};
+ assert.doesNotMatch(seedFixedDraft(6,foreignManager).fields.via,/Elena/);
+ const oldComparative=saved({destinatario:'Lic. MIGUEL ANGEL MAMANI CAMACHO\nSUPERINTENDENCIA DE ADMINISTRACIÓN & FINANZAS',via:'Lic. RAÚL ALBERTO TORRICO GÓMEZ\nGERENTE GENERAL'});
+ const oldEvaluation=saved({destinatario:'Lic. VICENTE PAUL VEGA RAMIREZ\nSUPERINTENDENCIA DE ADMINISTRACIÓN & FINANZAS'});
+ const examplesOnly={...adq,responsables_oficiales:{},borradores_ia:{3:oldComparative,6:oldEvaluation}};
+ for(const number of [3,5,6,7,9])assert.doesNotMatch(Object.values(seedFixedDraft(number,examplesOnly).fields).join(' '),/MAMANI|TORRICO|VEGA/);
+ assert.match(dossierPersonFields(3,oldComparative.draft.fields,peopleDossier).via,/Luis Pinto/);
+ const namedInImage={...adq,responsables_oficiales:{},asistente_compra:{facts:[{origin:'imagen',topic:'Responsable institucional: Gerente General',value:'Ángela Flores'}]}};
+ assert.match(dossierPersonFields(6,{via:'GERENTE GENERAL'},namedInImage).via,/Ángela Flores/);
+ assert.equal(dossierPersonFields(6,{via:'Gerente Comercial'},namedInImage).via,'\nGerente Comercial');
  const evaluated={...adq,selection_plan:plan,quote_evaluation:{plan,quotes:[quote('A','9000'),quote('B','8500')],updatedAt:'2026-09-25T12:00:00Z'}};
  const data=technicalEvaluationData(evaluated);assert.equal(data.items.length,2);assert.match(data.fields.recomendaciones,/Proveedor B/);assert.ok(!/adjudicación emitida\.$/.test(data.fields.conclusiones));
  const pending=technicalEvaluationData({...evaluated,quote_evaluation:{...evaluated.quote_evaluation,quotes:[quote('A','9000'),quote('B','8500',false)]}});assert.match(pending.fields.conclusiones,/evaluación incompleta/);assert.ok(!pending.fields.recomendaciones.includes('considerar la adjudicación'));

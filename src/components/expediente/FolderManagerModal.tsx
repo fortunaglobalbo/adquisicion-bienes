@@ -1,14 +1,12 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import {
   FolderPlus,
   ArrowUp,
   ArrowDown,
   Trash2,
   Edit2,
-  FileText,
-  Upload,
   Check,
   X,
   Sparkles,
@@ -52,11 +50,7 @@ export const FolderManagerModal: React.FC<FolderManagerModalProps> = ({
   const [aiPrompt, setAiPrompt] = useState("");
   const [isAnalyzingAi, setIsAnalyzingAi] = useState(false);
 
-  // Estado para subir plantilla
-  const [uploadingFolderId, setUploadingFolderId] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [targetUploadCarpeta, setTargetUploadCarpeta] = useState<Carpeta | null>(null);
 
   // Estado de guía expandida
   const [expandedGuideId, setExpandedGuideId] = useState<string | null>(null);
@@ -186,75 +180,6 @@ export const FolderManagerModal: React.FC<FolderManagerModalProps> = ({
     setIsAdding(false);
   };
 
-  const triggerUploadTemplate = (folder: Carpeta) => {
-    setTargetUploadCarpeta(folder);
-    fileInputRef.current?.click();
-  };
-
-  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !targetUploadCarpeta) return;
-
-    try {
-      setUploadingFolderId(targetUploadCarpeta.id);
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("fk_carpeta", String(targetUploadCarpeta.numero));
-      formData.append("nombre_plantilla", file.name);
-
-      // Usar proxy interno seguro de Next.js
-      const res = await fetch("/api/proxy/convertir-plantilla", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.error || "Error al convertir la plantilla en el VPS");
-      }
-
-      const result = await res.json();
-      const ia = result.analisis_ia || {};
-
-      // Actualizar carpeta con plantilla y análisis IA del documento
-      const folderUpdates: Partial<Carpeta> = {
-        plantilla_asociada_nombre: file.name,
-        plantilla_asociada_url: result.download_docx,
-      };
-
-      if (ia.descripcion) {
-        folderUpdates.descripcion = ia.descripcion;
-      }
-      if (ia.titulo_sugerido && targetUploadCarpeta.numero > 8) {
-        folderUpdates.nombre = ia.titulo_sugerido;
-      }
-
-      DataStore.updateCarpeta(targetUploadCarpeta.id, folderUpdates);
-
-      // Actualizar en Plantillas de DataStore
-      const plantillas = DataStore.getPlantillas();
-      const existing = plantillas.find((p) => p.fk_carpeta === targetUploadCarpeta.numero);
-      if (existing) {
-        await DataStore.updatePlantilla(existing.id, {
-          nombre_archivo: result.nombre_archivo,
-          descripcion: ia.descripcion || `Plantilla personalizada convertida con pdf2docx (${file.name})`,
-          tipo_doc: file.name.toLowerCase().endsWith(".pdf") ? "PDF_CONVERTIDO" : "DOCX",
-        });
-      }
-
-      const updated = DataStore.getCarpetasByAdquisicion(adquisicion.id);
-      onCarpetasUpdated(updated);
-      setSuccessMsg(`✨ Plantilla "${file.name}" analizada con IA y asignada a la Carpeta ${displayFolderNumber(targetUploadCarpeta.numero)}.`);
-      setTimeout(() => setSuccessMsg(null), 6000);
-    } catch (err: any) {
-      alert("Error al procesar plantilla: " + err.message);
-    } finally {
-      setUploadingFolderId(null);
-      setTargetUploadCarpeta(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  };
-
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Gestión de Carpetas del Expediente" maxWidth="4xl">
       <div className="space-y-6">
@@ -267,7 +192,7 @@ export const FolderManagerModal: React.FC<FolderManagerModalProps> = ({
             <div>
               <h4 className="text-sm font-bold text-on-surface">Estructura Dinámica de Carpetas</h4>
               <p className="text-xs text-on-surface-variant">
-                Administra tus carpetas, consulta el paso a paso, sube plantillas oficiales o crea nuevas con el Asistente IA.
+                Puedes crear carpetas y cambiar su nombre u orden.
               </p>
             </div>
           </div>
@@ -443,22 +368,12 @@ export const FolderManagerModal: React.FC<FolderManagerModalProps> = ({
           </div>
         )}
 
-        {/* Input Oculto para Subir Plantillas */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          className="hidden"
-          accept=".pdf,.docx,.doc"
-          onChange={handleFileSelected}
-        />
-
         {/* Lista Reordenable de Carpetas */}
         <div className="space-y-3 max-h-[440px] overflow-y-auto pr-1">
           {carpetas.map((folder, index) => {
               const isEditing = editingId === folder.id;
               const isFirst = index === 0;
               const isLast = index === carpetas.length - 1;
-              const isUploading = uploadingFolderId === folder.id;
               const isGuideOpen = expandedGuideId === folder.id;
 
               return (
@@ -544,38 +459,8 @@ export const FolderManagerModal: React.FC<FolderManagerModalProps> = ({
                       )}
                     </div>
 
-                    {/* Acciones: Plantilla, Guía, Editar, Eliminar */}
+                    {/* Acciones de la carpeta */}
                     <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-between sm:justify-end">
-                      {/* Botón Subir Plantilla */}
-                      <button
-                        type="button"
-                        disabled={isUploading}
-                        onClick={() => triggerUploadTemplate(folder)}
-                        className={`flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-semibold rounded-lg border transition-all ${
-                          folder.plantilla_asociada_nombre
-                            ? "bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100"
-                            : "bg-surface-container border-outline-variant hover:border-primary text-on-surface"
-                        }`}
-                        title="Subir plantilla en PDF o Word. La IA la analizará automáticamente."
-                      >
-                        {isUploading ? (
-                          <>
-                            <RefreshCw className="w-3 h-3 animate-spin text-primary" />
-                            <span>Analizando...</span>
-                          </>
-                        ) : folder.plantilla_asociada_nombre ? (
-                          <>
-                            <FileText className="w-3 h-3 text-emerald-600" />
-                            <span className="max-w-[100px] truncate">{folder.plantilla_asociada_nombre}</span>
-                          </>
-                        ) : (
-                          <>
-                            <Upload className="w-3 h-3 text-primary" />
-                            <span>Subir Plantilla</span>
-                          </>
-                        )}
-                      </button>
-
                       {/* Botón Ver Guía */}
                       <button
                         type="button"
@@ -622,13 +507,11 @@ export const FolderManagerModal: React.FC<FolderManagerModalProps> = ({
                       {(() => {
                         const guide = defaultGuides[folder.numero] || {
                           queHace: folder.descripcion || "Documento oficial del expediente.",
-                          deQuienDepende: folder.plantilla_asociada_nombre
-                            ? `Plantilla oficial asignada: ${folder.plantilla_asociada_nombre}`
-                            : "Expediente general del proceso y especificaciones técnicas.",
+                          deQuienDepende: "Documentos de respaldo de este expediente.",
                           pasos: [
-                            "1. Subir la plantilla oficial (.docx / .pdf)",
-                            "2. Generar el borrador con la IA",
-                            "3. Descargar el documento oficial listo para firmar",
+                            "1. Abrir la carpeta",
+                            "2. Adjuntar el documento correspondiente",
+                            "3. Consultarlo desde la lista de archivos",
                           ],
                         };
 

@@ -1,5 +1,6 @@
 import type { Adquisicion } from '@/types';
 import { administrativeDefaults, requestNumber, hasAdministrativeValue } from '../docx/administrativeDefaults';
+import { dossierPersonFields } from '../docx/dossierPeople';
 
 export type ComparativeDocumentKind='request'|'offer'|'other';
 export interface ComparativeSource {id:string;fileName:string;kind:ComparativeDocumentKind;evidence:string}
@@ -115,7 +116,8 @@ export function buildComparativeReport(adq:ComparativeAcquisition,data:Comparati
   const admin=administrativeDefaults(adq),roles=adq.responsables_oficiales?.['3']||{};
   const first=(...values:unknown[])=>values.find(hasAdministrativeValue)?.trim()||'';
   const fields:Record<string,string>={fecha:new Intl.DateTimeFormat('es-BO',{timeZone:'America/La_Paz',day:'numeric',month:'long',year:'numeric'}).format(new Date()),numero:adq.codigo,solicitud:requestNumber(adq),objeto:adq.titulo_proceso,
-    destinatario:first(roles.destinatario,'Lic. MIGUEL ANGEL MAMANI CAMACHO\nSUPERINTENDENCIA DE ADMINISTRACIÓN & FINANZAS'),via:first(roles.via,'Lic. RAÚL ALBERTO TORRICO GÓMEZ\nGERENTE GENERAL'),solicitante:first(roles.solicitante,[admin.solicitante,admin.cargo].filter(Boolean).join('\n'),'TATIANA TORRES ANDRADE\nAPOYO A GERENCIA EN SEGURIDAD INDUSTRIAL'),
+    ...dossierPersonFields(3,{destinatario:first(roles.destinatario),via:first(roles.via),
+      solicitante:first(roles.solicitante,[admin.solicitante,admin.cargo].filter(Boolean).join('\n'))},adq),
     antecedentes:`El presente cuadro comparativo corresponde al proceso «${adq.titulo_proceso}», solicitud ${requestNumber(adq)}${adq.unidad_solicitante?`, promovido por ${adq.unidad_solicitante}`:''}. Su objeto es ordenar los antecedentes de solicitud y las ofertas efectivamente aportadas, distinguir la información comercial de la verificación de requisitos y sustentar la continuación del trámite con datos comprobables.`,
     recepcion:'No se han incorporado solicitudes ni ofertas para este cuadro comparativo.',evaluacion:'La comparación económica y la revisión de requisitos se realizarán sobre las ofertas documentadas. No existe un resultado de adjudicación.',conclusiones:'La documentación disponible todavía no permite establecer una propuesta recomendada.',recomendaciones:'Incorporar las solicitudes y ofertas recibidas, verificar su correspondencia con el requerimiento y documentar el cumplimiento de las condiciones de esta adquisición antes de elevar una recomendación.'};
   if(!data)return {fields,items:[],revision:'',warnings:[],summary:'Sube las solicitudes y ofertas para preparar el cuadro comparativo.'};

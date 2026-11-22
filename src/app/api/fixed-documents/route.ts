@@ -11,6 +11,7 @@ import { wordFormPreview } from '@/lib/server/wordFormPreview';
 
 import { reviseFixedDocument, RevisionClarification } from "@/lib/server/reviseFixedDocument";
 import { fillAdministrativeBlanks, registeredRequestNumber } from '@/lib/docx/administrativeDefaults';
+import { fillDossierPeople } from '@/lib/docx/dossierPeople';
 import { reserveS1Number } from '@/lib/server/requestNumber';
 import { updateTechnicalEvaluation, fillEvaluationReferences } from '@/lib/server/technicalEvaluation';
 import { evaluationPreview, institutionalReportPreview } from '@/lib/server/evaluationPreview';
@@ -116,7 +117,7 @@ export async function POST(req: NextRequest) {
       validateFixedDraft(model,draft);
       draft=updateComparativeReport(draft,adq);
     } else if (!["preview", "download", "export"].includes(body.action)) throw Error("Acción desconocida.");
-    draft=completeTdrDraft(number,draft,adq);
+    draft=fillDossierPeople(number,completeTdrDraft(number,draft,adq),adq);
     if (number === 2) {
       const warnings = draft.warnings.filter(warning => warning !== s1ReservationWarning);
       draft = { ...draft, warnings: numberWarning ? [...warnings, s1ReservationWarning] : warnings };
@@ -128,6 +129,9 @@ export async function POST(req: NextRequest) {
       "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       "Content-Disposition": `attachment; filename="Documento_${number}_para_revision.docx"`, "Cache-Control": "no-store",
     } });
+    const editableHtml = await editableDocumentPreview(output.buffer, output.draft, model);
+    const editor = { draft: output.draft, editableHtml, revised, revisionSummary, solicitudNumeroAsignado, modelVersion: model.version };
+    if (body.editorOnly === true) return NextResponse.json(editor, { headers: { "Cache-Control": "no-store" } });
     let pdf: string | null = null;
     let previewWarning = "Vista de contenido. La paginación final se comprueba en Word; el convertidor PDF no está configurado.";
     const previewUrl = process.env.DOCX_PREVIEW_URL;
@@ -149,8 +153,7 @@ export async function POST(req: NextRequest) {
       : [3,6].includes(number) ? await evaluationPreview(output.buffer)
       : [5,7,9].includes(number) ? await institutionalReportPreview(output.buffer,number)
       : (await mammoth.convertToHtml({ buffer: output.buffer })).value;
-    const editableHtml=await editableDocumentPreview(output.buffer,output.draft,model,html);
-    return NextResponse.json({ draft: output.draft, html, editableHtml, pdf, previewWarning, revised, revisionSummary, solicitudNumeroAsignado, modelVersion: model.version }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ ...editor, html, pdf, previewWarning }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     console.error("[fixed-documents]", e instanceof Error ? e.stack : "Error al preparar documento");
     return NextResponse.json({ error: e instanceof Error&&e.name==='TimeoutError' ? 'La preparación de los archivos tardó demasiado. Los archivos seleccionados y el borrador se conservan; vuelve a intentar.' : e instanceof Error ? e.message : "No se pudo preparar el documento." }, { status: 400 });

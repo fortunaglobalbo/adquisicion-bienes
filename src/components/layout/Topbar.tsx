@@ -35,16 +35,17 @@ export const Topbar: React.FC<TopbarProps> = ({
       {/* Right Controls */}
       <div className="flex items-center gap-3">
         {/* Search */}
-        <div className="relative w-64 hidden md:block">
+        {onSearch && <div className="relative w-64 hidden md:block">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-outline" />
           <input
             type="text"
             value={searchTerm}
             onChange={handleSearch}
+            aria-label="Buscar expedientes"
             placeholder="Buscar por código, objeto..."
             className="w-full pl-9 pr-3 py-1.5 bg-surface-container-low border border-outline-variant rounded font-sans text-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary focus:border-b-2 transition-all"
           />
-        </div>
+        </div>}
 
         {/* User profile */}
         <div className="flex items-center gap-2 pl-2 border-l border-outline-variant">

@@ -1,6 +1,7 @@
 import type { Adquisicion } from '@/types';
 import type { FixedDraft } from '../docx/fixedModels';
 import { administrativeDefaults, requestNumber, hasAdministrativeValue } from '../docx/administrativeDefaults';
+import { dossierPersonFields } from '../docx/dossierPeople';
 import { evaluateQuotes, methodLabels } from '../procurement/selection';
 import { formatCurrencyBs } from '../docx/formatters';
 import { comparativeReportData } from './comparativeReport';
@@ -14,10 +15,8 @@ export function technicalEvaluationData(adq: Adquisicion) {
   const fields: Record<string, string> = {
     fecha: new Intl.DateTimeFormat('es-BO', {timeZone:'America/La_Paz',day:'numeric',month:'long',year:'numeric'}).format(new Date()),
     numero: adq.codigo, solicitud: requestNumber(adq), objeto: adq.titulo_proceso,
-    // Institutional addressees explicitly confirmed by the user; saved edits take priority.
-    destinatario: first(roles.destinatario, 'Lic. VICENTE PAUL VEGA RAMIREZ\nSUPERINTENDENCIA DE ADMINISTRACIÓN & FINANZAS'),
-    via: first(roles.via, 'Lic. RAÚL ALBERTO TORRICO GÓMEZ\nGERENTE GENERAL'),
-    solicitante: first(roles.solicitante, [admin.solicitante, admin.cargo].filter(Boolean).join('\n'), 'Ing. TATIANA TORRES ANDRADE\nSUPERVISOR SEGURIDAD INDUSTRIAL'),
+    ...dossierPersonFields(6,{destinatario:first(roles.destinatario),via:first(roles.via),
+      solicitante:first(roles.solicitante,[admin.solicitante,admin.cargo].filter(Boolean).join('\n'))},adq),
     antecedentes: `El presente informe evalúa las ofertas registradas para «${adq.titulo_proceso}», correspondiente a la solicitud ${requestNumber(adq)}.${adq.prevision_presupuesto > 0 ? ` La previsión de precio del expediente es de ${amount(adq.prevision_presupuesto)}.` : ''} Se consideran las condiciones del TDR y la documentación disponible para sustentar la recomendación.`,
     recepcion: 'Aún no se ha guardado una comparación de cotizaciones en este expediente.',
     evaluacion: 'La evaluación técnica y económica se completará con las ofertas y su evidencia. No se ha establecido un resultado de selección.',
@@ -74,11 +73,11 @@ export function updateTechnicalEvaluation(draft:FixedDraft,adq:Adquisicion):Fixe
 }
 
 export function fillEvaluationReferences(draft:FixedDraft,adq:Adquisicion):FixedDraft {
-  const defaults=technicalEvaluationData(adq).fields,fields={...draft.fields},filled:string[]=[];
+  const defaults=technicalEvaluationData(adq).fields,fields={...draft.fields};
   for(const key of ['destinatario','via','solicitante']) {
     if(!hasAdministrativeValue(fields[key])&&!draft.editedFields?.includes(key)&&hasAdministrativeValue(defaults[key])) {
-      fields[key]=defaults[key];filled.push(key);
+      fields[key]=defaults[key];
     }
   }
-  return {...draft,fields,editedFields:Array.from(new Set([...(draft.editedFields||[]),...filled]))};
+  return {...draft,fields};
 }

@@ -2,6 +2,7 @@ import { engineUrl } from "@/lib/server/config";
 import { NextRequest, NextResponse } from "next/server";
 import { extractMemoPagoWithAI } from "@/lib/ai/openCodeClient";
 import { Adquisicion } from "@/types";
+import { memoPeople } from '@/lib/docx/dossierPeople';
 
 export async function POST(req: NextRequest) {
   try {
@@ -40,10 +41,12 @@ export async function POST(req: NextRequest) {
       imageBase64,
       contextoCarpetas,
     });
+    const people=memoPeople(adquisicion);
 
     return NextResponse.json({
       success: true,
-      data,
+      data: {...data,a_nombre:people.memo_pago_a_nombre, a_cargo:people.memo_pago_a_cargo,
+        de_nombre:people.memo_pago_de_nombre, de_cargo:people.memo_pago_de_cargo},
       nombreArchivo: `MEMO_PAGO_${adquisicion.codigo}.docx`,
     });
   } catch (err: any) {

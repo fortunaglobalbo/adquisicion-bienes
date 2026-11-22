@@ -137,11 +137,12 @@ export function EditableDocument(props: EditableDocumentProps) {
   const editableTarget = (target: EventTarget | null) => target instanceof Element ? target.closest<HTMLElement>('[data-editor-zone="true"]') : null;
 
   return <div className="rounded-lg border border-slate-300 bg-slate-100 p-2 sm:p-5">
-    <p className="mb-3 text-sm text-slate-600" id={`document-edit-help-${model.number}`}>Haz clic en el texto o en una celda para corregirlo. Después pulsa «Guardar cambios».</p>
+    <p className="mb-3 text-sm text-slate-600" id={`document-edit-help-${model.number}`}>Puedes escribir directamente en el documento.</p>
     <div className="overflow-x-auto rounded-sm shadow-sm">
       <div
         ref={sheet}
-        className="institutional-document-editor mx-auto min-w-[640px] max-w-[860px] bg-white px-8 py-10 sm:px-12"
+        className="print-document institutional-document-editor mx-auto min-w-[640px] max-w-[860px] bg-white px-8 py-10 sm:px-12"
+        role="region"
         aria-label={`Documento editable: ${model.title}`}
         aria-describedby={`document-edit-help-${model.number}`}
         aria-busy={disabled}
@@ -193,7 +194,7 @@ export function EditableDocument(props: EditableDocumentProps) {
       {draft.items.length > 0 && selectedRow === null && <span className="text-xs text-slate-600">Para quitar una fila, haz clic en una de sus celdas.</span>}
     </div>}
     <style>{`
-      .institutional-document-editor {color:#151515;font:14px Arial,sans-serif;line-height:1.45;}
+      .institutional-document-editor {color:#151515;font:14px Tahoma,sans-serif;line-height:1.45;}
       .institutional-document-editor img {display:block;max-width:180px;max-height:100px;width:auto;height:auto;object-fit:contain;margin:0 auto 16px;}
       .institutional-document-editor table {border-collapse:collapse;width:100%;margin:18px 0;table-layout:auto;}
       .institutional-document-editor td,.institutional-document-editor th {border:1px solid #888;padding:7px;overflow-wrap:normal;word-break:normal;}

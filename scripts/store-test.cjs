@@ -16,7 +16,7 @@ const fetchMock=async (_url,init)=>{
 };
 function load(file) {
   const source = ts.transpileModule(fs.readFileSync(file, 'utf8'), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop:true },
   }).outputText;
   const module = { exports: {} };
   const relativeRequire = id => {
@@ -66,6 +66,20 @@ async function main(){
  const second=await db.createAdquisicion({codigo:'NUEVO-2',titulo_proceso:'Otra compra',items:[],empresa_id:'otra'});
  assert.equal(second.success,true);assert.equal(second.data.responsables_oficiales[2].solicitante,undefined);await db.flushPending();
  console.log('PASS datos oficiales sincronizados, próximos expedientes, histórico intacto y separación entre empresas');
+ const otherId=randomUUID(),selectedId=randomUUID();
+ const fixedDocument=(modelNumber,date,name,company='ende')=>({fecha_creacion:date,metadata:{fixedModelNumber:modelNumber,fixedDraft:{companyId:company,fields:{destinatario:name}}}});
+ store.setItem('ende_adquisiciones_v2026',JSON.stringify([{id:selectedId,empresa_id:'ende',borradores_ia:{5:{draft:{companyId:'ende',fields:{destinatario:'Borrador más reciente'}},updatedAt:'2026-11-10'}}}]));
+ store.setItem('ende_carpetas_v2026',JSON.stringify([
+  {adquisicion_id:otherId,numero:5,documentos:[fixedDocument(9,'2026-11-15','Otro expediente')]},
+  {adquisicion_id:selectedId,numero:5,documentos:[
+   fixedDocument(9,'2026-11-02','Primera versión'),fixedDocument(9,'2026-11-04','Informe técnico vigente'),
+   fixedDocument(9,'2026-11-08','Empresa ajena','otra'),fixedDocument(5,'2026-11-01','Solicitud anterior'),
+  ]},
+ ]));
+ const drafts=db.getAdquisicionById(selectedId).borradores_ia;
+ assert.equal(drafts[9].draft.fields.destinatario,'Informe técnico vigente');
+ assert.equal(drafts[5].draft.fields.destinatario,'Borrador más reciente');
+ console.log('PASS solicitud e informe técnico de la misma carpeta recuperan su última versión de la empresa y expediente');
  assert.ok(writes>0);console.log('Pruebas locales completas.');
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});

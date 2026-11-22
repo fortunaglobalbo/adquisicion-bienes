@@ -1,11 +1,10 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
-import { Download, Loader2, Save, Sparkles, RefreshCw } from "lucide-react";
+import { Download, Loader2, Save, Sparkles } from "lucide-react";
 import type { Adquisicion, Carpeta, Documento } from "@/types";
 import { fixedModel, FixedDraft, compatibleFixedDraft, upgradeFixedDraft, fixedDocumentBelongsToModel, newFixedItem } from "@/lib/docx/fixedModels";
 import { DataStore } from "@/lib/store/dataStore";
 import { officialPeople, officialPeopleKeys } from "@/lib/docx/officialPeople";
-import { initialBrief } from '@/lib/docx/purchaseBrief';
 import { comparativeSnapshot } from '@/lib/procurement/comparativeReport';
 import { EditableDocument } from './EditableDocument';
 import { appendPurchaseAttachments, cleanupPurchaseAttachmentUploads } from '@/lib/uploads/attachmentClient';
@@ -13,11 +12,8 @@ import { ATTACHMENT_HELP_TEXT, validateAttachmentSelection } from '@/lib/uploads
 import { displayFolderNumber, TECHNICAL_JUSTIFICATION_MODEL } from '@/lib/store/folderOrder';
 
 const control = "w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-900 focus:ring-2 focus:ring-blue-600";
-const action = "inline-flex items-center gap-2 rounded-lg border border-amber-500 bg-amber-400 hover:bg-amber-500 text-slate-950 shadow-sm px-4 py-2 text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer";
+const action = "inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-primary hover:bg-slate-100 focus-visible:outline-2 disabled:opacity-50 disabled:cursor-not-allowed";
 const purchaseSnapshot = (adq: Adquisicion) => JSON.stringify({ title: adq.titulo_proceso, items: adq.items, background: adq.antecedentes_texto, reason: adq.justificacion_texto });
-function documentFrame(html: string) {
-  return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'"><style>body{max-width:760px;margin:0 auto;padding:20px;font:14px Arial;color:#151515;background:white;line-height:1.45}img{display:block;max-width:180px;max-height:100px;width:auto;height:auto;object-fit:contain;margin:0 auto 16px}table{border-collapse:collapse;width:100%;margin:18px 0;table-layout:auto}td,th{border:1px solid #888;padding:7px;overflow-wrap:anywhere}p{white-space:pre-wrap}h1,h2{text-align:center}a{color:inherit}</style></head><body>${html}</body></html>`;
-}
 export function FixedDocumentFolder({ adquisicion, carpeta, modelNumber=carpeta.numero, onSaved, assistantBusy=false }: { adquisicion: Adquisicion; carpeta: Carpeta; modelNumber?: number; onSaved: () => void; assistantBusy?:boolean }) {
   const model = fixedModel(modelNumber);
   const modelDocuments = carpeta.documentos.filter(document => {
@@ -43,17 +39,12 @@ export function FixedDocumentFolder({ adquisicion, carpeta, modelNumber=carpeta.
   const [draft, setDraft] = useState<FixedDraft | null>(recovery?.draft || initial || null);
   const [context, setContext] = useState(recovery?.context || "");
   const [files, setFiles] = useState<File[]>([]);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(true);
   const [dirty, setDirty] = useState(!!recovery);
-  const [stale, setStale] = useState(false);
-  const [html, setHtml] = useState("");
   const [editableHtml,setEditableHtml]=useState('');
-  const [pdf, setPdf] = useState<string | null>(null);
-  const [previewWarning, setPreviewWarning] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [edit, setEdit] = useState(!!recovery);
-  const [aiEdit, setAiEdit] = useState(false);
+  const [aiEdit, setAiEdit] = useState(!!recovery?.context);
   const [clarification, setClarification] = useState('');
   const [pendingInstruction, setPendingInstruction] = useState('');
   const [undoDraft, setUndoDraft] = useState<FixedDraft | null>(null);
@@ -61,15 +52,13 @@ export function FixedDocumentFolder({ adquisicion, carpeta, modelNumber=carpeta.
   const mounted = useRef(true);
   const requestVersion = useRef(0);
   const requestController = useRef<AbortController | null>(null);
-  const pdfUrl = useRef<string | null>(null);
   const storedVersion=useRef(`${prepared?.updatedAt||''}:${latest?.fecha_creacion||''}`);
-  const pendingNorms = model.fields.filter(f=>f.normative && !draft?.confirmedFields?.includes(f.key) && !adquisicion.asistente_compra?.decisions?.[model.number===2&&f.key==='categoria'?'categoria_s1':f.key] && (!draft?.sourceIds[f.key]?.length || /PENDIENTE/.test(draft?.fields[f.key] || ''))).map(f=>f.label);
   const comparisonRevision=adquisicion.comparative_report && (!adquisicion.quote_evaluation || adquisicion.comparative_report.updatedAt>adquisicion.quote_evaluation.updatedAt)?adquisicion.comparative_report.revision:adquisicion.quote_evaluation?.updatedAt;
   const evaluationChanged=model.number===6&&!!draft&&!!comparisonRevision&&draft.evaluationRevision!==comparisonRevision;
   const comparativeChanged=model.number===3&&!!draft&&!!adquisicion.comparative_report&&(draft.evaluationRevision!==adquisicion.comparative_report.revision || !!draft.comparativeSnapshot&&draft.comparativeSnapshot!==comparativeSnapshot(adquisicion));
   async function request(kind: string, selectedDraft=draft, signal?: AbortSignal) {
     const form = new FormData();
-    form.append("request", JSON.stringify({ action: kind, number: model.number, adquisicion, draft:selectedDraft, context: pendingInstruction ? `${pendingInstruction}\nRespuesta del usuario: ${context}` : context }));
+    form.append("request", JSON.stringify({ action: kind, editorOnly:true, number: model.number, adquisicion, draft:selectedDraft, context: pendingInstruction ? `${pendingInstruction}\nRespuesta del usuario: ${context}` : context }));
     try {
       if (kind === "complete" || kind === "revise") await appendPurchaseAttachments(form, files, adquisicion.id, { signal,
         onProgress: ({ completed, total }) => { if (mounted.current && !signal?.aborted) setMessage(`Subiendo archivos… (${completed} de ${total})`); } });
@@ -96,17 +85,15 @@ export function FixedDocumentFolder({ adquisicion, carpeta, modelNumber=carpeta.
         if (!mounted.current || version !== requestVersion.current) return;
       }
       if (kind === 'complete' || kind === 'revise' || kind === 'refresh-evaluation' || kind === 'refresh-comparative') {setUndoDraft(draft);setClarification('');setPendingInstruction('');}
-      setDraft(result.draft); setHtml(result.html);setEditableHtml(result.editableHtml||''); setPreviewWarning(result.previewWarning); setStale(false);
-      if (pdfUrl.current) URL.revokeObjectURL(pdfUrl.current);
-      pdfUrl.current = result.pdf ? URL.createObjectURL(new Blob([Uint8Array.from(atob(result.pdf), c => c.charCodeAt(0))], { type: "application/pdf" })) : null;
-      setPdf(pdfUrl.current);
-      if (kind === "complete" || kind === "revise" || kind === 'refresh-evaluation' || kind === 'refresh-comparative') { setDirty(true); setAiEdit(false); setContext(""); setFiles([]); setMessage(kind==='refresh-evaluation'||kind==='refresh-comparative'?'Cuadro y conclusiones actualizados desde las cotizaciones guardadas. Puedes editarlos y guardar el informe.':result.revised ? `Cambios aplicados: ${(result.revisionSummary || []).join(", ") || "el documento ya contiene los datos solicitados"}. Revisa la vista y pulsa Guardar cambios.` : "Datos incorporados al borrador. Revisa los campos pendientes antes de guardarlo."); }
+      setDraft(result.draft);
+      setEditableHtml(result.editableHtml || '');
+      if (kind === "complete" || kind === "revise" || kind === 'refresh-evaluation' || kind === 'refresh-comparative') { setDirty(true); setAiEdit(false); setContext(""); setFiles([]); setMessage(kind==='refresh-evaluation'||kind==='refresh-comparative'?'Cuadro y conclusiones actualizados desde las cotizaciones guardadas. Puedes editarlos y guardar el informe.':result.revised ? `Cambios aplicados: ${(result.revisionSummary || []).join(", ") || "el documento ya contiene los datos solicitados"}. Revisa la vista y pulsa Guardar cambios.` : "Documento actualizado. Pulsa «Guardar cambios» para conservarlo."); }
     } catch (e) { if (mounted.current && version === requestVersion.current) setError(e instanceof Error ? e.message : "No se pudo actualizar."); }
     finally { if (requestController.current === controller) requestController.current = null; if (mounted.current && version === requestVersion.current) setBusy(false); }
   }
   useEffect(() => {
     mounted.current = true; void refresh();
-    return () => { mounted.current = false; requestVersion.current++; requestController.current?.abort(); if (pdfUrl.current) URL.revokeObjectURL(pdfUrl.current); };
+    return () => { mounted.current = false; requestVersion.current++; requestController.current?.abort(); };
   }, []);
   useEffect(()=>{
     const version=`${prepared?.updatedAt||''}:${latest?.fecha_creacion||''}`;
@@ -121,18 +108,8 @@ export function FixedDocumentFolder({ adquisicion, carpeta, modelNumber=carpeta.
     const key = recoveryKey;
     try { localStorage.setItem(key, JSON.stringify({ draft, context, updatedAt: Date.now() })); } catch { setMessage("No se pudo guardar la recuperación local. Guarda el borrador antes de salir."); }
   }, [draft, context, dirty, recoveryKey]);
-  async function recover() {
-    try {
-      const value = JSON.parse(localStorage.getItem(recoveryKey) || "null");
-      if (!compatibleFixedDraft(model.number,value?.draft)) { setMessage("No hay cambios locales de esta versión para recuperar."); return; }
-      const recovered=upgradeFixedDraft(model.number,value.draft);
-      setDraft(recovered); setContext(value.context || ""); setDirty(true); setStale(true); setEdit(true);
-      await refresh('preview',recovered);
-      setMessage("Cambios recuperados en el documento. Pulsa «Guardar cambios» para conservarlos en el expediente.");
-    } catch { setError("No se pudo recuperar el borrador local."); }
-  }
   function changeField(key: string, value: string) {
-    setDraft(previous=>previous?{ ...previous, fields: { ...previous.fields, [key]: value }, sourceIds: { ...previous.sourceIds, [key]: [] }, sourceQuotes: {...previous.sourceQuotes,[key]:[]}, editedFields: Array.from(new Set([...(previous.editedFields || []),key])) }:previous); setDirty(true); setStale(true); setMessage("");
+    setDraft(previous=>previous?{ ...previous, fields: { ...previous.fields, [key]: value }, sourceIds: { ...previous.sourceIds, [key]: [] }, sourceQuotes: {...previous.sourceQuotes,[key]:[]}, editedFields: Array.from(new Set([...(previous.editedFields || []),key])) }:previous); setDirty(true); setMessage("");
   }
   function changeItem(row:number,key:string,value:string){
     setDraft(previous=>{
@@ -140,16 +117,12 @@ export function FixedDocumentFolder({ adquisicion, carpeta, modelNumber=carpeta.
       const items=previous.items.length?previous.items:[newFixedItem(model,0)];
       return {...previous,editedItems:true,items:items.map((item,index)=>index===row?{...item,[key]:value}:item)};
     });
-    setDirty(true);setStale(true);setMessage('');
+    setDirty(true);setMessage('');
   }
   function replaceItems(items:FixedDraft['items']){
     if(!draft)return;
     const next={...draft,editedItems:true,items:items.map((item,index)=>({...item,numero:String(index+1)}))};
-    setDraft(next);setDirty(true);setStale(true);void refresh('preview',next);
-  }
-  function toggleEditing(){
-    setEdit(!edit);
-    if((edit&&stale)||(!edit&&!editableHtml))void refresh();
+    setDraft(next);setDirty(true);void refresh('preview',next);
   }
   async function download(save: boolean) {
     if (!draft) return;
@@ -158,7 +131,6 @@ export function FixedDocumentFolder({ adquisicion, carpeta, modelNumber=carpeta.
       const exported = await (await request("export")).json();
       const savedDraft: FixedDraft = exported.draft;
       const blob = new Blob([Uint8Array.from(atob(exported.docx), c => c.charCodeAt(0))], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
-      if (JSON.stringify(savedDraft.fields) !== JSON.stringify(draft.fields)) setStale(true);
       setDraft(savedDraft);
       const fileLabel = modelNumber === TECHNICAL_JUSTIFICATION_MODEL ? 'informe_tecnico' : displayFolderNumber(modelNumber);
       const version = modelDocuments.length + 1;
@@ -208,7 +180,7 @@ export function FixedDocumentFolder({ adquisicion, carpeta, modelNumber=carpeta.
         }
         await DataStore.flushPending();
         await refresh('preview',savedDraft);
-        setDirty(false); setSaveOfficial(false); setEdit(false); setMessage(DataStore.pendingCount() ? "Archivo guardado; el registro tiene cambios pendientes de sincronización." : saveOfficial ? "Documento y responsables oficiales guardados para próximos expedientes." : "Cambios guardados. Esta es la versión actual del documento.");
+        setDirty(false); setSaveOfficial(false); setMessage(DataStore.pendingCount() ? "Documento guardado en este equipo. Falta sincronizarlo." : saveOfficial ? "Documento y responsables oficiales guardados para próximos expedientes." : "Cambios guardados.");
         if (!DataStore.pendingCount()) localStorage.removeItem(recoveryKey);
         onSaved();
       } else {
@@ -229,77 +201,55 @@ export function FixedDocumentFolder({ adquisicion, carpeta, modelNumber=carpeta.
           mergedFields[k] = draft.proposals![k].value;
         }
         setDraft(d => d ? { ...d, fields: mergedFields } : null);
-        setDirty(true);setStale(true);
+        setDirty(true);
       }
     }
   }, [draft?.proposals]);
 
-  const suggestedKeys=Object.keys(draft?.proposals||{}).filter(key=>draft?.proposals?.[key]?.value===draft?.fields[key]&&!draft?.confirmedFields?.includes(key));
-  async function confirmSuggestions() {
-    if(!draft)return;
-    setError('');
-    try {
-      const decisions=Object.fromEntries(suggestedKeys.map(key=>[model.number===2&&key==='categoria'?'categoria_s1':key,draft.fields[key]]));
-      const current=DataStore.getAdquisicionById(adquisicion.id)||adquisicion;
-      const brief=initialBrief(current);
-      const result=await DataStore.updateAdquisicion(adquisicion.id,{asistente_compra:{...brief,decisions:{...brief.decisions,...decisions},revision:crypto.randomUUID()}});
-      if(!result.success)throw Error(result.error);
-      setDraft({...draft,confirmedFields:Array.from(new Set([...(draft.confirmedFields||[]),...suggestedKeys]))});
-      setDirty(true);setMessage('Condiciones elegidas para esta compra. Guarda los cambios del documento.');
-    }catch(e){setError(e instanceof Error?e.message:'No se pudieron conservar las condiciones.');}
-  }
-
   return <section className="space-y-4 text-base">
-    <div><h2 className="text-xl font-bold text-primary">{model.title}</h2><p className="mt-1 text-sm text-slate-600">Modelo institucional fijo · Word editable · {dirty ? "Cambios sin guardar en el expediente" : "Documento para revisión"}</p></div>
-    {purchaseChanged && <p role="status" className="rounded-lg bg-amber-50 p-3 text-sm">El TDR o los datos de la compra cambiaron desde esta versión. Revisa el objeto y los ítems en «Editar documento» antes de utilizar este documento.</p>}
+    <div className="flex flex-wrap items-baseline gap-x-3">
+      <h2 className="text-xl font-bold text-primary">{model.title}</h2>
+      {dirty && <span role="status" className="text-sm text-slate-600">Cambios sin guardar</span>}
+    </div>
+    {purchaseChanged && <p role="status" className="text-sm text-amber-800">Los datos de la compra cambiaron. Revisa el objeto y los ítems.</p>}
     <fieldset disabled={busy || assistantBusy} className="space-y-4 min-w-0">
-      {!!suggestedKeys.length&&<details className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm"><summary className="cursor-pointer font-semibold">Condiciones sugeridas ya incluidas en el documento</summary><p className="mt-2">Puedes usarlas o cambiarlas en «Editar documento». Son propuestas para esta compra.</p><div className="my-3 space-y-3">{suggestedKeys.map(key=><div key={key}><strong>{model.fields.find(f=>f.key===key)?.label||key}</strong><p className="whitespace-pre-wrap">{draft!.fields[key]}</p><p className="text-slate-600">{draft!.proposals![key].reason}</p></div>)}</div><button className={action} onClick={confirmSuggestions}>Usar estas condiciones para esta compra</button></details>}
-      {model.number===2&&<p className="text-sm text-slate-600">La solicitud usa un número correlativo. El nombre y el cargo se completan con los datos del TDR y puedes editarlos en el formulario.</p>}
       {model.number===3&&comparativeChanged&&<div className="rounded-lg bg-amber-50 p-3 text-sm"><p>Las cotizaciones o el requerimiento cambiaron desde esta versión. Tus correcciones manuales se conservarán.</p><button className={action} onClick={()=>refresh('refresh-comparative')}>Actualizar cuadro desde cotizaciones</button></div>}
-      {model.number===6&&<div className="rounded-lg border border-blue-200 bg-blue-50 p-3 space-y-2 text-sm"><p>Informe técnico de evaluación basado en el modelo aportado. Puedes editar libremente los párrafos y el cuadro de proveedores.</p>{evaluationChanged&&<p className="font-semibold">Las cotizaciones cambiaron desde esta versión del informe.</p>}{adquisicion.quote_evaluation?.quotes.length||adquisicion.comparative_report?<button className={action} onClick={()=>refresh('refresh-evaluation')}>Actualizar cuadro y conclusiones desde cotizaciones</button>:<p>Sube las cotizaciones y guarda la comparación en la carpeta {displayFolderNumber(3)} para incorporarlas al informe.</p>}</div>}
-      {model.number>4&&(adquisicion.asistente_compra?.confirmedAt||adquisicion.asistente_compra?.preparedAt)&&<button className={action} onClick={()=>refresh('complete')}><Sparkles size={16}/>Redactar con los datos de esta compra</button>}
       <div className="flex flex-wrap gap-2">
-        <button className={action} onClick={toggleEditing}>
-          <RefreshCw size={16} />{edit ? "Cerrar edición" : "Editar documento"}
-        </button>
-        <button className={action} onClick={() => setAiEdit(v => !v)}>
-          <Sparkles size={16} />Completar o corregir con IA
-        </button>
-        <button className={action} disabled={!draft} onClick={() => download(true)}>
+        <button className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-container disabled:opacity-50" disabled={!draft} onClick={() => download(true)}>
           <Save size={16} />Guardar cambios
         </button>
         <button className={action} disabled={!draft} onClick={() => download(false)}>
           <Download size={16} />Descargar Word
         </button>
+        <button className={action} aria-expanded={aiEdit} onClick={() => setAiEdit(v => !v)}>
+          <Sparkles size={16} />Completar o corregir con IA
+        </button>
+        {model.number>4&&(adquisicion.asistente_compra?.confirmedAt||adquisicion.asistente_compra?.preparedAt)&&<button className={action} onClick={()=>refresh('complete')}>Redactar con los datos de esta compra</button>}
+        {model.number===6 && (adquisicion.quote_evaluation?.quotes.length || adquisicion.comparative_report) ? <button className={action} onClick={()=>refresh('refresh-evaluation')}>Actualizar cuadro y conclusiones desde cotizaciones</button> : null}
       </div>
+      {evaluationChanged && <p role="status" className="text-sm text-amber-800">Las cotizaciones cambiaron. Puedes actualizar el cuadro y las conclusiones.</p>}
       {aiEdit && <div className="rounded-xl border border-slate-300 p-4 space-y-4 bg-slate-50">
         {clarification && <div role="status" className="rounded-lg border border-blue-200 bg-blue-50 p-3"><p className="font-semibold">{clarification}</p><p className="text-sm mt-1">Responde abajo; conservaré tu petición anterior. El documento sigue igual.</p></div>}
         <label className="block space-y-2"><span className="font-semibold">Describe lo que necesitas o los datos que cambian</span><textarea className={control} rows={4} value={context} onChange={e => {setContext(e.target.value);setDirty(true);}} placeholder="Ejemplo: cambia la entrega a 45 días, pon a María Pérez como responsable y cambia la cantidad del ítem 2 a 20 pares." /></label>
-        <label className="block space-y-2"><span>Antecedentes de esta compra (opcional)</span><input className={control} type="file" multiple accept=".pdf,.docx,.txt,.jpg,.jpeg,.png,.webp" onChange={e => { const selected = Array.from(e.target.files || []); setFiles(selected); setError(validateAttachmentSelection(selected) || ''); }} /><span className="text-sm text-slate-600">{ATTACHMENT_HELP_TEXT} PDF con texto o escaneado. La IA lee las imágenes con visión. No se incorporan a la biblioteca normativa.</span></label>
+        <label className="block space-y-2"><span>Antecedentes de esta compra (opcional)</span><input className={control} type="file" multiple accept=".pdf,.docx,.txt,.jpg,.jpeg,.png,.webp" onChange={e => { const selected = Array.from(e.target.files || []); setFiles(selected); setError(validateAttachmentSelection(selected) || ''); }} /><span className="text-sm text-slate-600">{ATTACHMENT_HELP_TEXT} </span></label>
         <button className={action} onClick={() => refresh(context.trim() || pendingInstruction ? "revise" : "complete")}><Sparkles size={16} />{clarification ? "Responder al asistente" : "Aplicar cambios con IA"}</button>
       </div>}
-      {edit && draft && model.number !== TECHNICAL_JUSTIFICATION_MODEL && !!officialPeopleKeys[model.number]?.length && <details className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm">
-          <summary className="cursor-pointer font-semibold">Responsables para próximos expedientes</summary>
-          <label className="flex gap-2 items-start"><input type="checkbox" checked={saveOfficial} onChange={e=>setSaveOfficial(e.target.checked)} className="mt-1"/><span className="font-semibold">Usar estos responsables como datos oficiales en próximos expedientes</span></label>
-          <p className="mt-2">Se guardan al pulsar «Guardar cambios», para esta empresa y este formulario. Los expedientes anteriores conservan sus datos.</p>
-          <ul className="mt-2 space-y-1">{model.fields.filter(f=>officialPeopleKeys[model.number].includes(f.key)).map(f=><li key={f.key}><strong>{f.label}:</strong> {draft.fields[f.key] || 'Sin completar'}</li>)}</ul>
-      </details>}
-      {stale && !edit && <div className="flex flex-wrap items-center gap-3 bg-amber-50 p-3"><span className="text-sm">La vista aún no incluye los últimos cambios.</span><button className={action} onClick={() => refresh()}><RefreshCw size={16} />Actualizar vista</button></div>}
-      {!!draft?.warnings.length && <div className="rounded-lg bg-amber-50 p-3 text-sm"><p>{suggestedKeys.length?'El borrador está redactado con condiciones sugeridas editables. Revisa los detalles antes de firmar.':pendingNorms.length ? `Por revisar: ${pendingNorms.join(', ')}. Los datos disponibles se muestran en el documento.` : draft.sources.length ? 'El borrador incluye fuentes normativas propuestas. Comprueba su aplicación antes de firmar.' : draft.warnings[0]}</p></div>}
+      {draft && model.number !== TECHNICAL_JUSTIFICATION_MODEL && !!officialPeopleKeys[model.number]?.length &&
+        <label className="flex w-fit items-center gap-2 text-sm text-slate-700">
+          <input type="checkbox" checked={saveOfficial} onChange={e=>setSaveOfficial(e.target.checked)} />
+          Usar estos responsables como datos oficiales en próximos expedientes
+        </label>}
+      {model.number===2 && draft?.warnings?.filter(warning=>warning.startsWith('No se pudo asignar el correlativo')).map(warning=><p key={warning} role="status" className="text-sm text-amber-800">{warning}</p>)}
       {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-red-800">{error}</p>}
       {message && <p role="status" className="text-sm text-primary">{message}</p>}
-      {undoDraft && <button className={action} onClick={async()=>{setDraft(undoDraft);setUndoDraft(null);setDirty(true);setStale(true);await refresh('preview',undoDraft);setMessage('Último cambio deshecho en el documento. Guarda para conservar esta versión.');}}>Deshacer último cambio del asistente</button>}
-      {busy && <p role="status" className="flex items-center gap-2 text-primary"><Loader2 size={18} className="animate-spin" />Preparando documento… Conservaremos la última vista hasta terminar.</p>}
-      {previewWarning && <p className="text-sm text-slate-600">{previewWarning}</p>}
-      <h3 className="font-semibold text-lg">{edit?'Documento editable':'Vista previa del documento'}</h3>
-      {edit&&draft ? editableHtml ? <EditableDocument html={editableHtml} draft={draft} model={model} disabled={busy||assistantBusy}
-        onFieldChange={changeField} onItemChange={changeItem}
-        onAddItem={()=>replaceItems([...draft.items,newFixedItem(model,draft.items.length)])}
-        onRemoveItem={row=>replaceItems(draft.items.filter((_,index)=>index!==row))}/>
-        : !busy&&<div role="status" className="rounded-lg border p-4">No se cargó el documento editable. <button className={action} onClick={()=>refresh()}>Cargar documento</button></div>
-        : pdf ? <iframe title="Vista previa del Word en PDF" src={pdf} className="w-full min-h-[900px] rounded-lg border bg-white" /> : html ? <iframe title="Vista de contenido del Word" sandbox="" srcDoc={documentFrame(html)} className="w-full min-h-[900px] rounded-lg border bg-white" /> : !busy && <div role="status" className="border rounded-lg p-5"><p>No se cargó la vista del documento. Puedes volver a cargarla sin generar con IA.</p><button className={action} onClick={() => refresh()}>Mostrar documento</button></div>}
-      {draft && <details className="text-sm border rounded-lg p-3"><summary className="cursor-pointer font-semibold">Fuentes y observaciones</summary><div className="mt-3 space-y-3">{draft.warnings.map((w,i)=><p key={i}>{w}</p>)}{draft.sources.map(s=><div key={s.id}><strong>{s.id} · {s.title}</strong><p>Página {s.page} · versión {s.version}</p><p className="whitespace-pre-wrap mt-1">{s.excerpt}</p></div>)}<p>{draft.consultedAt?`Consulta: ${new Date(draft.consultedAt).toLocaleString('es-BO')}`:'Aún no se han consultado las normas.'}</p></div></details>}
-      <details className="text-sm"><summary className="cursor-pointer">Versiones y recuperación</summary><button className="underline my-3" onClick={recover}>Recuperar últimos cambios de este equipo</button>{modelDocuments.filter(d=>d.ruta_storage).map(d=><p key={d.id} className="py-1"><a className="text-primary underline" href={`/api/files?path=${encodeURIComponent(d.ruta_storage!)}`}>{d.nombre_original} · {d.estado}</a></p>)}</details>
+      {undoDraft && <button className={action} onClick={async()=>{setDraft(undoDraft);setUndoDraft(null);setDirty(true);await refresh('preview',undoDraft);setMessage('Último cambio deshecho en el documento. Guarda para conservar esta versión.');}}>Deshacer último cambio del asistente</button>}
+      {busy && <p role="status" className="flex items-center gap-2 text-primary"><Loader2 size={18} className="animate-spin"/>Preparando documento…</p>}
+      {draft && editableHtml
+        ? <EditableDocument html={editableHtml} draft={draft} model={model} disabled={busy||assistantBusy}
+            onFieldChange={changeField} onItemChange={changeItem}
+            onAddItem={()=>replaceItems([...draft.items,newFixedItem(model,draft.items.length)])}
+            onRemoveItem={row=>replaceItems(draft.items.filter((_,index)=>index!==row))}/>
+        : !busy && <button className={action} onClick={()=>refresh()}>Volver a cargar el documento</button>}
     </fieldset>
   </section>;
 }
