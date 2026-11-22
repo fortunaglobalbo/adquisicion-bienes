@@ -222,6 +222,10 @@ export function EditableDocument(props: EditableDocumentProps) {
       .institutional-document-editor .institutional-report {font-family:Tahoma,sans-serif;line-height:1.3;}
       .institutional-document-editor .institutional-report .report-logo {width:160px;margin:0 0 14px;}
       .institutional-document-editor .institutional-report table:first-of-type p {margin:0;}
+      .institutional-document-editor .conformity-logo {width:160px;margin:0 0 14px;}
+      .institutional-document-editor .conformity-date {display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 16px;font-weight:bold;margin:12px 0;}
+      .institutional-document-editor .conformity-reference {margin:0 0 4px;}
+      .institutional-document-editor .conformity-reference span[data-editor-zone="true"]:not(:empty) {display:inline;}
       .payment-preview {position:relative;max-width:595px;margin:auto;padding-top:66px;font:14px Tahoma,sans-serif;line-height:1.2;}
       .institutional-document-editor .payment-header-logo {position:absolute;top:0;left:0;width:190px;max-width:34%;margin:0;}
       .institutional-document-editor .payment-title {text-align:center;font-size:19px;font-weight:bold;margin:0 0 45px;}

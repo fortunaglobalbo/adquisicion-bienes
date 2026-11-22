@@ -46,6 +46,14 @@ async function main() {
       }
       assert.ok(html.includes('Cargo repetido<br>Segunda línea del cargo'));
     }
+    if (model.number === 7) {
+      assert.equal((html.match(/<table>/g) || []).length, 1);
+      assert.match(html, /class="conformity-date"><span>[\s\S]*?data-fixed-field="fecha"[\s\S]*?<\/span><span>[\s\S]*?data-fixed-field="numero"/);
+      for (const [label, key] of [['A:', 'destinatario'], ['VÍA:', 'via'], ['De:', 'solicitante'], ['Proceso:', 'objeto']]) {
+        assert.ok(html.includes(`<p class="conformity-reference">${label} `));
+        assert.ok(html.includes(`data-fixed-field="${key}"`));
+      }
+    }
     fs.writeFileSync(path.join(root, 'test-results', 'editable-document-preview', `modelo-${model.number}.html`), html);
   }
   console.log('PASS siete plantillas: mapping por placeholder, valores repetidos, referencias, logo, celdas combinadas y Word original intacto');

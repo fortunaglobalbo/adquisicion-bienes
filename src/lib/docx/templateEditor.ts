@@ -111,7 +111,7 @@ export async function fillTemplate(buffer: Buffer, changes: DocumentChange[], ta
         setText(paragraph, change.value);
         continue;
       }
-      // The payment template places each placeholder in one Word run.
+      // These institutional templates place each placeholder in one Word run.
       // Keep adjacent bold labels and the right-aligned tab stop in place.
       for (const node of elements(paragraph, 't')) {
         const original: string = node.textContent || '';

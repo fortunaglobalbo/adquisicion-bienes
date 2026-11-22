@@ -46,6 +46,7 @@ export function compatibleFixedDraft(number: number, draft?: FixedDraft): boolea
   return !!draft && (draft.modelVersion === version
     || (number === 1 && version === '2026-11-21.1' && draft.modelVersion === '2026-09-10.1')
     || (number === 6 && version === '2026-09-25.2' && draft.modelVersion === '2026-09-25.1')
+    || (number === 7 && version === '2026-11-22.2' && draft.modelVersion === '2026-09-10.1')
     || (number === 8 && version === '2026-11-22.2' && draft.modelVersion === '2026-11-22.1'));
 }
 export function fixedDocumentBelongsToModel(number: number, document: Documento): boolean {

@@ -5,7 +5,7 @@ const documentTags = new Set([
   'COLGROUP','COL','IMG','UL','OL','LI','HR','BLOCKQUOTE',
 ]);
 const discardTags = new Set(['SCRIPT','STYLE','IFRAME','OBJECT','EMBED','SVG','MATH','LINK','META','BASE','FORM','INPUT','BUTTON','TEXTAREA','SELECT','OPTION','TEMPLATE']);
-const institutionalClasses = new Set(['evaluation-preview','evaluation-title','evaluation-form','evaluation-name','evaluation-role','evaluation-process','evaluation-rule','evaluation-section']);
+const institutionalClasses = new Set(['evaluation-preview','evaluation-title','evaluation-form','evaluation-name','evaluation-role','evaluation-process','evaluation-rule','evaluation-section','conformity-logo','conformity-date','conformity-reference']);
 for (const className of ['payment-preview', 'payment-header-logo', 'payment-title', 'payment-date', 'payment-reference', 'payment-subject', 'payment-intro', 'payment-body-logo', 'payment-body']) {
   institutionalClasses.add(className);
 }

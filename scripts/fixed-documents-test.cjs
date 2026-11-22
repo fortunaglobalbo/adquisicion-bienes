@@ -36,6 +36,14 @@ async function main(){
    assert.match(all,/CENTRAL - PLANTA/);
    assert.ok(!result.tables.some(t=>[t.headers,...t.rows].flat().some(cell=>cell.includes('CENTRAL - PLANTA'))));
   }
+  if(model.number===7) {
+   assert.equal(result.tables.length,1,'Solo permanece el cuadro de recepción');
+   assert.match(all,/A: Dato de prueba Destinatario/);
+   assert.match(all,/VÍA: Dato de prueba Vía/);
+   assert.match(all,/De: Dato de prueba Responsable informante/);
+   assert.match(all,/Proceso: COMPRA DE CABLE/);
+   assert.equal((await renderFixedWord(7,{...draft,modelVersion:'2026-09-10.1'})).draft.fields.via,draft.fields.via);
+  }
   if(model.number===8) {
    assert.equal(result.tables.length,0,'El encabezado de pago se compone de párrafos');
    assert.match(all,/SOLICITUD DE PAGO/);

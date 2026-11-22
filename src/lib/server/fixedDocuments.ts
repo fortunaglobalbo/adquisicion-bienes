@@ -148,7 +148,7 @@ export async function renderFixedWord(number: number, input: FixedDraft, adq?: A
   const changes: DocumentChange[] = [];
   const tables: TableChange[] = [];
   const referenceFields: Record<string,string> = {};
-  const runValues = number === 8 ? Object.create(null) as Record<string,string> : undefined;
+  const runValues = [7,8].includes(number) ? Object.create(null) as Record<string,string> : undefined;
   if([3,5,6,9].includes(number)) for(const key of ['destinatario','via','solicitante']) {
     const [name,...role] = (draft.fields[key] || '').split(/\r?\n|\s+[-–—]\s+/);
     referenceFields[`${key}_nombre`] = name;

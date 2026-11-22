@@ -1,6 +1,13 @@
 import mammoth from 'mammoth';
 import JSZip from 'jszip';
 
+function alignDateLine(html: string): string {
+  return html.replace(/<p class="(payment-date|conformity-date)">([\s\S]*?)<\/p>/, (original, className, text: string) => {
+    const parts = text.replace(/<\/?strong>/g, '').split('\t');
+    return parts.length === 2 ? `<p class="${className}"><span>${parts[0]}</span><span>${parts[1]}</span></p>` : original;
+  });
+}
+
 export async function paymentPreview(buffer: Buffer): Promise<string> {
   const zip = await JSZip.loadAsync(buffer);
   const image = zip.file('word/media/image2.png');
@@ -13,11 +20,7 @@ export async function paymentPreview(buffer: Buffer): Promise<string> {
     "p[style-name='Payment Body Logo'] => p.payment-body-logo:fresh",
     "p[style-name='Payment Body'] => p.payment-body:fresh",
   ] });
-  const arranged = value
-    .replace(/<p class="payment-date">([\s\S]*?)<\/p>/, (original, text: string) => {
-      const parts = text.replace(/<\/?strong>/g, '').split('\t');
-      return parts.length === 2 ? `<p class="payment-date"><span>${parts[0]}</span><span>${parts[1]}</span></p>` : original;
-    })
+  const arranged = alignDateLine(value)
     .replace(/(<p class="payment-body-logo">[\s\S]*?<\/p>)(<p class="payment-body">[\s\S]*?<\/p>)/, '<div class="payment-intro">$1$2</div>');
   return `<div class="payment-preview">${logo}${arranged}</div>`;
 }
@@ -63,13 +66,16 @@ export async function evaluationPreview(buffer: Buffer): Promise<string> {
 /** The attached Word formats carry their logo in the header, which Mammoth skips. */
 export async function institutionalReportPreview(buffer: Buffer, model: number): Promise<string> {
   const zip = await JSZip.loadAsync(buffer);
-  const image = [5,9].includes(model) ? zip.file('word/media/image1.png') : null;
-  const logo = image ? `<img class="report-logo" alt="ENDE DEORURO" src="data:image/png;base64,${await image.async('base64')}">` : '';
-  const {value} = await mammoth.convertToHtml({buffer});
+  const image = [5,7,9].includes(model) ? zip.file('word/media/image1.png') : null;
+  const logo = image ? `<img class="report-logo${model === 7 ? ' conformity-logo' : ''}" alt="ENDE DEORURO" src="data:image/png;base64,${await image.async('base64')}">` : '';
+  const {value} = await mammoth.convertToHtml({buffer}, model === 7 ? {styleMap: [
+    "p[style-name='Conformity Date'] => p.conformity-date:fresh",
+    "p[style-name='Conformity Reference'] => p.conformity-reference:fresh",
+  ]} : undefined);
   return `<style>
     .institutional-report{font-family:Tahoma,sans-serif;line-height:1.3}
     .institutional-report .report-logo{width:160px;margin-bottom:14px}
     .institutional-report table:first-of-type{margin:12px 0}
     .institutional-report table:first-of-type p{margin:0}
-  </style><div class="institutional-report">${logo}${value}</div>`;
+  </style><div class="institutional-report">${logo}${model === 7 ? alignDateLine(value) : value}</div>`;
 }
