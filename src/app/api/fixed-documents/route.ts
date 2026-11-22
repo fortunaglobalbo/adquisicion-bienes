@@ -14,7 +14,7 @@ import { fillAdministrativeBlanks, registeredRequestNumber } from '@/lib/docx/ad
 import { fillDossierPeople } from '@/lib/docx/dossierPeople';
 import { reserveS1Number } from '@/lib/server/requestNumber';
 import { updateTechnicalEvaluation, fillEvaluationReferences } from '@/lib/server/technicalEvaluation';
-import { evaluationPreview, institutionalReportPreview } from '@/lib/server/evaluationPreview';
+import { evaluationPreview, institutionalReportPreview, paymentPreview } from '@/lib/server/evaluationPreview';
 import { editableDocumentPreview } from '@/lib/server/editableDocumentPreview';
 import { updateComparativeReport } from '@/lib/server/comparativeReport';
 import { readPurchaseAttachments, cleanupPurchaseAttachments } from '@/lib/server/attachmentUploads';
@@ -156,6 +156,7 @@ export async function POST(req: NextRequest) {
     }
     const mammoth = await import("mammoth");
     const html = number===2 ? await wordFormPreview(output.buffer)
+      : number===8 ? await paymentPreview(output.buffer)
       : [3,6].includes(number) ? await evaluationPreview(output.buffer)
       : [5,7,9].includes(number) ? await institutionalReportPreview(output.buffer,number)
       : (await mammoth.convertToHtml({ buffer: output.buffer })).value;

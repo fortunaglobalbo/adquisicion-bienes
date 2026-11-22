@@ -5,7 +5,7 @@ import mammoth from 'mammoth';
 import { type FixedDraft, type FixedModel, missingValue, newFixedItem } from '../docx/fixedModels';
 import { fillTemplate, inspectTemplate, type DocumentChange, type TableChange } from '../docx/templateEditor';
 import { wordFormPreview } from './wordFormPreview';
-import { evaluationPreview, institutionalReportPreview } from './evaluationPreview';
+import { evaluationPreview, institutionalReportPreview, paymentPreview } from './evaluationPreview';
 import { addSelectionTables } from './selectionWord';
 import { keepTdrHeadingsWithBody } from './wordPagination';
 
@@ -49,6 +49,7 @@ export async function editableDocumentPreview(buffer: Buffer, draft: FixedDraft,
     references[`${key}_cargo`] = { key, part: 'role', value: role.join('\n') };
   }
   const choices: Record<string, string> = {};
+  const runValues = model.number === 8 ? Object.create(null) as Record<string,string> : undefined;
   for (const [key, yes, no, yesLabel, noLabel] of [
     ['almacen', 'con saldo', 'sin saldo', 'Con saldo', 'Sin saldo'],
     ['publicar_precio', 'si', 'no', 'Sí', 'No'],
@@ -67,7 +68,9 @@ export async function editableDocumentPreview(buffer: Buffer, draft: FixedDraft,
       const reference = references[key];
       const value = reference?.value ?? draft.fields[key] ?? '';
       const displayed = value && !pending(value) ? value : model.number === 2 || key.endsWith('_cargo') ? '\u00a0' : '________________';
-      return marker(reference?.key || key, displayed, reference?.part);
+      const replacement = marker(reference?.key || key, displayed, reference?.part);
+      if (runValues) runValues[key] = replacement;
+      return replacement;
     }) });
   }
   const tables: TableChange[] = [];
@@ -81,10 +84,11 @@ export async function editableDocumentPreview(buffer: Buffer, draft: FixedDraft,
       return token(column.key === 'numero' ? lines(draft.items.length ? displayed : '1') : `<span data-fixed-row="${index}" data-fixed-column="${escape(column.key)}" aria-label="${escape(column.label)} del ítem ${index + 1}">${lines(displayed)}</span>`);
     })) });
   }
-  let editable = await fillTemplate(template, changes, tables);
+  let editable = await fillTemplate(template, changes, tables, runValues);
   if (model.number === 1) editable = await keepTdrHeadingsWithBody(editable);
   if (model.number === 1 && draft.selectionPlan) editable = await addSelectionTables(editable, draft.selectionPlan);
   const converted = model.number === 2 ? await wordFormPreview(editable)
+    : model.number === 8 ? await paymentPreview(editable)
     : [3,6].includes(model.number) ? await evaluationPreview(editable)
     : [5,7,9].includes(model.number) ? await institutionalReportPreview(editable,model.number)
     : (await mammoth.convertToHtml({ buffer: editable })).value;

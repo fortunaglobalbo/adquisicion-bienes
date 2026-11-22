@@ -84,6 +84,12 @@ function setText(paragraph: any, value: string) {
     const text = paragraph.ownerDocument.createElementNS(W, "w:t");
     text.setAttribute('xml:space','preserve');run.appendChild(text); paragraph.appendChild(run);firstText=text;
   }
+  writeTextRun(firstText, value);
+}
+
+function writeTextRun(firstText: any, value: string) {
+  firstText.setAttribute('xml:space','preserve');
+  const paragraph = firstText.parentNode;
   const parts=value.replace(/\r\n?/g,'\n').split(/(\n|\t)/);
   firstText.textContent=parts.shift() || '';let anchor=firstText;
   for(const part of parts){
@@ -93,13 +99,27 @@ function setText(paragraph: any, value: string) {
   }
 }
 
-export async function fillTemplate(buffer: Buffer, changes: DocumentChange[], tables: TableChange[]) {
+export async function fillTemplate(buffer: Buffer, changes: DocumentChange[], tables: TableChange[], runValues?: Readonly<Record<string, string>>) {
   const { zip, parts } = await readTemplate(buffer);
   validateChanges(inspectParts(parts), changes, tables);
   for (const { name, xml } of parts) {
     const ps = elements(xml, "p");
     const ts = elements(xml, "tbl");
-    changes.filter(c => c.target.startsWith(`${name}:p:`)).forEach(c => setText(ps[Number(c.target.split(":").pop())], c.value));
+    for (const change of changes.filter(c => c.target.startsWith(`${name}:p:`))) {
+      const paragraph = ps[Number(change.target.split(":").pop())];
+      if (!runValues) {
+        setText(paragraph, change.value);
+        continue;
+      }
+      // The payment template places each placeholder in one Word run.
+      // Keep adjacent bold labels and the right-aligned tab stop in place.
+      for (const node of elements(paragraph, 't')) {
+        const original: string = node.textContent || '';
+        if (/\{\{[a-z_]+\}\}/.test(original)) {
+          writeTextRun(node, original.replace(/\{\{([a-z_]+)\}\}/g, (marker, key) => Object.hasOwn(runValues, key) ? runValues[key] : marker));
+        }
+      }
+    }
     for (const change of tables.filter(t => t.target.startsWith(`${name}:t:`))) {
       const table = ts[Number(change.target.split(":").pop())];
       const rows = children(table, "tr");

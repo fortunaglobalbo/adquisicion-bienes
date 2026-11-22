@@ -1,6 +1,27 @@
 import mammoth from 'mammoth';
 import JSZip from 'jszip';
 
+export async function paymentPreview(buffer: Buffer): Promise<string> {
+  const zip = await JSZip.loadAsync(buffer);
+  const image = zip.file('word/media/image2.png');
+  const logo = image ? `<img class="payment-header-logo" alt="ENDE DEORURO S.A." src="data:image/png;base64,${await image.async('base64')}">` : '';
+  const { value } = await mammoth.convertToHtml({ buffer }, { styleMap: [
+    "p[style-name='Payment Title'] => p.payment-title:fresh",
+    "p[style-name='Payment Date'] => p.payment-date:fresh",
+    "p[style-name='Payment Reference'] => p.payment-reference:fresh",
+    "p[style-name='Payment Subject'] => p.payment-subject:fresh",
+    "p[style-name='Payment Body Logo'] => p.payment-body-logo:fresh",
+    "p[style-name='Payment Body'] => p.payment-body:fresh",
+  ] });
+  const arranged = value
+    .replace(/<p class="payment-date">([\s\S]*?)<\/p>/, (original, text: string) => {
+      const parts = text.replace(/<\/?strong>/g, '').split('\t');
+      return parts.length === 2 ? `<p class="payment-date"><span>${parts[0]}</span><span>${parts[1]}</span></p>` : original;
+    })
+    .replace(/(<p class="payment-body-logo">[\s\S]*?<\/p>)(<p class="payment-body">[\s\S]*?<\/p>)/, '<div class="payment-intro">$1$2</div>');
+  return `<div class="payment-preview">${logo}${arranged}</div>`;
+}
+
 /** The institutional reference block uses native Word styles also mapped in the preview. */
 export async function evaluationPreview(buffer: Buffer): Promise<string> {
   // Mammoth omits running headers. Read the logo from this generated Word, not an external URL.

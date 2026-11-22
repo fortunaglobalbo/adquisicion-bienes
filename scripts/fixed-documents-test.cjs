@@ -37,9 +37,14 @@ async function main(){
    assert.ok(!result.tables.some(t=>[t.headers,...t.rows].flat().some(cell=>cell.includes('CENTRAL - PLANTA'))));
   }
   if(model.number===8) {
-   assert.equal(result.tables.length,1,'La solicitud de pago conserva la tabla del documento recibido');
+   assert.equal(result.tables.length,0,'El encabezado de pago se compone de párrafos');
    assert.match(all,/SOLICITUD DE PAGO/);
    assert.doesNotMatch(all,/MFRA|218906025|OS-00096|25\.740/);
+   const zip=await require('jszip').loadAsync(buffer);
+   const xml=await zip.file('word/document.xml').async('string');
+   const date=xml.match(/<w:p(?:\s[^>]*)?>(?:(?!<\/w:p>)[\s\S])*?<w:pStyle w:val="PaymentDate"\s*\/>(?:(?!<\/w:p>)[\s\S])*?<\/w:p>/)?.[0];
+   assert.match(date || '',/<w:tab w:val="right" w:pos="8838"\s*\/>/);
+   assert.match(date || '',/<w:tab\s*\/>/);
   }
  }
  console.log('PASS modelos fijos: campos completos, sin datos heredados y tablas según el documento');
@@ -47,6 +52,7 @@ async function main(){
  const paymentAcquisition={...adq,solicitud_inicio_de_nombre:'Ana Vargas',solicitud_inicio_de_cargo:'Apoyo a Gerencia'};
  const payment=seedFixedDraft(8,paymentAcquisition);
  assert.match(payment.fields.destinatario,/JULIO ENRIQUE DAVILA PELAEZ/);
+ assert.equal((await renderFixedWord(8,{...payment,modelVersion:'2026-11-22.1'})).draft.fields.destinatario,payment.fields.destinatario);
  goResponse=JSON.stringify({changes:{nit:'123456789',cuerpo:'Solicito tramitar el pago de la factura 227.'},itemChanges:[]});
  const paymentForm=new FormData();
  paymentForm.set('request',JSON.stringify({action:'revise',editorOnly:true,number:8,adquisicion:paymentAcquisition,draft:payment}));
@@ -56,6 +62,9 @@ async function main(){
  assert.equal(paymentResponse.status,200,paymentResult.error);
  assert.equal(paymentResult.draft.fields.nit,'123456789');
  assert.match(paymentResult.editableHtml,/data-fixed-field="cuerpo"/);
+ assert.match(paymentResult.editableHtml,/<p class="payment-date"><span>[\s\S]*?data-fixed-field="fecha"[\s\S]*?<\/span><span>[\s\S]*?data-fixed-field="referencia"/);
+ assert.match(paymentResult.editableHtml,/payment-intro/);
+ assert.doesNotMatch(paymentResult.editableHtml,/<table/);
  assert.match(JSON.stringify(goMessages),/Factura 227/);
  goCalls=0;
  const d=seedFixedDraft(3,adq);assert.equal(d.items.length,0,'Los bienes solicitados no son ofertas recibidas');

@@ -148,6 +148,7 @@ export async function renderFixedWord(number: number, input: FixedDraft, adq?: A
   const changes: DocumentChange[] = [];
   const tables: TableChange[] = [];
   const referenceFields: Record<string,string> = {};
+  const runValues = number === 8 ? Object.create(null) as Record<string,string> : undefined;
   if([3,5,6,9].includes(number)) for(const key of ['destinatario','via','solicitante']) {
     const [name,...role] = (draft.fields[key] || '').split(/\r?\n|\s+[-–—]\s+/);
     referenceFields[`${key}_nombre`] = name;
@@ -166,13 +167,17 @@ export async function renderFixedWord(number: number, input: FixedDraft, adq?: A
       const value=referenceFields[key] ?? draft.fields[key];
       return marks[key] || (value && !/^\[PENDIENTE[^\]]*\]$/.test(value) ? value : number===2 || key.endsWith('_cargo') ? '\u00a0' : '________________');
     };
-    changes.push({ target: p.id, label: "Campo fijo", value: p.text.replace(/\{\{([a-z_]+)\}\}/g, (_m, key) => display(key)), sourceIds: [] });
+    changes.push({ target: p.id, label: "Campo fijo", value: p.text.replace(/\{\{([a-z_]+)\}\}/g, (_m, key) => {
+      const value = display(key);
+      if (runValues) runValues[key] = value;
+      return value;
+    }), sourceIds: [] });
   }
   if (itemTable) {
     const rows = draft.items.length ? draft.items : [newFixedItem(model, null, missingValue)];
     tables.push({ target: itemTable.id, label: "Ítems", rows: rows.map(r => model.columns.map(c => /^\[PENDIENTE[^\]]*\]$/.test(r[c.key] || '') ? '________' : r[c.key] || '')) });
   }
-  const filled=await fillTemplate(buffer, changes, tables);
+  const filled=await fillTemplate(buffer, changes, tables, runValues);
   const paginated=number===1?await keepTdrHeadingsWithBody(filled):filled;
   return { buffer: number===1&&draft.selectionPlan ? await addSelectionTables(paginated,draft.selectionPlan) : paginated, draft };
 }

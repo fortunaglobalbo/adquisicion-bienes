@@ -222,6 +222,18 @@ export function EditableDocument(props: EditableDocumentProps) {
       .institutional-document-editor .institutional-report {font-family:Tahoma,sans-serif;line-height:1.3;}
       .institutional-document-editor .institutional-report .report-logo {width:160px;margin:0 0 14px;}
       .institutional-document-editor .institutional-report table:first-of-type p {margin:0;}
+      .payment-preview {position:relative;max-width:595px;margin:auto;padding-top:66px;font:14px Tahoma,sans-serif;line-height:1.2;}
+      .institutional-document-editor .payment-header-logo {position:absolute;top:0;left:0;width:190px;max-width:34%;margin:0;}
+      .institutional-document-editor .payment-title {text-align:center;font-size:19px;font-weight:bold;margin:0 0 45px;}
+      .institutional-document-editor .payment-date {display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 8px;font-weight:bold;margin:0 0 2px;}
+      .institutional-document-editor .payment-reference {margin:0 0 2px;}
+      .institutional-document-editor .payment-reference span[data-editor-zone="true"]:not(:empty),
+      .institutional-document-editor .payment-subject span[data-editor-zone="true"]:not(:empty) {display:inline;}
+      .institutional-document-editor .payment-subject {border-bottom:1px solid #000;padding-bottom:4px;margin:0 0 32px;}
+      .payment-intro {display:grid;grid-template-columns:20% 1fr;align-items:center;gap:12px;margin-bottom:16px;}
+      .institutional-document-editor .payment-body-logo img {width:100%;margin:0;}
+      .institutional-document-editor .payment-body {margin:0;text-align:justify;}
+      .payment-preview ul {margin:0 0 18px;}
       .institutional-document-editor .evaluation-preview table:nth-of-type(2) tr:last-child td {padding-top:20px;padding-bottom:24px;}
       .institutional-document-editor .evaluation-preview .evaluation-process {font-weight:bold;text-align:justify;}
       .institutional-document-editor .evaluation-preview .evaluation-section {font-weight:bold;margin-top:20px;}
