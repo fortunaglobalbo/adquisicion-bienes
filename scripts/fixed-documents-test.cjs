@@ -53,14 +53,22 @@ async function main(){
    assert.equal(result.tables.length,1,'Solo queda el cuadro técnico del modelo recibido');
    assert.match(all,/INFORME TÉCNICO/);
    assert.match(all,/A: Dato de prueba Destinatario y cargo/);
-   assert.match(all,/VÍA: Dato de prueba Vía y cargo/);
+   assert.doesNotMatch(all,/VÍA:|•/);
    assert.match(all,/6\. CONCLUSIÓN Y RECOMENDACIÓN/);
    assert.doesNotMatch(all,/CONTROL DE PLAGAS|GG-ITI-26\/110002|SENASAG/i);
-   const legacy={...draft,fields:{...draft.fields},modelVersion:'2026-11-21.1',items:[{numero:'1',descripcion:'Cable',ubicacion:'Almacén',cantidad:'10',especificaciones:'Características originales',justificacion_operativa:'Uso documentado'}],editedItems:true};
+   const legacy={...draft,fields:{...draft.fields,via:'Persona anterior',marco:'[PENDIENTE]'},modelVersion:'2026-11-21.1',items:[{numero:'1',descripcion:'Cable',ubicacion:'Almacén',cantidad:'10',especificaciones:'• Características originales',justificacion_operativa:'Uso documentado'}],editedItems:true};
    delete legacy.fields.alcance;
    const upgraded=await renderFixedWord(9,legacy);
    assert.equal(upgraded.draft.fields.objetivos,draft.fields.objetivos);
    assert.match(upgraded.draft.items[0].especificaciones,/Uso documentado/);
+   assert.doesNotMatch(upgraded.draft.items[0].especificaciones,/•/);
+   assert.ok(!Object.hasOwn(upgraded.draft.fields,'via'));
+   const completed=await renderFixedWord(9,legacy,{...adq,modalidad:'Menor precio'});
+   assert.equal(completed.draft.fields.solicitante,'Tatiana Torres Andrade - Apoyo Gerencia Seguridad Industrial');
+   assert.equal(completed.draft.fields.destinatario,'Ing. Hosmar Alexander Miranda Copa - Gerente General');
+   assert.match(completed.draft.fields.marco,/Reglamento de Adquisición/);
+   assert.match(completed.draft.fields.marco,/solicitar cotizaciones/);
+   assert.match(completed.draft.fields.marco,/Método de selección registrado: Menor precio/);
   }
   if(model.number===8) {
    assert.equal(result.tables.length,0,'El encabezado de pago se compone de párrafos');

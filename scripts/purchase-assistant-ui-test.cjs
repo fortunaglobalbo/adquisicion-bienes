@@ -146,7 +146,8 @@ async function verifyConformityUploads(browser){
   const technical=page.getByLabel('Documento editable: Informe técnico de justificación',{exact:true});
   await technical.getByText('6. CONCLUSIÓN Y RECOMENDACIÓN',{exact:true}).waitFor();
   assert.equal(await technical.locator('table').count(),1);
-  assert.equal(await technical.locator('table').getByText('VÍA:',{exact:true}).count(),0);
+  assert.equal(await technical.getByText('VÍA:',{exact:true}).count(),0);
+  await technical.getByText(/Hosmar Alexander Miranda Copa/).waitFor();
   await page.getByRole('button',{name:'4. Solicitud de cotización',exact:true}).first().waitFor();
   await page.getByRole('button',{name:'8. Conformidad',exact:true}).first().click();
   const editor=page.getByLabel('Documento editable: Informe de conformidad A6-N014',{exact:true});

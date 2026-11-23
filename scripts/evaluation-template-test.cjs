@@ -35,12 +35,12 @@ const quote=(id,price,reviewed=true)=>({id,provider:`Proveedor ${id}`,groupId:'o
  }};
  for(const number of [1,2,3,4,5,6,7,9]) {
   const fields=seedFixedDraft(number,peopleDossier).fields;
-  assert.match(fields[number===1?'elaborado':number===4?'remitente':'solicitante'],/Ana Vargas/,`Solicitante del modelo ${number}`);
+  assert.match(fields[number===1?'elaborado':number===4?'remitente':'solicitante'],number===9 ? /Tatiana Torres Andrade/ : /Ana Vargas/,`Solicitante del modelo ${number}`);
   if(number===2)assert.match(fields.cargo,/Supervisor de Seguridad Industrial A.I./);
   if([3,5,6,7].includes(number)) {
    assert.match(fields.via,/Luis Pinto/,`Gerencia en modelo ${number}`);assert.match(fields.destinatario,/Julia Paredes/,`Finanzas en modelo ${number}`);
   }
-  if(number===9)assert.match(fields.destinatario,/Luis Pinto/);
+  if(number===9)assert.match(fields.destinatario,/Hosmar Alexander Miranda Copa/);
   assert.doesNotMatch(Object.values(fields).join(' '),/Pedro Vendedor/);
  }
  assert.equal(memoPeople(peopleDossier).memo_pago_a_nombre,'Lic. Julia Paredes');

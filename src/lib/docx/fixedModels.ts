@@ -49,7 +49,7 @@ export function compatibleFixedDraft(number: number, draft?: FixedDraft): boolea
     || (number === 5 && version === '2026-11-22.2' && draft.modelVersion === '2026-09-10.1')
     || (number === 7 && version === '2026-11-23.1' && ['2026-09-10.1','2026-11-22.2','2026-11-22.3'].includes(draft.modelVersion))
     || (number === 8 && version === '2026-11-22.2' && draft.modelVersion === '2026-11-22.1')
-    || (number === 9 && version === '2026-11-23.2' && draft.modelVersion === '2026-11-21.1'));
+    || (number === 9 && version === '2026-11-23.3' && ['2026-11-21.1','2026-11-23.2'].includes(draft.modelVersion)));
 }
 export function fixedDocumentBelongsToModel(number: number, document: Documento): boolean {
   const modelNumber = document.metadata?.fixedModelNumber;
@@ -58,15 +58,21 @@ export function fixedDocumentBelongsToModel(number: number, document: Documento)
 export function upgradeFixedDraft(number: number, draft: FixedDraft): FixedDraft {
   if (!compatibleFixedDraft(number, draft)) return draft;
   const upgraded = {...draft, modelVersion: fixedModel(number).version};
-  if (number === 9 && draft.modelVersion !== upgraded.modelVersion) {
+  if (number === 9 && draft.modelVersion === '2026-11-21.1') {
     const locations = Array.from(new Set(upgraded.items.map(row=>row.ubicacion).filter(value=>value && value !== missingValue)));
-    upgraded.fields = {via:missingValue, alcance:missingValue, cobertura:locations.join('\n') || missingValue, marco:missingValue, ...upgraded.fields};
+    upgraded.fields = {alcance:missingValue, cobertura:locations.join('\n') || missingValue, marco:missingValue, ...upgraded.fields};
     upgraded.items = upgraded.items.map(row=>({
       numero:row.numero, descripcion:row.descripcion, unidad:row.unidad || missingValue, cantidad:row.cantidad,
       especificaciones:[row.especificaciones, row.ubicacion && row.ubicacion !== missingValue &&
         'Ubicación: '+row.ubicacion, row.justificacion_operativa && row.justificacion_operativa !== missingValue &&
         'Justificación operativa: '+row.justificacion_operativa].filter(Boolean).join('\n').slice(0,5000),
     }));
+  }
+  if (number === 9 && upgraded.fields && Object.hasOwn(upgraded.fields,'via')) {
+    upgraded.fields = {...upgraded.fields};
+    delete upgraded.fields.via;
+    upgraded.editedFields = upgraded.editedFields?.filter(key=>key!=='via');
+    upgraded.confirmedFields = upgraded.confirmedFields?.filter(key=>key!=='via');
   }
   if (number === 7 && upgraded.fields && upgraded.fields.desarrollo === undefined) {
     upgraded.fields = {...upgraded.fields, desarrollo: missingValue};

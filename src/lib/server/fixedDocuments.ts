@@ -16,7 +16,7 @@ import { fixedDocumentPrompt } from './fixedDocumentPrompt';
 
 import { isInstitutionalRole, officialPeople, officialPeopleKeys } from "../docx/officialPeople";
 import { fillDossierPeople, memoPeople } from '../docx/dossierPeople';
-import { applySelection, assertPlan } from '../procurement/selection';
+import { applySelection, assertPlan, methodLabels } from '../procurement/selection';
 import { addSelectionTables } from './selectionWord';
 import { administrativeDefaults, fillAdministrativeBlanks } from '../docx/administrativeDefaults';
 import { technicalEvaluationData } from './technicalEvaluation';
@@ -45,10 +45,29 @@ function technicalReportRows(adq: Adquisicion) {
   }));
 }
 
+const technicalSender = 'Tatiana Torres Andrade - Apoyo Gerencia Seguridad Industrial';
+const technicalRecipient = 'Ing. Hosmar Alexander Miranda Copa - Gerente General';
+const technicalText = (value?: string) => value?.trim() && !/^\[PENDIENTE[^\]]*\]$|^_{2,}$|^(?:pendiente|por definir|sin definir|no consta)\.?$/i.test(value.trim());
+const withoutBullets = (value: string) => value.replace(/[ \t]*[•●▪◦‣][ \t]*/g, '\n').replace(/^[ \t]*[-*][ \t]+/gm, '').trim();
+
+function technicalFramework(adq: Adquisicion) {
+  const plan = adq.selection_plan?.confirmedAt ? adq.selection_plan : undefined;
+  const registered = technicalText(adq.modalidad) ? adq.modalidad.trim() : '';
+  const registeredMethod = Object.values(methodLabels).find(label=>label.toLowerCase()===registered.toLowerCase());
+  const method = plan ? methodLabels[plan.method] : technicalText(adq.metodo_seleccion_texto) ? adq.metodo_seleccion_texto : registeredMethod;
+  const modality = registered && !registeredMethod ? `El expediente registra la modalidad «${registered}». ` : '';
+  return [
+    'Marco normativo. El trámite se enmarca en el Reglamento de Adquisición de Bienes, Construcción de Obras y Contratación de Servicios aplicable al expediente y en las especificaciones técnicas o términos de referencia del proceso.',
+    `Modalidad de contratación. ${modality}Se propone solicitar cotizaciones con el mismo alcance y requisitos técnicos para todos los proponentes y documentar su comparación.`,
+    method ? `Método de selección registrado: ${method.replace(/[.!?]$/, '')}.` : '',
+    plan && technicalText(plan.amountCategory) ? `Categoría de contratación registrada: ${plan.amountCategory.replace(/[.!?]$/, '')}.` : '',
+  ].filter(Boolean).join('\n');
+}
+
 export function seedFixedDraft(number: number, adq: Adquisicion): FixedDraft {
   const model = fixedModel(number);
   companyKnowledge(adq.empresa_id || "ende");
-  const people = officialPeople(number, adq.responsables_oficiales?.[number]);
+  const people = number===9 ? {} : officialPeople(number, adq.responsables_oficiales?.[number]);
   const brief = availablePurchaseBrief(adq);
   const administrative = [5,9].includes(number) ? administrativeDefaults(adq) : {};
   const applicant = [administrative.solicitante, administrative.cargo].filter(Boolean).join('\n');
@@ -104,13 +123,14 @@ export function seedFixedDraft(number: number, adq: Adquisicion): FixedDraft {
       };
     })() : {}),
     ...(number === 9 ? {
-      fecha:reportDate, solicitante:people.solicitante || applicant,
+      fecha:reportDate, numero:adq.codigo ? `Expediente ${adq.codigo}` : 'Referencia del expediente',
+      solicitante:technicalSender, destinatario:technicalRecipient,
       antecedentes:adq.antecedentes_texto || `La unidad solicitante presenta el requerimiento «${scope}». El presente informe documenta su necesidad y el alcance técnico previsto.`,
       objetivos:brief?.purpose || `Definir el alcance de «${scope}» y las características que permitan atender el requerimiento de la unidad solicitante.`,
       justificacion:adq.justificacion_texto || brief?.purpose || 'Las características y cantidades del cuadro técnico delimitan el requerimiento para que las propuestas puedan responder a la misma necesidad.',
       alcance:adq.plazo_entrega_dias > 0 ? `El cuadro técnico detalla el requerimiento y sus cantidades. El plazo registrado es de ${adq.plazo_entrega_dias} días calendario.` : 'El cuadro técnico detalla los bienes o servicios requeridos, sus cantidades y sus características mínimas.',
-      cobertura:brief?.location || adq.lugar_entrega || (adq.unidad_solicitante ? `Unidad beneficiaria: ${adq.unidad_solicitante}.` : ''),
-      marco:'La modalidad de contratación y las condiciones aplicables se establecerán en el expediente antes de solicitar cotizaciones.',
+      cobertura:brief?.location || adq.lugar_entrega || (adq.unidad_solicitante ? `Unidad beneficiaria: ${adq.unidad_solicitante}.` : 'La cobertura comprende los destinos y condiciones de ejecución definidos en el requerimiento técnico.'),
+      marco:technicalFramework(adq),
       conclusiones:'Se recomienda revisar el requerimiento técnico y sus respaldos para considerar el inicio del trámite de contratación.',
     } : {}),
   };
@@ -156,6 +176,20 @@ export function normalizeFixedDraft(model: FixedModel, draft: FixedDraft, adq?: 
   const institutionalName = (value: string) => value.replace(/ENDE DEORURO S\.A\./gi, 'ENDE DEORURO S.A.');
   const result: FixedDraft = { ...draft, fields: Object.fromEntries(Object.entries(draft.fields).map(([key, value]) => [key, institutionalName(value)])), items: draft.items.map((r, i) => ({ ...r, numero: String(i + 1) })) };
   if(model.number===1)result.fields.objeto=repairAutomaticPurchaseTitle(result.fields.objeto,{title:adq?.titulo_proceso||result.fields.objeto,category:adq?.categoria,items:result.items.length?result.items.map(item=>({descripcion:item.descripcion||''})):adq?.items||[]},result.editedFields?.includes('objeto'));
+  if (model.number===9) {
+    if (adq) {
+      const defaults = seedFixedDraft(9,adq).fields;
+      const manual = new Set(result.editedFields || []);
+      for (const [key,value] of Object.entries(defaults)) {
+        const unavailable = !technicalText(result.fields[key]);
+        if ((!manual.has(key) && (['solicitante','destinatario','marco'].includes(key) || unavailable)) || (key==='marco' && unavailable)) result.fields[key]=value;
+      }
+    }
+    for (const [key,value] of Object.entries(result.fields)) result.fields[key]=withoutBullets(value);
+    result.items=result.items.map(row=>Object.fromEntries(Object.entries(row).map(([key,value])=>[
+      key,technicalText(value) ? withoutBullets(value) : key==='especificaciones' ? 'Según el requerimiento técnico' : 'Según el TDR',
+    ])));
+  }
   return adq ? fillDossierPeople(model.number,result,adq) : result;
 }
 

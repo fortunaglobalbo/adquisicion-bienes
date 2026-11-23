@@ -60,6 +60,10 @@ async function main() {
         assert.ok(html.includes(`data-fixed-field="${key}"`));
       }
     }
+    if (model.number === 9) {
+      assert.doesNotMatch(html,/<ul>|VÍA:|data-fixed-field="via"/);
+      assert.match(html,/data-fixed-field="marco"/);
+    }
     fs.writeFileSync(path.join(root, 'test-results', 'editable-document-preview', `modelo-${model.number}.html`), html);
   }
   console.log('PASS siete plantillas: mapping por placeholder, valores repetidos, referencias, logo, celdas combinadas y Word original intacto');

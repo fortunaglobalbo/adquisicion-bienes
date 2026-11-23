@@ -722,7 +722,7 @@
     "number": 9,
     "title": "Informe técnico de justificación",
     "file": "09.docx",
-    "version": "2026-11-23.2",
+    "version": "2026-11-23.3",
     "source": "INFORME TECNICO (20).docx",
     "fields": [
       {
@@ -746,12 +746,6 @@
       {
         "key": "destinatario",
         "label": "Destinatario y cargo",
-        "hint": "",
-        "normative": false
-      },
-      {
-        "key": "via",
-        "label": "Vía y cargo",
         "hint": "",
         "normative": false
       },
@@ -826,7 +820,7 @@
         "label": "CARACTERÍSTICAS TÉCNICAS MÍNIMAS REQUERIDAS"
       }
     ],
-    "sha256": "4c591b3c82e1b91606625f92a120e5669148366d7687da668ebe9d6454d744bb"
+    "sha256": "106b23912c3e963e9cc831adbddf88ad7efa68e5c5f9eab6cd4f2eedbd230ce2"
   },
   {
     "number": 8,
