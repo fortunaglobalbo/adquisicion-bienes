@@ -12,7 +12,7 @@ import { appendPurchaseAttachments, cleanupPurchaseAttachmentUploads } from '@/l
 import { completeTdrDraft } from '@/lib/docx/completeTdrDraft';
 import { fillDossierPeople } from '@/lib/docx/dossierPeople';
 import { ATTACHMENT_HELP_TEXT, validateAttachmentSelection } from '@/lib/uploads/attachmentPolicy';
-import { PURCHASE_ASSISTANT_MODELS, storageFolderNumber } from '@/lib/store/folderOrder';
+import { PURCHASE_ASSISTANT_MODELS } from '@/lib/store/folderOrder';
 
 const initialFolders = PURCHASE_ASSISTANT_MODELS;
 const readyMessage = 'Documentos preparados. Edita el texto directamente en cada documento.';
@@ -22,7 +22,7 @@ type Work = { token: string; controller: AbortController; phase: 'reading' | 'qu
 
 function latestDraft(adq: Adquisicion, carpetas: Carpeta[], number: number): FixedDraft | undefined {
   const company = adq.empresa_id || 'ende';
-  const saved = carpetas.find(folder => folder.numero === storageFolderNumber(number))?.documentos
+  const saved = carpetas.find(folder => folder.numero === number)?.documentos
     .filter(document => fixedDocumentBelongsToModel(number, document) && compatibleFixedDraft(number, document.metadata?.fixedDraft) && document.metadata?.fixedDraft?.companyId === company)
     .sort((a,b) => b.fecha_creacion.localeCompare(a.fecha_creacion))[0];
   const candidate = adq.borradores_ia?.[number];
@@ -210,7 +210,7 @@ export function PurchaseAssistant({ adquisicion, carpetas, onUpdated, onBusyChan
 
   return <section className="mb-5 rounded-xl border border-blue-200 bg-blue-50/50 p-4" aria-label="Asistente de esta compra">
     <h2 className="font-bold text-lg text-primary">Asistente de esta compra</h2>
-    <p className="mt-1 text-sm text-slate-600">Reúne tus PDF e imágenes y pulsa «Procesar archivos». La IA leerá todo junto y preparará las carpetas 1 a 5. Después podrás corregirlos directamente en el documento.</p>
+    <p className="mt-1 text-sm text-slate-600">Reúne tus PDF e imágenes y pulsa «Procesar archivos». La IA leerá todo junto y preparará las carpetas 1 a 6. Después podrás corregirlos directamente en el documento.</p>
     <input ref={fileInput} className="sr-only" type="file" multiple tabIndex={-1} disabled={busy} accept=".pdf,.docx,.txt,.jpg,.jpeg,.png,.webp" aria-label="Cotización, PDF o foto" onChange={event => { const selected = Array.from(event.target.files || []); event.target.value = ''; void selectFiles(selected); }} />
     <button ref={dropZone} type="button" aria-label="Subir cotización, PDF o foto" disabled={busy} className={`mt-3 flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-5 py-6 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60 ${dragging ? 'border-blue-600 bg-blue-100' : 'border-blue-300 bg-white hover:border-blue-500 hover:bg-blue-50'}`}
       onClick={() => fileInput.current?.click()} onDragEnter={event => { event.preventDefault(); if (!busy) { dragDepth.current++; setDragging(true); } }} onDragOver={event => { event.preventDefault(); event.dataTransfer.dropEffect = busy ? 'none' : 'copy'; }} onDragLeave={event => { event.preventDefault(); dragDepth.current = Math.max(0,dragDepth.current - 1); if (!dragDepth.current) setDragging(false); }} onDrop={event => { event.preventDefault(); dragDepth.current = 0; setDragging(false); if (!busy) void selectFiles(Array.from(event.dataTransfer.files)); }}>

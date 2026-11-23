@@ -79,7 +79,21 @@ async function main(){
  const drafts=db.getAdquisicionById(selectedId).borradores_ia;
  assert.equal(drafts[9].draft.fields.destinatario,'Informe técnico vigente');
  assert.equal(drafts[5].draft.fields.destinatario,'Borrador más reciente');
- console.log('PASS solicitud e informe técnico de la misma carpeta recuperan su última versión de la empresa y expediente');
+ const {workflowFolders,displayFolderNumber}=load('src/lib/store/folderOrder.ts');
+ const legacy=[1,2,3,4,5,6,7,8,9].map(numero=>({id:'legacy-'+numero,adquisicion_id:selectedId,numero,documentos:[]}));
+ const technicalVersion={id:'word-9',...fixedDocument(9,'2026-11-04','Informe técnico vigente')};
+ const requestVersion={id:'word-5',...fixedDocument(5,'2026-11-01','Solicitud anterior')};
+ legacy[4].documentos=[technicalVersion,requestVersion];
+ legacy[8].documentos=[{id:'adjunto-personalizado'}];
+ const migrated=workflowFolders(legacy);
+ assert.equal(JSON.stringify(migrated.map(folder=>folder.numero)),JSON.stringify([1,2,9,4,3,5,6,7,8,10]));
+ assert.equal(JSON.stringify(migrated.map(folder=>displayFolderNumber(folder.numero))),JSON.stringify([1,2,3,4,5,6,7,8,9,10]));
+ assert.equal(migrated[2].documentos[0].id,'word-9');
+ assert.equal(migrated[2].documentos[0].carpeta_id,migrated[2].id);
+ assert.equal(migrated[5].documentos[0].id,'word-5');
+ assert.equal(migrated[9].documentos[0].id,'adjunto-personalizado');
+ assert.equal(JSON.stringify(workflowFolders(migrated)),JSON.stringify(migrated));
+ console.log('PASS nueve carpetas oficiales: orden estable, versiones trasladadas y carpeta personalizada conservada');
  assert.ok(writes>0);console.log('Pruebas locales completas.');
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});

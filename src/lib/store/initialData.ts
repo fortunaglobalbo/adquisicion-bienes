@@ -1,4 +1,5 @@
 import { Adquisicion, Carpeta, Firma, Plantilla } from "@/types";
+import { separateTechnicalFolder } from './folderOrder';
 
 export const FOLDER_TEMPLATES: {
   numero: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
@@ -57,7 +58,7 @@ export const FOLDER_TEMPLATES: {
 ];
 
 export function createInitialFolders(adquisicionId: string): Carpeta[] {
-  return FOLDER_TEMPLATES.map((tmpl) => ({
+  return separateTechnicalFolder(FOLDER_TEMPLATES.map((tmpl) => ({
     id: `carpeta-${adquisicionId}-${tmpl.numero}`,
     adquisicion_id: adquisicionId,
     numero: tmpl.numero,
@@ -66,7 +67,7 @@ export function createInitialFolders(adquisicionId: string): Carpeta[] {
     estado: "Pendiente",
     descripcion: tmpl.descripcion,
     documentos: [],
-  }));
+  })));
 }
 
 export const INITIAL_ADQUISICIONES: Adquisicion[] = [

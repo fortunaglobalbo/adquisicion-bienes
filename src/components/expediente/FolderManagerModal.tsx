@@ -55,7 +55,7 @@ export const FolderManagerModal: React.FC<FolderManagerModalProps> = ({
   // Estado de guía expandida
   const [expandedGuideId, setExpandedGuideId] = useState<string | null>(null);
 
-  // Guías predefinidas para carpetas 1 a 8
+  // Las claves corresponden al tipo de documento guardado.
   const defaultGuides: Record<number, { queHace: string; deQuienDepende: string; pasos: string[] }> = {
     1: {
       queHace: "Especificaciones Técnicas oficiales de los bienes y herramientas a adquirir.",
@@ -78,24 +78,29 @@ export const FolderManagerModal: React.FC<FolderManagerModalProps> = ({
       pasos: ["1. Revisar los ítems del TDR", "2. Completar destinatario y condiciones", "3. Guardar o descargar la solicitud"],
     },
     5: {
-      queHace: "Contiene la Solicitud de Inicio y el Informe Técnico de Justificación.",
-      deQuienDepende: "Carpeta 1 (TDR), Carpeta 2 (Solicitud de adquisición) y antecedentes de la compra.",
+      queHace: "Contiene la Solicitud de Inicio de Proceso.",
+      deQuienDepende: "TDR, solicitud de adquisición e informe técnico de la carpeta 3.",
       pasos: ["1. Presionar Generar con IA", "2. Revisar borrador", "3. Descargar documento"],
     },
     6: {
       queHace: "Informe técnico de evaluación de ofertas y cuadro comparativo.",
-      deQuienDepende: "Carpeta 1 (TDR) y Carpeta 4 (Cotizaciones y comparación revisada).",
+      deQuienDepende: "TDR, cotizaciones y cuadro comparativo de la carpeta 5.",
       pasos: ["1. Revisar cotizaciones", "2. Preparar informe de evaluación", "3. Editar y guardar Word"],
     },
     7: {
       queHace: "Informe Técnico de Conformidad y Recepción Definitiva (Formulario A6-N014).",
-      deQuienDepende: "Carpeta 1 (TDR), Carpeta 4 (Cotizaciones) y Carpeta 6 (Evaluación).",
-      pasos: ["1. Generar con IA", "2. Certificar 100% de cumplimiento", "3. Descargar acta"],
+      deQuienDepende: "Respaldos de entrega o prestación e informe de evaluación de la carpeta 7.",
+      pasos: ["1. Adjuntar respaldos", "2. Procesar archivos", "3. Revisar y guardar el informe"],
     },
     8: {
       queHace: "Memorándum de Solicitud de Pago y Desembolso contable con documentos de respaldo.",
-      deQuienDepende: "Carpeta 7 (Informe de Conformidad) y Carpeta 6 (Evaluación).",
+      deQuienDepende: "Informe de conformidad de la carpeta 8 y respaldos de pago.",
       pasos: ["1. Generar con IA", "2. Verificar adjuntos", "3. Remitir a Finanzas"],
+    },
+    9: {
+      queHace: "Justifica técnicamente el requerimiento antes de solicitar cotizaciones.",
+      deQuienDepende: "TDR y solicitud de adquisición de las carpetas 1 y 2.",
+      pasos: ["1. Generar el informe", "2. Revisar el alcance y el cuadro técnico", "3. Guardar o descargar el Word"],
     },
   };
 
@@ -162,7 +167,7 @@ export const FolderManagerModal: React.FC<FolderManagerModalProps> = ({
   };
 
   const handleDelete = (folder: Carpeta) => {
-    if (folder.numero <= 8) { alert("Las ocho carpetas oficiales forman parte del expediente y no se eliminan. Puedes cambiar su nombre y orden."); return; }
+    if (folder.numero <= 9) { alert("Las carpetas oficiales forman parte del expediente y no se eliminan. Puedes cambiar su nombre y orden."); return; }
     if (confirm(`¿Estás seguro de eliminar la carpeta "${displayFolderNumber(folder.numero)}. ${folder.nombre}"?`)) {
       DataStore.deleteCarpeta(folder.id);
       const updated = DataStore.getCarpetasByAdquisicion(adquisicion.id);

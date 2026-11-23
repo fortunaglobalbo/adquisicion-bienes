@@ -31,7 +31,7 @@ import { EstadoEditable } from '@/components/ui/EstadoEditable';
 import { estadoAdquisicion } from '@/lib/adquisicionEstado';
 import { DataStore } from "@/lib/store/dataStore";
 import { createInitialFolders } from "@/lib/store/initialData";
-import { PURCHASE_REQUEST_FOLDER, TECHNICAL_JUSTIFICATION_MODEL, workflowFolders } from "@/lib/store/folderOrder";
+import { TECHNICAL_JUSTIFICATION_MODEL, workflowFolders } from "@/lib/store/folderOrder";
 import {
   Adquisicion,
   CategoriaAdquisicion,
@@ -50,7 +50,6 @@ export default function ExpedienteDetailPage() {
   const [adquisicion, setAdquisicion] = useState<Adquisicion | null>(null);
   const [carpetas, setCarpetas] = useState<Carpeta[]>([]);
   const [activeFolderNum, setActiveFolderNum] = useState<number>(1);
-  const [purchaseRequestModel, setPurchaseRequestModel] = useState(PURCHASE_REQUEST_FOLDER);
   const [camposExtraidos, setCamposExtraidos] = useState<CampoExtraido[]>([]);
   const [firmas, setFirmas] = useState<Firma[]>([]);
   const [loading, setLoading] = useState(true);
@@ -140,7 +139,7 @@ export default function ExpedienteDetailPage() {
 
   const safeCarpetas = carpetas.length > 0 ? carpetas : workflowFolders(createInitialFolders(adquisicion.id));
   const activeFolder = safeCarpetas.find((c) => c.numero === activeFolderNum) || safeCarpetas[0];
-  const activeModel = activeFolder.numero === PURCHASE_REQUEST_FOLDER ? purchaseRequestModel : activeFolder.numero;
+  const activeModel = activeFolder.numero;
 
   const handleDocumentAdded = (newDoc: Documento, newCampos?: CampoExtraido[]) => {
     if (activeFolder?.id) {
@@ -271,7 +270,7 @@ export default function ExpedienteDetailPage() {
 
             {/* Right 9 Columns: Active Folder Canvas */}
             <div className="col-span-12 lg:col-span-9 bg-surface-container-lowest border border-outline-variant rounded-lg p-6 md:p-8 min-h-[550px] shadow-institutional flex flex-col">
-              {activeFolder && [7, 8].includes(activeFolder.numero) ? (
+              {activeFolder && [7, 8, TECHNICAL_JUSTIFICATION_MODEL].includes(activeFolder.numero) ? (
                 <FixedDocumentFolder key={`${adquisicion.id}:${activeFolder.numero}`} adquisicion={adquisicion} carpeta={activeFolder} onSaved={() => void loadData(true)} />
               ) : activeFolder && activeFolder.numero >= 1 && activeFolder.numero <= 6 ? (
                 <>
@@ -285,24 +284,6 @@ export default function ExpedienteDetailPage() {
                         <QuoteEvaluationPanel key={`${adquisicion.id}:${adquisicion.selection_plan?.revision || ''}`} adquisicion={adquisicion} onSaved={() => void loadData(true)} />
                       </div>
                     </details>
-                  )}
-                  {activeFolder.numero === PURCHASE_REQUEST_FOLDER && (
-                    <div role="group" aria-label="Documentos de inicio de proceso" className="mb-4 flex flex-wrap gap-2">
-                      {[
-                        { model: PURCHASE_REQUEST_FOLDER, label: "Solicitud de inicio de proceso" },
-                        { model: TECHNICAL_JUSTIFICATION_MODEL, label: "Informe técnico de justificación" },
-                      ].map(({ model, label }) => (
-                        <button
-                          key={model}
-                          type="button"
-                          aria-pressed={purchaseRequestModel === model}
-                          onClick={() => setPurchaseRequestModel(model)}
-                          className={`rounded-lg border px-4 py-2 text-sm font-semibold ${purchaseRequestModel === model ? 'border-primary bg-primary text-white' : 'border-outline-variant hover:bg-surface-container'}`}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
                   )}
                   <FixedDocumentFolder key={`${adquisicion.id}:${activeModel}:${adquisicion.selection_plan?.revision || ''}:${adquisicion.borradores_ia?.[activeModel]?.updatedAt || ''}`} adquisicion={adquisicion} carpeta={activeFolder} modelNumber={activeModel} onSaved={() => void loadData(true)} assistantBusy={assistantBusy} />
                 </>
@@ -353,7 +334,7 @@ export default function ExpedienteDetailPage() {
         isOpen={showDeleteModal}
         onClose={() => !isDeleting && setShowDeleteModal(false)}
         title="¿Eliminar Expediente de Adquisición?"
-        subtitle="Esta acción es irreversible y eliminará el expediente completo con sus 8 carpetas y documentos generados."
+        subtitle="Esta acción es irreversible y eliminará el expediente completo con sus carpetas y documentos."
         maxWidth="md"
       >
         <div className="space-y-4 text-xs font-sans">

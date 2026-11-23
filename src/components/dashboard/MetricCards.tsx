@@ -35,7 +35,7 @@ export const MetricCards: React.FC<MetricCardsProps> = ({ adquisiciones = [] }) 
       <div className="bg-surface-container-lowest border border-outline-variant rounded-lg p-5 relative overflow-hidden shadow-institutional">
         <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary-fixed-dim"></div>
         <p className="font-mono text-xs text-on-surface-variant uppercase tracking-wider mb-1">
-          Pendientes IA (Carpetas 1, 5, 6)
+          Pendientes de preparación
         </p>
         <h3 className="font-headline-lg text-3xl font-bold text-on-surface">{pendientesIA}</h3>
         <p className="font-mono text-xs text-on-surface-variant mt-2 flex items-center gap-1">

@@ -46,6 +46,8 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
         return FileCheck2;
       case 8:
         return FileSignature;
+      case 9:
+        return FileText;
       default:
         return FolderOpen;
     }

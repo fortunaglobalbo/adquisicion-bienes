@@ -142,7 +142,13 @@ async function verifyConformityUploads(browser){
  const scene=await setup(browser,'assistant-conformity',{pauseGeneration:7});
  const {page}=scene;
  try{
-  await page.getByRole('button',{name:'7. Conformidad',exact:true}).first().click();
+  await page.getByRole('button',{name:'3. Informe técnico',exact:true}).first().click();
+  const technical=page.getByLabel('Documento editable: Informe técnico de justificación',{exact:true});
+  await technical.getByText('6. CONCLUSIÓN Y RECOMENDACIÓN',{exact:true}).waitFor();
+  assert.equal(await technical.locator('table').count(),1);
+  assert.equal(await technical.locator('table').getByText('VÍA:',{exact:true}).count(),0);
+  await page.getByRole('button',{name:'4. Solicitud de cotización',exact:true}).first().waitFor();
+  await page.getByRole('button',{name:'8. Conformidad',exact:true}).first().click();
   const editor=page.getByLabel('Documento editable: Informe de conformidad A6-N014',{exact:true});
   await editor.waitFor();
   assert.equal(await page.getByLabel('Asistente de esta compra',{exact:true}).count(),0);
@@ -161,7 +167,7 @@ async function verifyConformityUploads(browser){
   assert.deepEqual(scene.calls,[7]);
   assert.deepEqual(scene.reads,[]);
   assert.deepEqual(scene.errors,[]);
-  console.log('PASS Procesar archivos genera solo la carpeta 7 y completa sus cuatro secciones y el cuadro.');
+  console.log('PASS informe técnico en carpeta 3, solicitud de cotización en carpeta 4 y generación de conformidad limitada a carpeta 8.');
  }finally{scene.releaseGeneration();await scene.context.close();}
 }
 async function main(){

@@ -246,7 +246,7 @@ export const AcquisitionsTable: React.FC<AcquisitionsTableProps> = ({
         isOpen={!!deletingItem}
         onClose={() => !isDeleting && setDeletingItem(null)}
         title="¿Eliminar Expediente de Adquisición?"
-        subtitle="Esta acción es irreversible y eliminará el expediente completo con sus 8 carpetas y documentos asociados."
+        subtitle="Esta acción es irreversible y eliminará el expediente completo con sus carpetas y documentos."
         maxWidth="md"
       >
         {deletingItem && (

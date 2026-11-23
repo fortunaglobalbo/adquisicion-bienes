@@ -722,8 +722,8 @@
     "number": 9,
     "title": "Informe técnico de justificación",
     "file": "09.docx",
-    "version": "2026-11-21.1",
-    "source": "INFORME TECNICO.docx",
+    "version": "2026-11-23.2",
+    "source": "INFORME TECNICO (20).docx",
     "fields": [
       {
         "key": "fecha",
@@ -750,6 +750,12 @@
         "normative": false
       },
       {
+        "key": "via",
+        "label": "Vía y cargo",
+        "hint": "",
+        "normative": false
+      },
+      {
         "key": "objeto",
         "label": "Asunto",
         "hint": "",
@@ -762,14 +768,32 @@
         "normative": false
       },
       {
+        "key": "justificacion",
+        "label": "Justificación técnica y normativa",
+        "hint": "",
+        "normative": false
+      },
+      {
         "key": "objetivos",
         "label": "Objetivos",
         "hint": "",
         "normative": false
       },
       {
-        "key": "justificacion",
-        "label": "Justificación técnica y normativa",
+        "key": "alcance",
+        "label": "Alcance del requerimiento",
+        "hint": "",
+        "normative": false
+      },
+      {
+        "key": "cobertura",
+        "label": "Cobertura geográfica",
+        "hint": "",
+        "normative": false
+      },
+      {
+        "key": "marco",
+        "label": "Marco normativo y modalidad de contratación",
         "hint": "",
         "normative": false
       },
@@ -783,30 +807,26 @@
     "columns": [
       {
         "key": "numero",
-        "label": "N.º"
-      },
-      {
-        "key": "ubicacion",
-        "label": "ÁREA / UBICACIÓN"
-      },
-      {
-        "key": "especificaciones",
-        "label": "CARACTERÍSTICAS TÉCNICAS"
+        "label": "ÍTEM"
       },
       {
         "key": "descripcion",
-        "label": "BIEN O SERVICIO"
+        "label": "DESCRIPCIÓN DEL BIEN O SERVICIO"
+      },
+      {
+        "key": "unidad",
+        "label": "UNIDAD"
       },
       {
         "key": "cantidad",
         "label": "CANTIDAD"
       },
       {
-        "key": "justificacion_operativa",
-        "label": "JUSTIFICACIÓN OPERATIVA"
+        "key": "especificaciones",
+        "label": "CARACTERÍSTICAS TÉCNICAS MÍNIMAS REQUERIDAS"
       }
     ],
-    "sha256": "2450cd12fa52bc1a5bb1ae114929358e43f90036a962e9d5757f576a9784e877"
+    "sha256": "4c591b3c82e1b91606625f92a120e5669148366d7687da668ebe9d6454d744bb"
   },
   {
     "number": 8,

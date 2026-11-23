@@ -6,7 +6,7 @@ import { officialPeople } from '../docx/officialPeople';
 import { FIXED_MODELS, fixedDocumentBelongsToModel } from '../docx/fixedModels';
 import { registeredRequestNumber } from '../docx/administrativeDefaults';
 import { cambiosEstadoAdquisicion } from '../adquisicionEstado';
-import { exchangeQuotationAndComparison, storageFolderNumber, workflowFolders } from './folderOrder';
+import { separateTechnicalFolder, workflowFolders } from './folderOrder';
 
 const KEYS = { adq: "ende_adquisiciones_v2026", folders: "ende_carpetas_v2026", fields: "ende_campos_extraidos_v2026", logs: "ende_logs_v2026", signs: "ende_firmas_v2026", templates: "ende_plantillas_v2026", pending: "ende_pending_v1", revisions: "ende_revisions_v1", templatePending: "ende_templates_pending_v1" };
 type Result = { success: boolean; error?: string };
@@ -140,7 +140,7 @@ export class DataStore {
     const prepared={...adq.borradores_ia};
     const folders = this.getAllCarpetas().filter(c => c.adquisicion_id === adq.id);
     for (const {number} of FIXED_MODELS) {
-      const latest = folders.find(c => c.numero === storageFolderNumber(number))?.documentos.filter(d =>
+      const latest = folders.find(c => c.numero === number)?.documentos.filter(d =>
         d.metadata?.fixedDraft?.fields && d.metadata.fixedDraft.companyId === (adq.empresa_id || 'ende') && fixedDocumentBelongsToModel(number,d))
         .sort((a,b) => b.fecha_creacion.localeCompare(a.fecha_creacion))[0];
       if (latest && (!prepared[number] || latest.fecha_creacion > prepared[number].updatedAt)) {
@@ -195,7 +195,13 @@ export class DataStore {
     } catch (e) { return { success: false, error: e instanceof Error ? e.message : "No se pudo eliminar." }; }
   }
   static getAllCarpetas(): Carpeta[] {
-    return this.read<Carpeta[]>(KEYS.folders, []).map(c=>{
+    const grouped = new Map<string,Carpeta[]>();
+    for (const folder of this.read<Carpeta[]>(KEYS.folders, [])) {
+      const group = grouped.get(folder.adquisicion_id) || [];
+      group.push(folder);
+      grouped.set(folder.adquisicion_id,group);
+    }
+    return Array.from(grouped.values()).flatMap(separateTechnicalFolder).map(c=>{
       if (c.numero === 3) return {...c,nombre:'Cuadro comparativo',tipo_generacion:'IA',descripcion:'Informe y cuadro comparativo basado en solicitudes y ofertas disponibles.'};
       if (c.numero === 6) return {...c,nombre:'Informe técnico de evaluación',descripcion:'Evaluación técnica y económica de cotizaciones, cuadro comparativo, conclusiones y recomendaciones.'};
       if (c.numero === 8 && c.nombre === 'Memo Solicitud de Pago') return {...c,nombre:'Solicitud de pago'};
@@ -212,13 +218,13 @@ export class DataStore {
   }
   static addCarpeta(id: string, nombre: string, descripcion = "Carpeta adicional"): Carpeta {
     const folders = this.getCarpetasByAdquisicion(id);
-    const numero = Math.max(8, ...folders.map(c => c.numero)) + 1;
+    const numero = Math.max(9, ...folders.map(c => c.numero)) + 1;
     const folder: Carpeta = { id: crypto.randomUUID(), adquisicion_id: id, numero, nombre: nombre.trim(), descripcion, tipo_generacion: "MANUAL", estado: "Pendiente", documentos: [], orden: folders.length + 1 };
     this.saveAllCarpetas([...this.getAllCarpetas(), folder]); return folder;
   }
   static deleteCarpeta(id: string): boolean {
     const folder = this.getAllCarpetas().find(c => c.id === id);
-    if (!folder || folder.numero <= 8) return false;
+    if (!folder || folder.numero <= 9) return false;
     this.saveAllCarpetas(this.getAllCarpetas().filter(c => c.id !== id)); return true;
   }
   static updateCarpeta(id: string, updates: Partial<Carpeta>): Carpeta | null {
@@ -232,7 +238,7 @@ export class DataStore {
     const index = folders.findIndex(c => c.id === id); const next = index + step;
     if (index >= 0 && next >= 0 && next < folders.length) {
       [folders[index], folders[next]] = [folders[next], folders[index]];
-      exchangeQuotationAndComparison(folders).forEach((c,i) => { all.find(f => f.id === c.id)!.orden = i + 1; });
+      folders.forEach((c,i) => { all.find(f => f.id === c.id)!.orden = i + 1; });
       this.saveAllCarpetas(all);
     }
     return this.getCarpetasByAdquisicion(adqId);

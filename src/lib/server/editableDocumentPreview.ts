@@ -50,7 +50,7 @@ export async function editableDocumentPreview(buffer: Buffer, draft: FixedDraft,
     references[`${key}_cargo`] = { key, part: 'role', value: role.join('\n') };
   }
   const choices: Record<string, string> = {};
-  const runValues = [7,8].includes(model.number) ? Object.create(null) as Record<string,string> : undefined;
+  const runValues = [7,8,9].includes(model.number) ? Object.create(null) as Record<string,string> : undefined;
   for (const [key, yes, no, yesLabel, noLabel] of [
     ['almacen', 'con saldo', 'sin saldo', 'Con saldo', 'Sin saldo'],
     ['publicar_precio', 'si', 'no', 'Sí', 'No'],

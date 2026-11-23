@@ -71,11 +71,13 @@ export async function institutionalReportPreview(buffer: Buffer, model: number):
   const {value} = await mammoth.convertToHtml({buffer}, model === 7 ? {styleMap: [
     "p[style-name='Conformity Date'] => p.conformity-date:fresh",
     "p[style-name='Conformity Reference'] => p.conformity-reference:fresh",
+  ]} : model === 9 ? {styleMap:[
+    "p[style-name='Technical Date'] => p.conformity-date:fresh",
   ]} : undefined);
   return `<style>
     .institutional-report{font-family:Tahoma,sans-serif;line-height:1.3}
     .institutional-report .report-logo{width:160px;margin-bottom:14px}
     .institutional-report table:first-of-type{margin:12px 0}
     .institutional-report table:first-of-type p{margin:0}
-  </style><div class="institutional-report">${logo}${model === 7 ? alignDateLine(value) : value}</div>`;
+  </style><div class="institutional-report">${logo}${[7,9].includes(model) ? alignDateLine(value) : value}</div>`;
 }

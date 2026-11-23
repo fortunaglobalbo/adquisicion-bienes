@@ -49,6 +49,19 @@ async function main(){
    }
    assert.equal((await renderFixedWord(7,{...draft,modelVersion:'2026-09-10.1'})).draft.fields.via,draft.fields.via);
   }
+  if(model.number===9) {
+   assert.equal(result.tables.length,1,'Solo queda el cuadro técnico del modelo recibido');
+   assert.match(all,/INFORME TÉCNICO/);
+   assert.match(all,/A: Dato de prueba Destinatario y cargo/);
+   assert.match(all,/VÍA: Dato de prueba Vía y cargo/);
+   assert.match(all,/6\. CONCLUSIÓN Y RECOMENDACIÓN/);
+   assert.doesNotMatch(all,/CONTROL DE PLAGAS|GG-ITI-26\/110002|SENASAG/i);
+   const legacy={...draft,fields:{...draft.fields},modelVersion:'2026-11-21.1',items:[{numero:'1',descripcion:'Cable',ubicacion:'Almacén',cantidad:'10',especificaciones:'Características originales',justificacion_operativa:'Uso documentado'}],editedItems:true};
+   delete legacy.fields.alcance;
+   const upgraded=await renderFixedWord(9,legacy);
+   assert.equal(upgraded.draft.fields.objetivos,draft.fields.objetivos);
+   assert.match(upgraded.draft.items[0].especificaciones,/Uso documentado/);
+  }
   if(model.number===8) {
    assert.equal(result.tables.length,0,'El encabezado de pago se compone de párrafos');
    assert.match(all,/SOLICITUD DE PAGO/);

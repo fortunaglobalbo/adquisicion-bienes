@@ -247,7 +247,7 @@ export function FixedDocumentFolder({ adquisicion, carpeta, modelNumber=carpeta.
         {!isConformity && <button className={action} aria-expanded={aiEdit} onClick={() => setAiEdit(v => !v)}>
           <Sparkles size={16} />{model.number === 8 ? 'Subir nota de petición de pago' : 'Completar o corregir con IA'}
         </button>}
-        {!isConformity&&model.number>4&&model.number!==8&&(adquisicion.asistente_compra?.confirmedAt||adquisicion.asistente_compra?.preparedAt)&&<button className={action} onClick={()=>refresh('complete')}>Redactar con los datos de esta compra</button>}
+        {!isConformity&&model.number>4&&model.number!==8&&(model.number===TECHNICAL_JUSTIFICATION_MODEL||adquisicion.asistente_compra?.confirmedAt||adquisicion.asistente_compra?.preparedAt)&&<button className={action} onClick={()=>refresh('complete')}>Redactar con los datos de esta compra</button>}
         {model.number===6 && (adquisicion.quote_evaluation?.quotes.length || adquisicion.comparative_report) ? <button className={action} onClick={()=>refresh('refresh-evaluation')}>Actualizar cuadro y conclusiones desde cotizaciones</button> : null}
       </div>
       {evaluationChanged && <p role="status" className="text-sm text-amber-800">Las cotizaciones cambiaron. Puedes actualizar el cuadro y las conclusiones.</p>}

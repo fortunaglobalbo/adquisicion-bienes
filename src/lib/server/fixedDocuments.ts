@@ -30,6 +30,21 @@ import { completeConformityReport, conformityDefaults, fillConformityRows } from
 
 const text = (value: unknown): string => typeof value === "string" ? value.trim() : "";
 const amountCategory = (value:unknown) => /^(?:categor[ií]a\s+)?(?:I{1,3}|especial)\b/i.test(text(value)) ? text(value) : '';
+function technicalReportRows(adq: Adquisicion) {
+  const brief = availablePurchaseBrief(adq);
+  const tdr = adq.borradores_ia?.[1]?.draft;
+  const sameCompany = tdr?.companyId === (adq.empresa_id || 'ende');
+  const reference = sameCompany && tdr.items.length && (tdr.editedItems || !brief?.items.length)
+    ? tdr.items : brief?.items.length ? brief.items : (adq.items || []).map(item=>({
+      descripcion:item.descripcion, unidad:item.unidad, cantidad:item.cantidad>0?String(item.cantidad):'',
+      especificaciones:item.especificacionMinima || item.caracteristicasTecnicas || '',
+    }));
+  return reference.filter(item=>text(item.descripcion) && item.descripcion!==missingValue).slice(0,100).map((item,index)=>({
+    numero:String(index+1), descripcion:item.descripcion, unidad:item.unidad || missingValue,
+    cantidad:item.cantidad || missingValue, especificaciones:item.especificaciones || missingValue,
+  }));
+}
+
 export function seedFixedDraft(number: number, adq: Adquisicion): FixedDraft {
   const model = fixedModel(number);
   companyKnowledge(adq.empresa_id || "ende");
@@ -93,11 +108,14 @@ export function seedFixedDraft(number: number, adq: Adquisicion): FixedDraft {
       antecedentes:adq.antecedentes_texto || `La unidad solicitante presenta el requerimiento «${scope}». El presente informe documenta su necesidad y el alcance técnico previsto.`,
       objetivos:brief?.purpose || `Definir el alcance de «${scope}» y las características que permitan atender el requerimiento de la unidad solicitante.`,
       justificacion:adq.justificacion_texto || brief?.purpose || 'Las características y cantidades del cuadro técnico delimitan el requerimiento para que las propuestas puedan responder a la misma necesidad.',
+      alcance:adq.plazo_entrega_dias > 0 ? `El cuadro técnico detalla el requerimiento y sus cantidades. El plazo registrado es de ${adq.plazo_entrega_dias} días calendario.` : 'El cuadro técnico detalla los bienes o servicios requeridos, sus cantidades y sus características mínimas.',
+      cobertura:brief?.location || adq.lugar_entrega || (adq.unidad_solicitante ? `Unidad beneficiaria: ${adq.unidad_solicitante}.` : ''),
+      marco:'La modalidad de contratación y las condiciones aplicables se establecerán en el expediente antes de solicitar cotizaciones.',
       conclusiones:'Se recomienda revisar el requerimiento técnico y sus respaldos para considerar el inicio del trámite de contratación.',
     } : {}),
   };
   // Receiving a new good is a fact to confirm; previous item quantities are not evidence of receipt.
-  const items = number === 3 ? comparativeReportData(adq).items : number === 6 ? technicalEvaluationData(adq).items : number === 7 ? conformityDefaults(adq).items : !model.columns.length ? [] : (adq.items || []).map((item, i) => Object.fromEntries(model.columns.map(c => [c.key,
+  const items = number === 3 ? comparativeReportData(adq).items : number === 6 ? technicalEvaluationData(adq).items : number === 7 ? conformityDefaults(adq).items : number === 9 ? technicalReportRows(adq) : !model.columns.length ? [] : (adq.items || []).map((item, i) => Object.fromEntries(model.columns.map(c => [c.key,
     ({ numero: String(i + 1), descripcion: item.descripcion, unidad: item.unidad,
       ubicacion: adq.lugar_entrega || adq.unidad_solicitante,
       justificacion_operativa: brief?.purpose || missingValue,
@@ -152,7 +170,7 @@ export async function renderFixedWord(number: number, input: FixedDraft, adq?: A
   const changes: DocumentChange[] = [];
   const tables: TableChange[] = [];
   const referenceFields: Record<string,string> = {};
-  const runValues = [7,8].includes(number) ? Object.create(null) as Record<string,string> : undefined;
+  const runValues = [7,8,9].includes(number) ? Object.create(null) as Record<string,string> : undefined;
   if([3,5,6,9].includes(number)) for(const key of ['destinatario','via','solicitante']) {
     const [name,...role] = (draft.fields[key] || '').split(/\r?\n|\s+[-–—]\s+/);
     referenceFields[`${key}_nombre`] = name;
@@ -255,9 +273,10 @@ export async function completeFixedDocument(number: number, adq: Adquisicion, cu
       suggestedConditions:defaultDocumentProposals(number,adq,current), sources }) }, ...images.map(url => ({ type: "image_url" as const, image_url: { url } }))] },
   ], 0.1, 16000, 85000, session, {strict:true,disableThinking:true});
   if (!raw) throw Error("OpenCode GO devolvió una respuesta vacía. Vuelve a intentar; el borrador se conserva.");
+  const technicalRows = number === 9 ? technicalReportRows(adq) : [];
   const result = parseFixedDocumentResponse(raw,model,{
-    authoritativeItems:!!current.editedItems || !!(brief&&number===1) || !!(number===6&&(adq.comparative_report||adq.quote_evaluation?.quotes.length)),
-    allowMissingItems:number===6,
+    authoritativeItems:!!current.editedItems || !!technicalRows.length || !!(brief&&number===1) || !!(number===6&&(adq.comparative_report||adq.quote_evaluation?.quotes.length)),
+    allowMissingItems:[6,9].includes(number),
   });
   const validIds = new Set(sources.map(s => s.id));
   const decisionKeys = ['seleccion','vigencia','adjudicacion','pago'];
@@ -333,6 +352,12 @@ export async function completeFixedDocument(number: number, adq: Adquisicion, cu
   }));
   // Compliance is marked by the bidder or evaluator, never inferred while drafting the requirements.
   let items: Record<string,string>[] = model.columns.length ? result.items.map((r: Record<string, unknown>) => Object.fromEntries(model.columns.map(c => [c.key, c.key === 'cumplimiento' ? tdrComplianceOptions : c.key.endsWith('oferta') ? '' : text(r?.[c.key]) || missingValue]))) : [];
+  if (number===9) {
+    if (technicalRows.length) items=technicalRows;
+    for (const key of ['alcance','cobertura','marco']) {
+      if (!fields[key] || fields[key]===missingValue) fields[key]=current.fields[key];
+    }
+  }
   if (brief && number===1) items = brief.items.map((item,i)=>Object.fromEntries(model.columns.map(c=>[c.key, ({numero:String(i+1),descripcion:item.descripcion,cantidad:item.cantidad,unidad:item.unidad,especificaciones:technicalBriefSpecification(item),cumplimiento:tdrComplianceOptions,precio:item.precio,precio_oferta:'',total_oferta:''} as Record<string,string>)[c.key] || text(items[i]?.[c.key]) || (c.key.endsWith('oferta')?'':missingValue)])));
   if(number===6 && (adq.comparative_report || adq.quote_evaluation?.quotes.length)){
     const evaluation=technicalEvaluationData(adq);items=evaluation.items;
