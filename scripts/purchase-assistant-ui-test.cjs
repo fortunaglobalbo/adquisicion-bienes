@@ -46,6 +46,11 @@ async function setup(browser,id,{quantity='10',conflicts=[],failure=0,pauseReadi
    if(legacyThird&&body.number===3)assert.equal(body.draft,undefined,'No se puede enviar el modelo antiguo como borrador del cuadro nuevo');
    calls.push(body.number);if(body.number===pauseGeneration){generationPaused.release();await generationBlock.promise;}if(body.number===failNumber){failNumber=0;await route.fulfill({status:503,json:{error:'Fallo temporal simulado'}});return;}
    draft=seedFixedDraft(body.number,body.adquisicion);if(body.number===1){draft.fields.justificacion=body.adquisicion.asistente_compra.purpose;draft.fields.seleccion='Menor precio entre propuestas que cumplan los requisitos mínimos.';draft.proposals={seleccion:{value:draft.fields.seleccion,reason:'Sugerencia para revisar; no es una decisión del usuario.'}};}
+   if(body.number===7){
+    attachmentNames.push([...(route.request().postData()||'').matchAll(/filename="([^"]+)"/g)].map(match=>match[1]));
+    Object.assign(draft.fields,{antecedentes:'Antecedente del servicio.',desarrollo:'La factura y la carta identifican el servicio.',conclusiones:'Los respaldos coinciden.',recomendaciones:'Verificar el acta.'});
+    draft.items=[{numero:'1',descripcion:'Servicio de prueba',fecha_recepcion:'Sin fecha registrada',observaciones:'Factura y carta aportadas.'}];
+   }
   }
   if(body.action==='revise'){assert.match(body.context,/45/);draft={...draft,fields:{...draft.fields,plazo:'45 días calendario'},editedFields:[...(draft.editedFields||[]),'plazo']};}
   const rendered=await renderFixedWord(body.number,draft);const html=body.number===2?await wordFormPreview(rendered.buffer):(await mammoth.convertToHtml({buffer:rendered.buffer})).value;
@@ -133,11 +138,39 @@ async function verifyDirectEditing(browser){
   assert.deepEqual(automatic.errors,[]);await automatic.context.close();
   console.log('PASS lote PDF/foto, preparación de las cinco carpetas, edición directa de TDR y S1, guardado, reapertura y verificación del Word.');
 }
+async function verifyConformityUploads(browser){
+ const scene=await setup(browser,'assistant-conformity',{pauseGeneration:7});
+ const {page}=scene;
+ try{
+  await page.getByRole('button',{name:'7. Conformidad',exact:true}).first().click();
+  const editor=page.getByLabel('Documento editable: Informe de conformidad A6-N014',{exact:true});
+  await editor.waitFor();
+  assert.equal(await page.getByLabel('Asistente de esta compra',{exact:true}).count(),0);
+  const picker=page.getByLabel('Factura, carta del proveedor o acta (PDF, Word o foto)');
+  await picker.setInputFiles(quoteFile());
+  await picker.setInputFiles({name:'carta.docx',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',buffer:Buffer.from('Prueba de interfaz')});
+  await processFiles(page);
+  await scene.generationPaused;
+  await page.getByText('Redactando el Informe de conformidad…',{exact:true}).waitFor();
+  scene.releaseGeneration();
+  await editor.getByText('La factura y la carta identifican el servicio.',{exact:true}).waitFor();
+  for(const text of ['Antecedente del servicio.','Los respaldos coinciden.','Verificar el acta.','Servicio de prueba']){
+   assert.equal(await editor.getByText(text,{exact:true}).count(),1);
+  }
+  assert.deepEqual(scene.attachmentNames,[['cotizacion.pdf','carta.docx']]);
+  assert.deepEqual(scene.calls,[7]);
+  assert.deepEqual(scene.reads,[]);
+  assert.deepEqual(scene.errors,[]);
+  console.log('PASS Procesar archivos genera solo la carpeta 7 y completa sus cuatro secciones y el cuadro.');
+ }finally{scene.releaseGeneration();await scene.context.close();}
+}
 async function main(){
  const browser=await chromium.launch({executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true});
  const oversizedPath=path.resolve(output,'cotizacion-mayor-50mb.pdf');const oversizedFile=fs.openSync(oversizedPath,'w');fs.ftruncateSync(oversizedFile,50*1024*1024+1);fs.closeSync(oversizedFile);
  try{
+  if(process.argv.includes('--conformity-only'))return await verifyConformityUploads(browser);
   if(process.argv.includes('--direct-edit-only'))return await verifyDirectEditing(browser);
+  await verifyConformityUploads(browser);
   const legacy=await setup(browser,'assistant-legacy-third',{legacyThird:true});await uploadAndCreate(legacy.page);await documentsPrepared(legacy.page);assert.deepEqual(legacy.calls,models);assert.equal(legacy.snapshot.adquisicion.borradores_ia[3].draft.modelVersion,fixedModel(3).version);for(const value of ['Borrador antiguo de justificación','Word antiguo de justificación','Edición local antigua sin guardar'])assert.ok(legacy.snapshot.adquisicion.comparative_report_history.some(entry=>entry.draft?.fields.justificacion===value),`Debe conservar ${value}`);assert.deepEqual(legacy.errors,[]);await legacy.context.close();console.log('PASS migración de modelo 3: no enviar borrador incompatible, generación nueva y conservación de preparado/Word/edición local antiguos.');
   if(process.argv.includes('--legacy-third-only'))return;
   const invalid=await setup(browser,'assistant-invalid');

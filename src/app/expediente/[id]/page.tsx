@@ -271,9 +271,9 @@ export default function ExpedienteDetailPage() {
 
             {/* Right 9 Columns: Active Folder Canvas */}
             <div className="col-span-12 lg:col-span-9 bg-surface-container-lowest border border-outline-variant rounded-lg p-6 md:p-8 min-h-[550px] shadow-institutional flex flex-col">
-              {activeFolder?.numero === 8 ? (
-                <FixedDocumentFolder key={`${adquisicion.id}:8`} adquisicion={adquisicion} carpeta={activeFolder} onSaved={() => void loadData(true)} />
-              ) : activeFolder && activeFolder.numero >= 1 && activeFolder.numero <= 7 ? (
+              {activeFolder && [7, 8].includes(activeFolder.numero) ? (
+                <FixedDocumentFolder key={`${adquisicion.id}:${activeFolder.numero}`} adquisicion={adquisicion} carpeta={activeFolder} onSaved={() => void loadData(true)} />
+              ) : activeFolder && activeFolder.numero >= 1 && activeFolder.numero <= 6 ? (
                 <>
                   {activeFolder.numero === 3
                     ? <ComparativeReportPanel key={adquisicion.id} adquisicion={adquisicion} carpetas={safeCarpetas} onSaved={() => void loadData(true)} onBusyChange={setAssistantBusy} />

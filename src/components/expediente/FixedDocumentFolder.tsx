@@ -40,6 +40,7 @@ export function FixedDocumentFolder({ adquisicion, carpeta, modelNumber=carpeta.
   const [context, setContext] = useState(recovery?.context || "");
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(true);
+  const [generatingConformity, setGeneratingConformity] = useState(false);
   const [dirty, setDirty] = useState(!!recovery);
   const [editableHtml,setEditableHtml]=useState('');
   const [message, setMessage] = useState("");
@@ -49,6 +50,8 @@ export function FixedDocumentFolder({ adquisicion, carpeta, modelNumber=carpeta.
   const [pendingInstruction, setPendingInstruction] = useState('');
   const [undoDraft, setUndoDraft] = useState<FixedDraft | null>(null);
   const [saveOfficial, setSaveOfficial] = useState(false);
+  const isConformity = model.number === 7;
+  const attachmentIssue = validateAttachmentSelection(files);
   const mounted = useRef(true);
   const requestVersion = useRef(0);
   const requestController = useRef<AbortController | null>(null);
@@ -56,6 +59,13 @@ export function FixedDocumentFolder({ adquisicion, carpeta, modelNumber=carpeta.
   const comparisonRevision=adquisicion.comparative_report && (!adquisicion.quote_evaluation || adquisicion.comparative_report.updatedAt>adquisicion.quote_evaluation.updatedAt)?adquisicion.comparative_report.revision:adquisicion.quote_evaluation?.updatedAt;
   const evaluationChanged=model.number===6&&!!draft&&!!comparisonRevision&&draft.evaluationRevision!==comparisonRevision;
   const comparativeChanged=model.number===3&&!!draft&&!!adquisicion.comparative_report&&(draft.evaluationRevision!==adquisicion.comparative_report.revision || !!draft.comparativeSnapshot&&draft.comparativeSnapshot!==comparativeSnapshot(adquisicion));
+  function selectAttachments(chosen: File[]) {
+    const additions = isConformity ? chosen.filter(file=>!files.some(existing=>existing.name===file.name && existing.size===file.size && existing.lastModified===file.lastModified)) : chosen;
+    const selected = isConformity ? [...files,...additions] : additions;
+    const issue = validateAttachmentSelection(selected);
+    if (!issue || !isConformity) setFiles(selected);
+    setError(issue || '');
+  }
   async function request(kind: string, selectedDraft=draft, signal?: AbortSignal) {
     const form = new FormData();
     form.append("request", JSON.stringify({ action: kind, editorOnly:true, number: model.number, adquisicion, draft:selectedDraft, context: pendingInstruction ? `${pendingInstruction}\nRespuesta del usuario: ${context}` : context }));
@@ -72,6 +82,7 @@ export function FixedDocumentFolder({ adquisicion, carpeta, modelNumber=carpeta.
     const controller = new AbortController(); requestController.current = controller;
     const version = ++requestVersion.current;
     setBusy(true); setError(""); setMessage("");
+    setGeneratingConformity(isConformity && kind === 'complete');
     try {
       const result = await (await request(kind,selectedDraft,controller.signal)).json();
       if (!mounted.current || version !== requestVersion.current) return;
@@ -95,7 +106,13 @@ export function FixedDocumentFolder({ adquisicion, carpeta, modelNumber=carpeta.
         setMessage(keepAttachments ? 'La IA no completó la lectura. Los archivos siguen seleccionados para volver a generar el informe.' : result.generationNotice || (kind==='refresh-evaluation'||kind==='refresh-comparative'?'Cuadro y conclusiones actualizados desde las cotizaciones guardadas. Puedes editarlos y guardar el informe.':result.revised ? `Cambios aplicados: ${(result.revisionSummary || []).join(", ") || "el documento ya contiene los datos solicitados"}. Revisa la vista y pulsa Guardar cambios.` : "Documento actualizado. Pulsa «Guardar cambios» para conservarlo."));
       }
     } catch (e) { if (mounted.current && version === requestVersion.current) setError(e instanceof Error ? e.message : "No se pudo actualizar."); }
-    finally { if (requestController.current === controller) requestController.current = null; if (mounted.current && version === requestVersion.current) setBusy(false); }
+    finally {
+      if (requestController.current === controller) requestController.current = null;
+      if (mounted.current && version === requestVersion.current) {
+        setBusy(false);
+        setGeneratingConformity(false);
+      }
+    }
   }
   useEffect(() => {
     mounted.current = true; void refresh();
@@ -227,10 +244,10 @@ export function FixedDocumentFolder({ adquisicion, carpeta, modelNumber=carpeta.
         <button className={action} disabled={!draft} onClick={() => download(false)}>
           <Download size={16} />Descargar Word
         </button>
-        <button className={action} aria-expanded={aiEdit} onClick={() => setAiEdit(v => !v)}>
-          <Sparkles size={16} />{model.number === 7 ? 'Adjuntar respaldos' : model.number === 8 ? 'Subir nota de petición de pago' : 'Completar o corregir con IA'}
-        </button>
-        {(model.number===7 ? !aiEdit : model.number>4&&model.number!==8&&(adquisicion.asistente_compra?.confirmedAt||adquisicion.asistente_compra?.preparedAt))&&<button className={action} onClick={()=>refresh('complete')}>Redactar con los datos de esta compra</button>}
+        {!isConformity && <button className={action} aria-expanded={aiEdit} onClick={() => setAiEdit(v => !v)}>
+          <Sparkles size={16} />{model.number === 8 ? 'Subir nota de petición de pago' : 'Completar o corregir con IA'}
+        </button>}
+        {!isConformity&&model.number>4&&model.number!==8&&(adquisicion.asistente_compra?.confirmedAt||adquisicion.asistente_compra?.preparedAt)&&<button className={action} onClick={()=>refresh('complete')}>Redactar con los datos de esta compra</button>}
         {model.number===6 && (adquisicion.quote_evaluation?.quotes.length || adquisicion.comparative_report) ? <button className={action} onClick={()=>refresh('refresh-evaluation')}>Actualizar cuadro y conclusiones desde cotizaciones</button> : null}
       </div>
       {evaluationChanged && <p role="status" className="text-sm text-amber-800">Las cotizaciones cambiaron. Puedes actualizar el cuadro y las conclusiones.</p>}
@@ -238,26 +255,24 @@ export function FixedDocumentFolder({ adquisicion, carpeta, modelNumber=carpeta.
         <a key={document.id} className="block w-fit text-sm text-primary underline"
           href={`/api/files?path=${encodeURIComponent(document.ruta_storage!)}`}>{document.nombre_original}</a>
       )}
-      {aiEdit && <div className="rounded-xl border border-slate-300 p-4 space-y-4 bg-slate-50">
+      {(isConformity || aiEdit) && <div className="rounded-xl border border-slate-300 p-4 space-y-4 bg-slate-50"
+        onDragOver={isConformity ? event => event.preventDefault() : undefined}
+        onDrop={isConformity ? event => { event.preventDefault(); if (!busy) selectAttachments(Array.from(event.dataTransfer.files)); } : undefined}>
         {clarification && <div role="status" className="rounded-lg border border-blue-200 bg-blue-50 p-3"><p className="font-semibold">{clarification}</p><p className="text-sm mt-1">Responde abajo; conservaré tu petición anterior. El documento sigue igual.</p></div>}
-        <label className="block space-y-2"><span>{model.number === 7 ? 'Factura, carta del proveedor o acta (PDF, Word o foto)' : model.number === 8 ? 'Nota de petición de pago (Word, PDF o foto)' : 'Antecedentes de esta compra (opcional)'}</span><input className={control} type="file" multiple accept=".pdf,.docx,.txt,.jpg,.jpeg,.png,.webp" onChange={e => {
-          const chosen = Array.from(e.target.files || []);
-          const additions = model.number === 7 ? chosen.filter(file=>!files.some(existing=>existing.name===file.name && existing.size===file.size && existing.lastModified===file.lastModified)) : chosen;
-          const selected = model.number === 7 ? [...files,...additions] : additions;
-          const issue = validateAttachmentSelection(selected);
-          if (!issue || model.number !== 7) setFiles(selected);
-          setError(issue || '');
-          if (model.number === 7) e.target.value='';
-        }} /><span className="text-sm text-slate-600">{ATTACHMENT_HELP_TEXT} </span></label>
-        {model.number === 7 && files.length > 0 && <ul className="space-y-1 text-sm">{files.map((file,index)=>
+        <label className="block space-y-2"><span>{isConformity ? 'Factura, carta del proveedor o acta (PDF, Word o foto)' : model.number === 8 ? 'Nota de petición de pago (Word, PDF o foto)' : 'Antecedentes de esta compra (opcional)'}</span><input className={control} type="file" multiple accept=".pdf,.docx,.txt,.jpg,.jpeg,.png,.webp" onChange={e => {
+          selectAttachments(Array.from(e.target.files || []));
+          if (isConformity) e.target.value='';
+        }} /><span className="text-sm text-slate-600">{isConformity ? 'Selecciona o arrastra los respaldos para completar este informe.' : ATTACHMENT_HELP_TEXT}</span></label>
+        {isConformity && files.length > 0 && <ul className="space-y-1 text-sm">{files.map((file,index)=>
           <li key={`${file.name}:${file.lastModified}`} className="flex flex-wrap items-center gap-2">
             {file.name}<button type="button" className="underline text-primary" aria-label={`Quitar ${file.name}`} onClick={()=>{setFiles(files.filter((_,i)=>i!==index));setError('');}}>Quitar</button>
           </li>
         )}</ul>}
         <label className="block space-y-2"><span className="font-semibold">{model.number === 7 ? 'Datos adicionales (opcional)' : 'Describe lo que necesitas o los datos que cambian'}</span><textarea className={control} rows={model.number === 7 ? 2 : 4} value={context} onChange={e => {setContext(e.target.value);setDirty(true);}} placeholder={model.number === 7 ? 'Ej. Número de orden o indicación para el informe.' : 'Ejemplo: cambia la entrega a 45 días o modifica la cantidad del ítem 2.'} /></label>
-        <button className={action} disabled={[7,8].includes(model.number) && (!draft || (model.number === 8 ? !files.length : !files.length && !context.trim()) || !!validateAttachmentSelection(files))}
-          onClick={() => refresh(model.number === 7 && files.length ? "complete" : model.number === 8 || context.trim() || pendingInstruction ? "revise" : "complete")}>
-          <Sparkles size={16} />{clarification ? "Responder al asistente" : model.number === 7 && files.length ? 'Generar informe con los archivos' : model.number === 8 ? 'Leer nota y completar solicitud' : "Aplicar cambios con IA"}
+        <button type="button" className={isConformity ? 'inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50' : action}
+          disabled={[7,8].includes(model.number) && (!draft || (model.number === 8 && !files.length) || !!attachmentIssue)}
+          onClick={() => refresh(isConformity && files.length ? "complete" : model.number === 8 || context.trim() || pendingInstruction ? "revise" : "complete")}>
+          <Sparkles size={16} />{isConformity && files.length ? 'Procesar archivos' : clarification ? "Responder al asistente" : isConformity && !context.trim() ? 'Redactar con los datos del expediente' : model.number === 8 ? 'Leer nota y completar solicitud' : "Aplicar cambios con IA"}
         </button>
       </div>}
       {draft && model.number !== TECHNICAL_JUSTIFICATION_MODEL && !!officialPeopleKeys[model.number]?.length &&
@@ -269,7 +284,7 @@ export function FixedDocumentFolder({ adquisicion, carpeta, modelNumber=carpeta.
       {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-red-800">{error}</p>}
       {message && <p role="status" className="text-sm text-primary">{message}</p>}
       {undoDraft && <button className={action} onClick={async()=>{setDraft(undoDraft);setUndoDraft(null);setDirty(true);await refresh('preview',undoDraft);setMessage('Último cambio deshecho en el documento. Guarda para conservar esta versión.');}}>Deshacer último cambio del asistente</button>}
-      {busy && <p role="status" className="flex items-center gap-2 text-primary"><Loader2 size={18} className="animate-spin"/>Preparando documento…</p>}
+      {busy && <p role="status" className="flex items-center gap-2 text-primary"><Loader2 size={18} className="animate-spin"/>{generatingConformity ? 'Redactando el Informe de conformidad…' : 'Preparando documento…'}</p>}
       {draft && editableHtml
         ? <EditableDocument html={editableHtml} draft={draft} model={model} disabled={busy||assistantBusy}
             onFieldChange={changeField} onItemChange={changeItem}
