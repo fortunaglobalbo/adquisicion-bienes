@@ -89,8 +89,8 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ brief: await analyzePurchaseBrief(adq, context, images, {signal:req.signal}) }, { headers: { 'Cache-Control': 'no-store' } });
       }
       // Decide on the server too: an older open tab may still send "complete" for an edit.
-      const revision = body.action === 'revise' || (body.action === 'complete' && !!body.draft &&
-        !!(number === 7 ? String(body.context || '').trim() : context.trim()) && body.draftOnly !== true);
+      const revision = body.action === 'revise' || (body.action === 'complete' && number !== 7 &&
+        !!body.draft && !!context.trim() && body.draftOnly !== true);
       if (revision) {
         validateFixedDraft(model, draft);
         const previous = draft;

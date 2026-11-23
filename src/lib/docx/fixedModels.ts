@@ -47,7 +47,7 @@ export function compatibleFixedDraft(number: number, draft?: FixedDraft): boolea
     || (number === 1 && version === '2026-11-21.1' && draft.modelVersion === '2026-09-10.1')
     || (number === 6 && version === '2026-09-25.2' && draft.modelVersion === '2026-09-25.1')
     || (number === 5 && version === '2026-11-22.2' && draft.modelVersion === '2026-09-10.1')
-    || (number === 7 && version === '2026-11-22.3' && ['2026-09-10.1','2026-11-22.2'].includes(draft.modelVersion))
+    || (number === 7 && version === '2026-11-23.1' && ['2026-09-10.1','2026-11-22.2','2026-11-22.3'].includes(draft.modelVersion))
     || (number === 8 && version === '2026-11-22.2' && draft.modelVersion === '2026-11-22.1'));
 }
 export function fixedDocumentBelongsToModel(number: number, document: Documento): boolean {
@@ -57,6 +57,9 @@ export function fixedDocumentBelongsToModel(number: number, document: Documento)
 export function upgradeFixedDraft(number: number, draft: FixedDraft): FixedDraft {
   if (!compatibleFixedDraft(number, draft)) return draft;
   const upgraded = {...draft, modelVersion: fixedModel(number).version};
+  if (number === 7 && upgraded.fields && upgraded.fields.desarrollo === undefined) {
+    upgraded.fields = {...upgraded.fields, desarrollo: missingValue};
+  }
   if (number === 1 && Array.isArray(upgraded.items)) {
     upgraded.items = upgraded.items.map(row => row && (row.cumplimiento === undefined || row.cumplimiento === '' || row.cumplimiento === missingValue)
       ? {...row, cumplimiento: tdrComplianceOptions} : row);

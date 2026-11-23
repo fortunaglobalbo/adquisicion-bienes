@@ -31,7 +31,7 @@ function completeObjects(raw:string):string[] {
 }
 
 /** Accept harmless envelopes while keeping the server's model, company and row facts authoritative. */
-export function parseFixedDocumentResponse(raw:string,model:FixedModel,options:{authoritativeItems:boolean;allowMissingItems:boolean}):FixedResponse {
+export function parseFixedDocumentResponse(raw:string,model:FixedModel,options:{authoritativeItems:boolean;allowMissingItems:boolean;allowItemsOnly?:boolean}):FixedResponse {
   if(!raw.trim()||raw.length>500000)throw invalid();
   const candidates:Record<string,any>[]=[];
   const visit=(value:unknown,depth=0)=>{
@@ -41,7 +41,10 @@ export function parseFixedDocumentResponse(raw:string,model:FixedModel,options:{
       const content=fieldText(supplied[field.key],field.key);
       return content===undefined?[]:[[field.key,content]];
     })):{};
-    if(Object.values(fields).some(content=>content.trim()))candidates.push({...value,fields});
+    if(Object.values(fields).some(content=>content.trim()) ||
+      (options.allowItemsOnly && !options.authoritativeItems && Array.isArray(value.items) && value.items.length)) {
+      candidates.push({...value,fields});
+    }
     for(const key of ['draft','result','data'])if(record(value[key]))visit(value[key],depth+1);
   };
   visit(parseJson(raw));

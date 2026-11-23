@@ -44,7 +44,7 @@ async function main(){
    assert.match(all,/VÍA: Dato de prueba Vía/);
    assert.match(all,/De: Dato de prueba Responsable informante/);
    assert.match(all,/Proceso: COMPRA DE CABLE/);
-   for(const [i,section] of ['ANTECEDENTES','RECEPCIÓN DE BIENES / SERVICIOS','CONCLUSIONES','RECOMENDACIONES'].entries()){
+   for(const [i,section] of ['ANTECEDENTES','DESARROLLO','RECEPCIÓN DE BIENES / SERVICIOS','CONCLUSIONES','RECOMENDACIONES'].entries()){
     assert.ok(all.includes(`${i+1}. ${section}`));
    }
    assert.equal((await renderFixedWord(7,{...draft,modelVersion:'2026-09-10.1'})).draft.fields.via,draft.fields.via);
@@ -95,10 +95,11 @@ async function main(){
  assert.match(conformityResult.editableHtml,/Cable · 4 m/);
  assert.match(conformityResult.editableHtml,/Recepción por verificar/);
  goResponse=JSON.stringify({fields:{conclusiones:'El documento de respaldo registra una recepción parcial.'},
-  items:[{descripcion:'Artículos de la nota',fecha_recepcion:'12/11/2026'}]});
+  items:[{descripcion:'Artículos de la nota',fecha_recepcion:'12/11/2026'}],
+  citasRecepcion:['Acta de recepción parcial de artículos del 12/11/2026.']});
  const receiptForm=new FormData();
  receiptForm.set('request',JSON.stringify({action:'complete',editorOnly:true,number:7,adquisicion:adq,draft:conformityResult.draft}));
- receiptForm.append('attachments',new Blob(['Nota de recepción parcial de artículos del 12/11/2026.'],{type:'text/plain'}),'nota-recepcion.txt');
+ receiptForm.append('attachments',new Blob(['Acta de recepción parcial de artículos del 12/11/2026.'],{type:'text/plain'}),'acta-recepcion.txt');
  const receiptResponse=await paymentRoute(new Request('http://local/api/fixed-documents',{method:'POST',body:receiptForm}));
  const receiptResult=await receiptResponse.json();
  assert.equal(receiptResponse.status,200,receiptResult.error);
@@ -106,6 +107,23 @@ async function main(){
  assert.equal(receiptResult.draft.items[0].fecha_recepcion,'12/11/2026');
  assert.match(JSON.stringify(goMessages),/recepción parcial de artículos/);
  assert.match(JSON.stringify(goMessages),/itemsDelRequerimiento/);
+ goResponse=JSON.stringify({
+   fields:{objeto:'Servicio ocupacional en Camargo para 34 trabajadores', desarrollo:'Medi Hogar presentó la factura N.º 1 por Bs 44.685,71. El proveedor informó que entregó los informes.'},
+   items:[{descripcion:'Atenciones ocupacionales a 34 trabajadores',fecha_recepcion:'20/11/2026',observaciones:'Factura N.º 1 por Bs 44.685,71.'}],
+   citasRecepcion:['Factura N.º 1 emitida el 20/11/2026.'],
+ });
+ const docsForm=new FormData();
+ docsForm.set('request',JSON.stringify({action:'complete',editorOnly:true,number:7,adquisicion:adq,draft:conformityResult.draft,context:'Generar el informe con ambos respaldos.'}));
+ docsForm.append('attachments',new Blob(['Factura N.º 1 emitida el 20/11/2026. Importe Bs 44.685,71.'],{type:'text/plain'}),'factura.txt');
+ docsForm.append('attachments',new Blob(['Carta del proveedor. Informa atenciones a 34 trabajadores y entrega de informes.'],{type:'text/plain'}),'carta.txt');
+ const docsResponse=await paymentRoute(new Request('http://local/api/fixed-documents',{method:'POST',body:docsForm}));
+ const docs=await docsResponse.json();
+ assert.equal(docsResponse.status,200,docs.error);
+ assert.match(docs.editableHtml,/2\. DESARROLLO/);
+ assert.match(docs.draft.fields.desarrollo,/44\.685,71/);
+ assert.equal(docs.draft.items[0].fecha_recepcion,'Sin fecha registrada');
+ assert.match(docs.draft.items[0].observaciones,/Recepción institucional por verificar/);
+ assert.match(JSON.stringify(goMessages),/factura\.txt.*carta\.txt/);
  const manualReceipt={...corrected,editedItems:true,items:[{numero:'1',descripcion:'Registro manual',fecha_recepcion:'',observaciones:''}]};
  const completedReceipt=await completeFixedDocument(7,adq,manualReceipt,'Nota de recepción');
  assert.deepEqual(completedReceipt.items,manualReceipt.items);

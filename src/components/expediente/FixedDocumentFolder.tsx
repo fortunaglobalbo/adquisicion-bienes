@@ -87,7 +87,13 @@ export function FixedDocumentFolder({ adquisicion, carpeta, modelNumber=carpeta.
       if (kind === 'complete' || kind === 'revise' || kind === 'refresh-evaluation' || kind === 'refresh-comparative') {setUndoDraft(draft);setClarification('');setPendingInstruction('');}
       setDraft(result.draft);
       setEditableHtml(result.editableHtml || '');
-      if (kind === "complete" || kind === "revise" || kind === 'refresh-evaluation' || kind === 'refresh-comparative') { setDirty(true); setAiEdit(false); setContext(""); setFiles([]); setMessage(result.generationNotice || (kind==='refresh-evaluation'||kind==='refresh-comparative'?'Cuadro y conclusiones actualizados desde las cotizaciones guardadas. Puedes editarlos y guardar el informe.':result.revised ? `Cambios aplicados: ${(result.revisionSummary || []).join(", ") || "el documento ya contiene los datos solicitados"}. Revisa la vista y pulsa Guardar cambios.` : "Documento actualizado. Pulsa «Guardar cambios» para conservarlo.")); }
+      if (kind === "complete" || kind === "revise" || kind === 'refresh-evaluation' || kind === 'refresh-comparative') {
+        setDirty(true);
+        const keepAttachments = model.number === 7 && !!result.generationNotice && files.length > 0;
+        setAiEdit(keepAttachments);
+        if (!keepAttachments) { setContext(""); setFiles([]); }
+        setMessage(keepAttachments ? 'La IA no completó la lectura. Los archivos siguen seleccionados para volver a generar el informe.' : result.generationNotice || (kind==='refresh-evaluation'||kind==='refresh-comparative'?'Cuadro y conclusiones actualizados desde las cotizaciones guardadas. Puedes editarlos y guardar el informe.':result.revised ? `Cambios aplicados: ${(result.revisionSummary || []).join(", ") || "el documento ya contiene los datos solicitados"}. Revisa la vista y pulsa Guardar cambios.` : "Documento actualizado. Pulsa «Guardar cambios» para conservarlo."));
+      }
     } catch (e) { if (mounted.current && version === requestVersion.current) setError(e instanceof Error ? e.message : "No se pudo actualizar."); }
     finally { if (requestController.current === controller) requestController.current = null; if (mounted.current && version === requestVersion.current) setBusy(false); }
   }
@@ -222,9 +228,9 @@ export function FixedDocumentFolder({ adquisicion, carpeta, modelNumber=carpeta.
           <Download size={16} />Descargar Word
         </button>
         <button className={action} aria-expanded={aiEdit} onClick={() => setAiEdit(v => !v)}>
-          <Sparkles size={16} />{model.number === 8 ? 'Subir nota de petición de pago' : 'Completar o corregir con IA'}
+          <Sparkles size={16} />{model.number === 7 ? 'Adjuntar respaldos' : model.number === 8 ? 'Subir nota de petición de pago' : 'Completar o corregir con IA'}
         </button>
-        {(model.number===7 || model.number>4&&model.number!==8&&(adquisicion.asistente_compra?.confirmedAt||adquisicion.asistente_compra?.preparedAt))&&<button className={action} onClick={()=>refresh('complete')}>Redactar con los datos de esta compra</button>}
+        {(model.number===7 ? !aiEdit : model.number>4&&model.number!==8&&(adquisicion.asistente_compra?.confirmedAt||adquisicion.asistente_compra?.preparedAt))&&<button className={action} onClick={()=>refresh('complete')}>Redactar con los datos de esta compra</button>}
         {model.number===6 && (adquisicion.quote_evaluation?.quotes.length || adquisicion.comparative_report) ? <button className={action} onClick={()=>refresh('refresh-evaluation')}>Actualizar cuadro y conclusiones desde cotizaciones</button> : null}
       </div>
       {evaluationChanged && <p role="status" className="text-sm text-amber-800">Las cotizaciones cambiaron. Puedes actualizar el cuadro y las conclusiones.</p>}
@@ -234,11 +240,24 @@ export function FixedDocumentFolder({ adquisicion, carpeta, modelNumber=carpeta.
       )}
       {aiEdit && <div className="rounded-xl border border-slate-300 p-4 space-y-4 bg-slate-50">
         {clarification && <div role="status" className="rounded-lg border border-blue-200 bg-blue-50 p-3"><p className="font-semibold">{clarification}</p><p className="text-sm mt-1">Responde abajo; conservaré tu petición anterior. El documento sigue igual.</p></div>}
-        <label className="block space-y-2"><span className="font-semibold">Describe lo que necesitas o los datos que cambian</span><textarea className={control} rows={4} value={context} onChange={e => {setContext(e.target.value);setDirty(true);}} placeholder="Ejemplo: cambia la entrega a 45 días, pon a María Pérez como responsable y cambia la cantidad del ítem 2 a 20 pares." /></label>
-        <label className="block space-y-2"><span>{model.number === 8 ? 'Nota de petición de pago (Word, PDF o foto)' : 'Antecedentes de esta compra (opcional)'}</span><input className={control} type="file" multiple accept=".pdf,.docx,.txt,.jpg,.jpeg,.png,.webp" onChange={e => { const selected = Array.from(e.target.files || []); setFiles(selected); setError(validateAttachmentSelection(selected) || ''); }} /><span className="text-sm text-slate-600">{ATTACHMENT_HELP_TEXT} </span></label>
-        <button className={action} disabled={model.number === 8 && (!draft || !files.length || !!validateAttachmentSelection(files))}
-          onClick={() => refresh(model.number === 8 || context.trim() || pendingInstruction ? "revise" : "complete")}>
-          <Sparkles size={16} />{clarification ? "Responder al asistente" : model.number === 8 ? 'Leer nota y completar solicitud' : "Aplicar cambios con IA"}
+        <label className="block space-y-2"><span>{model.number === 7 ? 'Factura, carta del proveedor o acta (PDF, Word o foto)' : model.number === 8 ? 'Nota de petición de pago (Word, PDF o foto)' : 'Antecedentes de esta compra (opcional)'}</span><input className={control} type="file" multiple accept=".pdf,.docx,.txt,.jpg,.jpeg,.png,.webp" onChange={e => {
+          const chosen = Array.from(e.target.files || []);
+          const additions = model.number === 7 ? chosen.filter(file=>!files.some(existing=>existing.name===file.name && existing.size===file.size && existing.lastModified===file.lastModified)) : chosen;
+          const selected = model.number === 7 ? [...files,...additions] : additions;
+          const issue = validateAttachmentSelection(selected);
+          if (!issue || model.number !== 7) setFiles(selected);
+          setError(issue || '');
+          if (model.number === 7) e.target.value='';
+        }} /><span className="text-sm text-slate-600">{ATTACHMENT_HELP_TEXT} </span></label>
+        {model.number === 7 && files.length > 0 && <ul className="space-y-1 text-sm">{files.map((file,index)=>
+          <li key={`${file.name}:${file.lastModified}`} className="flex flex-wrap items-center gap-2">
+            {file.name}<button type="button" className="underline text-primary" aria-label={`Quitar ${file.name}`} onClick={()=>{setFiles(files.filter((_,i)=>i!==index));setError('');}}>Quitar</button>
+          </li>
+        )}</ul>}
+        <label className="block space-y-2"><span className="font-semibold">{model.number === 7 ? 'Datos adicionales (opcional)' : 'Describe lo que necesitas o los datos que cambian'}</span><textarea className={control} rows={model.number === 7 ? 2 : 4} value={context} onChange={e => {setContext(e.target.value);setDirty(true);}} placeholder={model.number === 7 ? 'Ej. Número de orden o indicación para el informe.' : 'Ejemplo: cambia la entrega a 45 días o modifica la cantidad del ítem 2.'} /></label>
+        <button className={action} disabled={[7,8].includes(model.number) && (!draft || (model.number === 8 ? !files.length : !files.length && !context.trim()) || !!validateAttachmentSelection(files))}
+          onClick={() => refresh(model.number === 7 && files.length ? "complete" : model.number === 8 || context.trim() || pendingInstruction ? "revise" : "complete")}>
+          <Sparkles size={16} />{clarification ? "Responder al asistente" : model.number === 7 && files.length ? 'Generar informe con los archivos' : model.number === 8 ? 'Leer nota y completar solicitud' : "Aplicar cambios con IA"}
         </button>
       </div>}
       {draft && model.number !== TECHNICAL_JUSTIFICATION_MODEL && !!officialPeopleKeys[model.number]?.length &&
