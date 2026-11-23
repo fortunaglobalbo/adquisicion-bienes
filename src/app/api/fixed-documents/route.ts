@@ -20,6 +20,7 @@ import { updateComparativeReport } from '@/lib/server/comparativeReport';
 import { readPurchaseAttachments, cleanupPurchaseAttachments } from '@/lib/server/attachmentUploads';
 import { prepareVisionImage } from '@/lib/server/visionImages';
 import { MAX_VISION_IMAGES } from '@/lib/uploads/attachmentPolicy';
+import { tdrPreview } from '@/lib/server/tdrPreview';
 import { conformityFallbackMessage } from '@/lib/server/conformityReport';
 
 export const runtime = "nodejs";
@@ -159,7 +160,8 @@ export async function POST(req: NextRequest) {
       } catch { previewWarning = "El convertidor PDF no respondió. Se muestra el contenido; el Word sigue disponible."; }
     }
     const mammoth = await import("mammoth");
-    const html = number===2 ? await wordFormPreview(output.buffer)
+    const html = number===1 ? await tdrPreview(output.buffer)
+      : number===2 ? await wordFormPreview(output.buffer)
       : number===8 ? await paymentPreview(output.buffer)
       : [3,6].includes(number) ? await evaluationPreview(output.buffer)
       : [5,7,9].includes(number) ? await institutionalReportPreview(output.buffer,number)

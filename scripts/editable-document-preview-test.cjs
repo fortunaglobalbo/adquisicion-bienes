@@ -37,6 +37,12 @@ async function main() {
       assert.ok(html.includes('data-fixed-field="almacen" data-fixed-choice="Con saldo"'));
       assert.ok(html.includes('data-fixed-field="almacen" data-fixed-choice="Sin saldo"'));
     }
+    if (model.number === 1) {
+      const entries = [...html.matchAll(/class="tdr-index-entry"><a href="#section_(\d+)"><span class="tdr-index-number">(\d+)\./g)];
+      assert.deepEqual(entries.map(entry=>[Number(entry[1]),Number(entry[2])]),Array.from({length:14},(_,index)=>[index+1,index+1]));
+      for (let number = 1; number <= 14; number++) assert.ok(html.includes(`id="section_${number}"`));
+      assert.match(html,/Los números de página se calculan al abrir el Word/);
+    }
     if (model.number === 3) assert.ok(!html.includes('data-fixed-field="presupuesto"'), 'El total calculado permanece de solo lectura');
     if (model.number === 6) {
       assert.ok(html.includes('alt="ENDE DEORURO"'), 'Se conserva el logo institucional');

@@ -51,6 +51,7 @@ async function main() {
     assert.equal(text(field), '…', 'Una página aún no calculada no se presenta como 1');
     assert.equal(field.getAttributeNS(W, 'dirty'), 'true');
     assert.equal(elements(field.parentNode, 'keepNext').length, 0, 'El índice no se trata como catorce títulos de cuerpo unidos');
+    assert.equal(elements(field.parentNode, 'pStyle')[0].getAttributeNS(W, 'val'), 'TOC1');
     const bookmark = elements(document, 'bookmarkStart').find(start => start.getAttributeNS(W, 'name') === `section_${index + 1}`);
     assert.ok(bookmark);
     const paragraph = bookmark.parentNode;

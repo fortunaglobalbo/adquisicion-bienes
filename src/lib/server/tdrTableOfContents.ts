@@ -62,8 +62,21 @@ export function addTdrTableOfContents(document: Document, styles: Document): boo
   const runProperties = elements(first, 'rPr')[0];
   if (runProperties) tocStyle.appendChild(styles.importNode(runProperties, true));
   styles.documentElement.appendChild(tocStyle);
+  for (const row of rows) {
+    let properties = child(row, 'pPr');
+    if (!properties) {
+      properties = element(document, 'pPr');
+      row.insertBefore(properties, row.firstChild);
+    }
+    let style = child(properties, 'pStyle');
+    if (!style) {
+      style = element(document, 'pStyle');
+      properties.insertBefore(style, properties.firstChild);
+    }
+    style.setAttributeNS(WORD_NS, 'w:val', TOC_STYLE);
+  }
 
-  const firstContent = properties ? properties.nextSibling : first.firstChild;
+  const firstContent = child(first, 'pPr')?.nextSibling ?? first.firstChild;
   first.insertBefore(fieldBoundary(document, 'begin'), firstContent);
   const codeRun = element(document, 'r');
   const code = element(document, 'instrText');

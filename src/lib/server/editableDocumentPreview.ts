@@ -8,6 +8,7 @@ import { wordFormPreview } from './wordFormPreview';
 import { evaluationPreview, institutionalReportPreview, paymentPreview } from './evaluationPreview';
 import { addSelectionTables } from './selectionWord';
 import { keepTdrHeadingsWithBody } from './wordPagination';
+import { tdrPreview } from './tdrPreview';
 
 const escape = (value: string) => value.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 const lines = (value: string) => escape(value).replace(/\r\n?/g, '\n').replace(/\n/g, '<br>');
@@ -87,7 +88,8 @@ export async function editableDocumentPreview(buffer: Buffer, draft: FixedDraft,
   let editable = await fillTemplate(template, changes, tables, runValues);
   if (model.number === 1) editable = await keepTdrHeadingsWithBody(editable);
   if (model.number === 1 && draft.selectionPlan) editable = await addSelectionTables(editable, draft.selectionPlan);
-  const converted = model.number === 2 ? await wordFormPreview(editable)
+  const converted = model.number === 1 ? await tdrPreview(editable)
+    : model.number === 2 ? await wordFormPreview(editable)
     : model.number === 8 ? await paymentPreview(editable)
     : [3,6].includes(model.number) ? await evaluationPreview(editable)
     : [5,7,9].includes(model.number) ? await institutionalReportPreview(editable,model.number)

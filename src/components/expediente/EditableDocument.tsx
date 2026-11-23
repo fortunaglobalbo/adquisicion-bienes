@@ -237,6 +237,10 @@ export function EditableDocument(props: EditableDocumentProps) {
       .payment-intro {display:grid;grid-template-columns:20% 1fr;align-items:center;gap:12px;margin-bottom:16px;}
       .institutional-document-editor .payment-body-logo img {width:100%;margin:0;}
       .institutional-document-editor .payment-body {margin:0;text-align:justify;}
+      .institutional-document-editor .tdr-index-notice {font-size:12px;color:#475569;margin-bottom:10px;}
+      .institutional-document-editor .tdr-index-entry {margin:0 0 5px;}
+      .tdr-index-entry a {color:#003366;text-decoration:underline;text-underline-offset:3px;}
+      .tdr-index-number {display:inline-block;min-width:2.2em;font-variant-numeric:tabular-nums;}
       .payment-preview ul {margin:0 0 18px;}
       .institutional-document-editor .evaluation-preview table:nth-of-type(2) tr:last-child td {padding-top:20px;padding-bottom:24px;}
       .institutional-document-editor .evaluation-preview .evaluation-process {font-weight:bold;text-align:justify;}

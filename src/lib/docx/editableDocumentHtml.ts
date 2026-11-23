@@ -2,11 +2,14 @@
 const documentTags = new Set([
   'P','BR','DIV','SPAN','STRONG','EM','B','I','U','S','SUB','SUP',
   'H1','H2','H3','H4','H5','H6','TABLE','THEAD','TBODY','TFOOT','TR','TD','TH',
-  'COLGROUP','COL','IMG','UL','OL','LI','HR','BLOCKQUOTE',
+  'COLGROUP','COL','IMG','UL','OL','LI','HR','BLOCKQUOTE','A',
 ]);
 const discardTags = new Set(['SCRIPT','STYLE','IFRAME','OBJECT','EMBED','SVG','MATH','LINK','META','BASE','FORM','INPUT','BUTTON','TEXTAREA','SELECT','OPTION','TEMPLATE']);
 const institutionalClasses = new Set(['evaluation-preview','evaluation-title','evaluation-form','evaluation-name','evaluation-role','evaluation-process','evaluation-rule','evaluation-section','conformity-logo','conformity-date','conformity-reference']);
 for (const className of ['payment-preview', 'payment-header-logo', 'payment-title', 'payment-date', 'payment-reference', 'payment-subject', 'payment-intro', 'payment-body-logo', 'payment-body']) {
+  institutionalClasses.add(className);
+}
+for (const className of ['tdr-index-entry', 'tdr-index-number', 'tdr-index-notice']) {
   institutionalClasses.add(className);
 }
 const layoutProperties = new Set([
@@ -68,6 +71,9 @@ export function sanitizeDocumentElement(root: Element): void {
         if (!/^[a-z][a-z0-9_]{0,80}$/i.test(value)) element.removeAttribute(attr.name);
       } else if (name === 'data-fixed-row') {
         if (!/^\d{1,4}$/.test(value)) element.removeAttribute(attr.name);
+      } else if (tag === 'A' && ((name === 'href' && /^#section_(?:[1-9]|1[0-4])$/.test(value))
+        || (name === 'id' && /^section_(?:[1-9]|1[0-4])$/.test(value)))) {
+        continue;
       } else if (name === 'data-fixed-part') {
         if (!['name','role'].includes(value)) element.removeAttribute(attr.name);
       } else if (name === 'data-fixed-choice') {
